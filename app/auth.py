@@ -19,7 +19,10 @@ def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if not session.get("logged_in"):
-            return redirect(url_for("auth.login", next=request.path))
+            # request.script_root carries the mount prefix (e.g. /pathmate-analyzer)
+            # when behind the reverse proxy - request.path alone would drop it.
+            next_url = request.script_root + request.path
+            return redirect(url_for("auth.login", next=next_url))
         return view(*args, **kwargs)
 
     return wrapped

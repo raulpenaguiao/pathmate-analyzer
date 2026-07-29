@@ -1,6 +1,7 @@
 from flask import Flask
 
 from app.config import Config
+from app.proxy import ReverseProxied
 
 
 def create_app():
@@ -12,6 +13,8 @@ def create_app():
         raise RuntimeError(
             "APP_SECRET_KEY is not set. Copy .env.example to .env and fill it in."
         )
+
+    app.wsgi_app = ReverseProxied(app.wsgi_app)
 
     from app.auth import bp as auth_bp
     from app.routes import bp as main_bp
