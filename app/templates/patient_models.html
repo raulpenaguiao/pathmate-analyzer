@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Patient models - Pathmate Analyzer{% endblock %}
+{% block content %}
+<div class="panel-header">
+	<h1>Patient models</h1>
+	<a class="button" href="{{ url_for('main.patient_model_new') }}">+ New patient model</a>
+</div>
+
+{% if models %}
+<table class="data-table">
+	<thead>
+		<tr>
+			<th>Name</th><th>Archetype</th><th>Notif. response</th><th>Phone time/day</th>
+			<th>Sleep</th><th>Adherence (S/M/A/E)</th><th></th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for m in models %}
+		<tr>
+			<td><a href="{{ url_for('main.patient_model_edit', model_id=m.id) }}">{{ m.name }}</a></td>
+			<td>{% if m.archetype_tag %}<span class="tag">{{ m.archetype_tag }}</span>{% endif %}</td>
+			<td>{{ m.notification_response_minutes }} min</td>
+			<td>{{ m.phone_time_minutes_per_day }} min</td>
+			<td>{{ m.sleep_start }}&ndash;{{ m.sleep_end }}</td>
+			<td>{{ m.adherence_spirometry_pct }}/{{ m.adherence_medication_pct }}/{{ m.adherence_acq_pct }}/{{ m.adherence_education_pct }}%</td>
+			<td class="actions">
+				<a href="{{ url_for('main.patient_model_edit', model_id=m.id) }}">Edit</a>
+				<form method="post" action="{{ url_for('main.patient_model_delete', model_id=m.id) }}" onsubmit="return confirm('Delete this patient model?');">
+					<button type="submit" class="link-button">Delete</button>
+				</form>
+			</td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+{% else %}
+<p class="muted">No patient models yet.</p>
+{% endif %}
+{% endblock %}

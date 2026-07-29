@@ -1,0 +1,82 @@
+name: Release frontend
+
+# Fires on any tag matching release_frontend* (tag names must be unique in git,
+# so release_frontend.sh mints a fresh "release_frontend-<timestamp>" tag per
+# release rather than reusing a single literal tag name).
+on:
+  push:
+    tags:
+      - "release_frontend*"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${DEPLOY_SSH_PORT:-22}" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync application code to server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_PATH:-/opt/pathmate-analyzer}"
+          SSH_PORT="${DEPLOY_SSH_PORT:-22}"
+
+          # Idempotent first-install: create the whole directory tree if it's
+          # missing, so switching DEPLOY_HOST to a brand new VPS just works.
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "${DEPLOY_SSH_USER}@${DEPLOY_HOST}" \
+            "mkdir -p '${REMOTE_PATH}/app' '${REMOTE_PATH}/venv' '${REMOTE_PATH}/data/coachings/files' '${REMOTE_PATH}/data/patient_models' '${REMOTE_PATH}/logs'"
+
+          rsync -az --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='data' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.venv*' \
+            -e "ssh -i ~/.ssh/deploy_key -p ${SSH_PORT}" \
+            ./ "${DEPLOY_SSH_USER}@${DEPLOY_HOST}:${REMOTE_PATH}/app/"
+
+      - name: Run remote deploy (install deps, write .env, restart service)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
+          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_SUDO_PASSWORD: ${{ secrets.DEPLOY_SUDO_PASSWORD }}
+          APP_USERNAME: ${{ secrets.APP_USERNAME }}
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          APP_SECRET_KEY: ${{ secrets.APP_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          REMOTE_PATH="${DEPLOY_PATH:-/opt/pathmate-analyzer}"
+          SSH_PORT="${DEPLOY_SSH_PORT:-22}"
+
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "${DEPLOY_SSH_USER}@${DEPLOY_HOST}" \
+            "DEPLOY_PATH='${REMOTE_PATH}' \
+             DEPLOY_SUDO_PASSWORD='${DEPLOY_SUDO_PASSWORD}' \
+             APP_USERNAME='${APP_USERNAME}' \
+             APP_PASSWORD='${APP_PASSWORD}' \
+             APP_SECRET_KEY='${APP_SECRET_KEY}' \
+             bash '${REMOTE_PATH}/app/deploy/remote_deploy.sh'"
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

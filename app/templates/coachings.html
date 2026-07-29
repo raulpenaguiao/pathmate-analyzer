@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Coachings - Pathmate Analyzer{% endblock %}
+{% block content %}
+<h1>Coachings</h1>
+
+<section class="panel">
+	<h2>Upload a coaching</h2>
+	<form method="post" action="{{ url_for('main.coaching_upload') }}" enctype="multipart/form-data" class="stacked-form">
+		<label>Name
+			<input type="text" name="name" required placeholder="e.g. ALEX v01 zum Ausprobieren">
+		</label>
+		<label>Tag
+			<input type="text" name="tag" placeholder="e.g. asthma, v01, draft">
+		</label>
+		<label>PMCP coaching export (.html)
+			<input type="file" name="file" accept=".html,text/html" required>
+		</label>
+		<button type="submit">Upload</button>
+	</form>
+</section>
+
+<section class="panel">
+	<div class="panel-header">
+		<h2>Saved coachings</h2>
+		{% if all_tags %}
+		<form method="get" class="inline-form">
+			<select name="tag" onchange="this.form.submit()">
+				<option value="">All tags</option>
+				{% for t in all_tags %}
+				<option value="{{ t }}" {% if t == tag_filter %}selected{% endif %}>{{ t }}</option>
+				{% endfor %}
+			</select>
+		</form>
+		{% endif %}
+	</div>
+
+	{% if coachings %}
+	<table class="data-table">
+		<thead>
+			<tr><th>Name</th><th>Tag</th><th>Uploaded</th><th>Size</th><th></th></tr>
+		</thead>
+		<tbody>
+			{% for c in coachings %}
+			<tr>
+				<td><a href="{{ url_for('main.coaching_view', coaching_id=c.id) }}">{{ c.name }}</a></td>
+				<td>{% if c.tag %}<span class="tag">{{ c.tag }}</span>{% endif %}</td>
+				<td>{{ c.uploaded_at[:19] }}</td>
+				<td>{{ (c.size_bytes / 1024) | round(1) }} KB</td>
+				<td class="actions">
+					<a href="{{ url_for('main.coaching_download', coaching_id=c.id) }}">Download</a>
+					<form method="post" action="{{ url_for('main.coaching_delete', coaching_id=c.id) }}" onsubmit="return confirm('Delete this coaching?');">
+						<button type="submit" class="link-button">Delete</button>
+					</form>
+				</td>
+			</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+	{% else %}
+	<p class="muted">No coachings match.</p>
+	{% endif %}
+</section>
+{% endblock %}

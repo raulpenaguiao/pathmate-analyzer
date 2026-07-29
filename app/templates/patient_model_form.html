@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{% if model %}Edit{% else %}New{% endif %} patient model - Pathmate Analyzer{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('main.patient_models_list') }}">&larr; Back to patient models</a></p>
+<h1>{% if model %}Edit patient model{% else %}New patient model{% endif %}</h1>
+
+<form method="post"
+	action="{{ url_for('main.patient_model_update', model_id=model.id) if model else url_for('main.patient_model_create') }}"
+	class="stacked-form">
+
+	<fieldset>
+		<legend>Identity</legend>
+		<label>Name
+			<input type="text" name="name" required value="{{ model.name if model else '' }}">
+		</label>
+		<label>Archetype / tag
+			<input type="text" name="archetype_tag" placeholder="e.g. ghost-after-first-tap"
+				value="{{ model.archetype_tag if model else '' }}">
+		</label>
+		<label>Notes
+			<textarea name="notes" rows="2">{{ model.notes if model else '' }}</textarea>
+		</label>
+	</fieldset>
+
+	<fieldset>
+		<legend>Notification behaviour</legend>
+		<label>Avg. minutes to respond to a notification (when reachable)
+			<input type="number" step="0.1" min="0" name="notification_response_minutes"
+				value="{{ model.notification_response_minutes if model else '5' }}">
+		</label>
+		<label>Minutes on phone per day
+			<input type="number" step="1" min="0" name="phone_time_minutes_per_day"
+				value="{{ model.phone_time_minutes_per_day if model else '180' }}">
+		</label>
+		<label>Completion-after-engagement rate (%)
+			<input type="number" step="1" min="0" max="100" name="completion_after_engagement_pct"
+				value="{{ model.completion_after_engagement_pct if model else '80' }}">
+		</label>
+		<label>Reschedule-acceptance rate (%)
+			<input type="number" step="1" min="0" max="100" name="reschedule_acceptance_pct"
+				value="{{ model.reschedule_acceptance_pct if model else '50' }}">
+		</label>
+	</fieldset>
+
+	<fieldset>
+		<legend>Sleep schedule</legend>
+		<label>Sleep start (HH:MM)
+			<input type="time" name="sleep_start" value="{{ model.sleep_start if model else '23:00' }}">
+		</label>
+		<label>Wake time (HH:MM)
+			<input type="time" name="sleep_end" value="{{ model.sleep_end if model else '07:00' }}">
+		</label>
+	</fieldset>
+
+	<fieldset>
+		<legend>Per-reminder-type adherence (%)</legend>
+		<label>Spirometry
+			<input type="number" step="1" min="0" max="100" name="adherence_spirometry_pct"
+				value="{{ model.adherence_spirometry_pct if model else '70' }}">
+		</label>
+		<label>Medication
+			<input type="number" step="1" min="0" max="100" name="adherence_medication_pct"
+				value="{{ model.adherence_medication_pct if model else '70' }}">
+		</label>
+		<label>ACQ
+			<input type="number" step="1" min="0" max="100" name="adherence_acq_pct"
+				value="{{ model.adherence_acq_pct if model else '70' }}">
+		</label>
+		<label>Education
+			<input type="number" step="1" min="0" max="100" name="adherence_education_pct"
+				value="{{ model.adherence_education_pct if model else '70' }}">
+		</label>
+	</fieldset>
+
+	<button type="submit">{% if model %}Save changes{% else %}Create patient model{% endif %}</button>
+</form>
+{% endblock %}

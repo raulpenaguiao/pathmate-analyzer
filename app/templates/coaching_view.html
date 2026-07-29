@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ coaching.name }} - Pathmate Analyzer{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('main.coachings_list') }}">&larr; Back to coachings</a></p>
+<h1>{{ coaching.name }}</h1>
+<p>
+	{% if coaching.tag %}<span class="tag">{{ coaching.tag }}</span>{% endif %}
+	<span class="muted">uploaded {{ coaching.uploaded_at[:19] }} &middot; {{ coaching.original_filename }}</span>
+</p>
+<p>
+	<a href="{{ url_for('main.coaching_download', coaching_id=coaching.id) }}">Download original file</a>
+</p>
+<iframe class="coaching-frame" src="{{ url_for('main.coaching_raw', coaching_id=coaching.id) }}"></iframe>
+{% endblock %}
