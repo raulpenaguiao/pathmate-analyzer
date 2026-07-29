@@ -220,3 +220,7 @@ __marimo__/
 # Pathmate Analyzer runtime data (uploaded coachings, patient models)
 /data/
 
+# Local-only reference material used during development, not part of the repo
+/Coaching_ALEX_v01_zum_Ausprobieren.html
+/ALEX_v02_simulator_scope.md
+

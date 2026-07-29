@@ -15,10 +15,22 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 	exit 1
 fi
 
-if [ -n "$(git status --porcelain)" ]; then
-	echo "You have uncommitted changes. Commit or stash them first, then re-run this script." >&2
-	git status --short
-	exit 1
+# Only tracked files matter here - untracked files (scratch notes, local
+# reference material, etc.) never end up in the release commit anyway, so
+# they shouldn't block it. Changes to tracked files won't be included either
+# (this only tags the current HEAD), so flag those and ask before proceeding.
+TRACKED_CHANGES="$(git status --porcelain --untracked-files=no)"
+if [ -n "$TRACKED_CHANGES" ]; then
+	echo "You have uncommitted changes to tracked files - they will NOT be part of this release:" >&2
+	echo "$TRACKED_CHANGES" >&2
+	read -r -p "Release the current HEAD anyway? [y/N] " CONFIRM
+	case "$CONFIRM" in
+		[yY]|[yY][eE][sS]) ;;
+		*)
+			echo "Aborted." >&2
+			exit 1
+			;;
+	esac
 fi
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
