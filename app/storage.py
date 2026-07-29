@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.coaching_stats import compute_stats
 from app.config import Config
 
 
@@ -57,6 +58,13 @@ def save_coaching(name: str, tag: str, filename: str, file_bytes: bytes):
     with open(file_path, "wb") as f:
         f.write(file_bytes)
 
+    try:
+        stats = compute_stats(file_bytes)
+    except Exception:
+        # A malformed/unexpected export shouldn't block the upload - just
+        # store it without stats rather than losing the file.
+        stats = {}
+
     meta = {
         "id": coaching_id,
         "name": name,
@@ -65,6 +73,7 @@ def save_coaching(name: str, tag: str, filename: str, file_bytes: bytes):
         "stored_filename": stored_filename,
         "size_bytes": len(file_bytes),
         "uploaded_at": _now_iso(),
+        "stats": stats,
     }
     _write_json(Config.COACHINGS_DIR / f"{coaching_id}.json", meta)
     return meta

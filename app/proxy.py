@@ -15,7 +15,12 @@ class ReverseProxied:
             environ["SCRIPT_NAME"] = script_name
             path_info = environ.get("PATH_INFO", "")
             if path_info.startswith(script_name):
-                environ["PATH_INFO"] = path_info[len(script_name):]
+                stripped = path_info[len(script_name):]
+                # Hitting the bare mount point (no trailing slash, nothing after
+                # it) strips to an empty string, which Flask's router does not
+                # treat the same as "/" - force it back to "/" so the root
+                # route still matches.
+                environ["PATH_INFO"] = stripped or "/"
 
         scheme = environ.get("HTTP_X_FORWARDED_PROTO", "")
         if scheme:

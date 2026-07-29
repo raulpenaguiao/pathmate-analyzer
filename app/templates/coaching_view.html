@@ -10,5 +10,101 @@
 <p>
 	<a href="{{ url_for('main.coaching_download', coaching_id=coaching.id) }}">Download original file</a>
 </p>
+
+{% set s = coaching.get('stats', {}) %}
+{% if s %}
+<section class="panel">
+	<h2>Statistics</h2>
+
+	<div class="card-grid">
+		<div class="card">
+			<h2>{{ s.get('rules', {}).get('total', 0) }}</h2>
+			<p>Top-level rules<br><span class="muted">(DAILY/PERIODIC basis)</span></p>
+		</div>
+		<div class="card">
+			<h2>{{ s.get('micro_dialogs', {}).get('dialogs_total', 0) }}</h2>
+			<p>Micro Dialogs<br><span class="muted">{{ s.get('micro_dialogs', {}).get('nodes_total', 0) }} nodes total</span></p>
+		</div>
+		<div class="card">
+			<h2>{{ s.get('unique_variables', 0) }}</h2>
+			<p>Unique variables</p>
+		</div>
+	</div>
+
+	<div class="two-col">
+		<section>
+			<h3>Rules</h3>
+			<table class="data-table">
+				<tr><th>Total (top-level)</th><td>{{ s.get('rules', {}).get('total', 0) }}</td></tr>
+				<tr><th>Max nesting depth</th><td>{{ s.get('rules', {}).get('max_depth', 0) }}</td></tr>
+				<tr><th title="Rules that end the participant's intervention when true">Stop-intervention rules</th>
+					<td>{{ s.get('rules', {}).get('stop_intervention_yes', 0) }}</td></tr>
+				<tr><th>Direct send-message rules</th><td>{{ s.get('rules', {}).get('send_message_yes', 0) }}</td></tr>
+			</table>
+
+			<h3>Message Groups</h3>
+			<table class="data-table">
+				<tr><th>Groups</th><td>{{ s.get('message_groups', {}).get('groups_total', 0) }}</td></tr>
+				<tr><th>Messages</th><td>{{ s.get('message_groups', {}).get('messages_total', 0) }}</td></tr>
+			</table>
+
+			<h3>Channels</h3>
+			{% set channels = s.get('channels', {}) %}
+			{% if channels %}
+			<table class="data-table">
+				{% for channel, count in channels.items() %}
+				<tr><th>{{ channel }}</th><td>{{ count }}</td></tr>
+				{% endfor %}
+			</table>
+			{% else %}
+			<p class="muted">No channel data.</p>
+			{% endif %}
+		</section>
+
+		<section>
+			<h3>Micro Dialog nodes</h3>
+			{% set md = s.get('micro_dialogs', {}) %}
+			<table class="data-table">
+				<tr><th>Messages</th><td>{{ md.get('messages', 0) }}</td></tr>
+				<tr><th>Command messages</th><td>{{ md.get('command_messages', 0) }}</td></tr>
+				<tr><th>Decision points</th><td>{{ md.get('decision_points', 0) }}</td></tr>
+				{% if md.get('unknown_node_types') %}
+				{% for type_name, count in md.get('unknown_node_types', {}).items() %}
+				<tr><th>{{ type_name }}</th><td>{{ count }}</td></tr>
+				{% endfor %}
+				{% endif %}
+			</table>
+
+			<h3>Dialog size (nodes per dialog)</h3>
+			{% set dist = md.get('size_distribution', {}) %}
+			<table class="data-table">
+				<tr><th>Min / Avg / Max</th><td>{{ dist.get('min', 0) }} / {{ dist.get('avg', 0) }} / {{ dist.get('max', 0) }}</td></tr>
+			</table>
+			{% if md.get('largest_dialogs') %}
+			<p class="muted">Largest dialogs:</p>
+			<ul class="plain-list">
+				{% for d in md.get('largest_dialogs', []) %}
+				<li>{{ d.name }} <span class="tag">{{ d.node_count }} nodes</span></li>
+				{% endfor %}
+			</ul>
+			{% endif %}
+
+			<h3>Translation completeness</h3>
+			{% set languages = s.get('languages', {}) %}
+			{% if languages %}
+			<table class="data-table">
+				<tr><th>Language</th><th>Set</th><th>Not set</th><th>%</th></tr>
+				{% for lang, l in languages.items() %}
+				<tr><th>{{ lang }}</th><td>{{ l.get('set', 0) }}</td><td>{{ l.get('not_set', 0) }}</td><td>{{ l.get('pct_set', 0) }}%</td></tr>
+				{% endfor %}
+			</table>
+			{% else %}
+			<p class="muted">No language data.</p>
+			{% endif %}
+		</section>
+	</div>
+</section>
+{% endif %}
+
 <iframe class="coaching-frame" src="{{ url_for('main.coaching_raw', coaching_id=coaching.id) }}"></iframe>
 {% endblock %}
