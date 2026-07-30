@@ -9,7 +9,7 @@ matter here:
   visually via a border-left-width style (20px per level).
 - "Message Groups and Messages" and "Micro Dialogs" genuinely nest tables
   (a message group contains per-message tables, a micro dialog contains
-  per-node tables, which themselves contain further nested tables for
+  per-item tables, which themselves contain further nested tables for
   multi-language text). Naive non-greedy regex across "</table>" cannot
   tell these apart, so a small balanced-tag scanner is used instead of
   pulling in an HTML parsing dependency for what is otherwise a very
@@ -126,6 +126,45 @@ def _rules_stats(rules_div: str) -> dict:
     }
 
 
+def build_rule_tree(rules_div: str) -> list[dict]:
+    """Reconstruct the real parent/child nesting from the flat, depth-indented
+    sequence of rule tables (see module docstring - nesting is only implied
+    visually via border-left-width, not actual DOM nesting)."""
+    roots: list[dict] = []
+    stack: list[tuple[int, dict]] = []  # (depth, item), innermost last
+
+    for block in _iter_blocks(rules_div, "table", "automatic"):
+        depth_m = _RULE_DEPTH_RE.search(block)
+        depth = int(depth_m.group(1)) // 20 if depth_m else 0
+
+        comment = _clean_text(_field(block, "Comment:"))
+        variable = _clean_text(_field(block, "Variable to store value to:"))
+        stop_field = _field(block, "Stop Intervention when TRUE:")
+        send_field = _field(block, "Send message when TRUE:")
+
+        item = {
+            "rule": _clean_text(_field(block, "Rule:")),
+            "comment": comment if comment != "[not set]" else "",
+            "variable": variable if variable != "[not set]" else "",
+            "stop_intervention": bool(stop_field and 'class="yes"' in stop_field),
+            "send_message": bool(send_field and 'class="yes"' in send_field),
+            "children": [],
+        }
+
+        while stack and stack[-1][0] >= depth:
+            stack.pop()
+
+        (stack[-1][1]["children"] if stack else roots).append(item)
+        stack.append((depth, item))
+
+    return roots
+
+
+def extract_rules_tree(file_bytes: bytes) -> list[dict]:
+    body = file_bytes.decode("utf-8", errors="replace")
+    return build_rule_tree(_section_div(body, "Rules"))
+
+
 # ---------------------------------------------------------------------------
 # Message Groups and Messages
 # ---------------------------------------------------------------------------
@@ -142,40 +181,44 @@ def _message_group_stats(mg_div: str) -> dict:
 # Micro Dialogs
 # ---------------------------------------------------------------------------
 
-_NODE_TYPE_RE = re.compile(
-    r"^\s*<tr\s*><th\s*>(Micro Dialog (?:Message|Command Message|Decision Point))</th></tr>"
+# A Micro Dialog is a sequence of items, each one of three types: a message
+# (a plain message or a command message are both message variants), a
+# decision point, or an event.
+_ITEM_TYPE_RE = re.compile(
+    r"^\s*<tr\s*><th\s*>(Micro Dialog (?:Message|Command Message|Decision Point|Event))</th></tr>"
 )
 
 
-def _classify_node(node_html: str) -> str:
-    m = _NODE_TYPE_RE.match(node_html)
+def _classify_item(item_html: str) -> str:
+    m = _ITEM_TYPE_RE.match(item_html)
     return m.group(1) if m else "Unknown"
 
 
 def _micro_dialog_stats(md_div: str) -> dict:
-    node_type_counts: Counter = Counter()
+    item_type_counts: Counter = Counter()
     dialog_sizes = []
     largest = []
 
     for dialog in _iter_blocks(md_div, "table", "automatic"):
         name = _clean_text(_field(dialog, "Name:")) or "(unnamed)"
-        nodes = list(_iter_blocks(dialog, "table", "automatic"))
-        for node in nodes:
-            node_type_counts[_classify_node(node)] += 1
+        items = list(_iter_blocks(dialog, "table", "automatic"))
+        for item in items:
+            item_type_counts[_classify_item(item)] += 1
 
-        dialog_sizes.append(len(nodes))
-        largest.append({"name": name, "node_count": len(nodes)})
+        dialog_sizes.append(len(items))
+        largest.append({"name": name, "item_count": len(items)})
 
-    largest.sort(key=lambda d: d["node_count"], reverse=True)
+    largest.sort(key=lambda d: d["item_count"], reverse=True)
 
     return {
         "dialogs_total": len(dialog_sizes),
-        "nodes_total": sum(dialog_sizes),
-        "messages": node_type_counts.get("Micro Dialog Message", 0),
-        "command_messages": node_type_counts.get("Micro Dialog Command Message", 0),
-        "decision_points": node_type_counts.get("Micro Dialog Decision Point", 0),
-        "unknown_node_types": {
-            k: v for k, v in node_type_counts.items() if k == "Unknown" and v
+        "items_total": sum(dialog_sizes),
+        "messages": item_type_counts.get("Micro Dialog Message", 0),
+        "command_messages": item_type_counts.get("Micro Dialog Command Message", 0),
+        "decision_points": item_type_counts.get("Micro Dialog Decision Point", 0),
+        "events": item_type_counts.get("Micro Dialog Event", 0),
+        "unknown_item_types": {
+            k: v for k, v in item_type_counts.items() if k == "Unknown" and v
         },
         "size_distribution": {
             "min": min(dialog_sizes) if dialog_sizes else 0,

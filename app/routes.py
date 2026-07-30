@@ -11,6 +11,7 @@ from flask import (
 
 from app import storage
 from app.auth import login_required
+from app.coaching_stats import extract_rules_tree
 
 bp = Blueprint("main", __name__)
 
@@ -87,6 +88,18 @@ def coaching_raw(coaching_id):
     if file_path is None or not file_path.exists():
         abort(404)
     return send_file(file_path, mimetype="text/html")
+
+
+@bp.route("/coachings/<coaching_id>/rules-tree")
+@login_required
+def coaching_rules_tree(coaching_id):
+    file_path = storage.coaching_file_path(coaching_id)
+    if file_path is None or not file_path.exists():
+        abort(404)
+    with open(file_path, "rb") as f:
+        file_bytes = f.read()
+    tree = extract_rules_tree(file_bytes)
+    return render_template("rules_tree_fragment.html", tree=tree)
 
 
 @bp.route("/coachings/<coaching_id>/download")

@@ -1,0 +1,24 @@
+{% macro render_rule(item) %}
+<details class="rule-item" {% if not item.children %}open{% endif %}>
+	<summary>
+		<span class="rule-text">{{ item.rule }}</span>
+		{% if item.stop_intervention %}<span class="tag tag-danger">stops intervention</span>{% endif %}
+		{% if item.send_message %}<span class="tag">sends message</span>{% endif %}
+	</summary>
+	<div class="rule-meta">
+		{% if item.comment %}<p class="muted">{{ item.comment }}</p>{% endif %}
+		{% if item.variable %}<p class="muted">&rarr; stores to <code>{{ item.variable }}</code></p>{% endif %}
+	</div>
+	{% for child in item.children %}
+		{{ render_rule(child) }}
+	{% endfor %}
+</details>
+{% endmacro %}
+
+{% if tree %}
+	{% for item in tree %}
+		{{ render_rule(item) }}
+	{% endfor %}
+{% else %}
+	<p class="muted">No rules found in this coaching.</p>
+{% endif %}
