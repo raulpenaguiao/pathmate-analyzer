@@ -1,6 +1,7 @@
 from flask import Flask
 
 from app.config import Config
+from app.deploy_info import read_deploy_info
 from app.proxy import ReverseProxied
 
 
@@ -21,5 +22,9 @@ def create_app():
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
+
+    @app.context_processor
+    def inject_deploy_info():
+        return {"deploy_info": read_deploy_info()}
 
     return app

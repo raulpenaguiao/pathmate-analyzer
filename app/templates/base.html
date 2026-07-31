@@ -35,5 +35,13 @@
 
 	{% block content %}{% endblock %}
 </main>
+
+{% if deploy_info %}
+<footer class="deploy-footer">
+	Deployed from <code>{{ deploy_info.get('commit', '?') }}</code>
+	by {{ deploy_info.get('author', 'unknown') }}
+	&mdash; <span class="muted">{{ deploy_info.get('message', '') }}</span>
+</footer>
+{% endif %}
 </body>
 </html>

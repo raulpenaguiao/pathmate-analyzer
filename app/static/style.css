@@ -141,6 +141,20 @@ button.link-button {
 
 .inline-form { display: inline; }
 
+.deploy-footer {
+	max-width: 960px;
+	margin: 24px auto 0;
+	padding: 12px 24px 24px;
+	font-size: 0.8em;
+	color: var(--muted);
+	border-top: 1px solid var(--border);
+}
+.deploy-footer code {
+	background: rgb(247, 247, 247);
+	padding: 1px 5px;
+	border-radius: 4px;
+}
+
 dialog.tree-dialog {
 	width: min(760px, 90vw);
 	max-height: 80vh;

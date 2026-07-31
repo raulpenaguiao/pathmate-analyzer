@@ -224,3 +224,6 @@ __marimo__/
 /Coaching_ALEX_v01_zum_Ausprobieren.html
 /ALEX_v02_simulator_scope.md
 
+# Generated per-checkout at deploy/run time (see deploy/generate_deploy_info.sh)
+/DEPLOY.md
+

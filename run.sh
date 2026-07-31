@@ -28,6 +28,8 @@ echo "==> Installing/updating dependencies"
 .venv/bin/pip install --quiet --upgrade pip
 .venv/bin/pip install --quiet -r requirements.txt
 
+bash ./deploy/generate_deploy_info.sh
+
 PORT="${PORT:-8000}"
 echo "==> Starting Pathmate Analyzer on http://localhost:${PORT}"
 exec .venv/bin/python wsgi.py
