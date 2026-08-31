@@ -1,93 +1,21 @@
 """Extracts summary statistics from a raw PMCP coaching HTML export.
 
-The export (see the accordion sections: Basic Settings / Surveys / Rules /
-Message Groups and Messages / Micro Dialogs) has two different shapes that
-matter here:
-
-- The "Rules" section is a FLAT sequence of independent
-  <table class="automatic"> blocks, one per rule, with nesting only implied
-  visually via a border-left-width style (20px per level).
-- "Message Groups and Messages" and "Micro Dialogs" genuinely nest tables
-  (a message group contains per-message tables, a micro dialog contains
-  per-item tables, which themselves contain further nested tables for
-  multi-language text). Naive non-greedy regex across "</table>" cannot
-  tell these apart, so a small balanced-tag scanner is used instead of
-  pulling in an HTML parsing dependency for what is otherwise a very
-  regular, machine-generated document.
+The "Rules" section is a FLAT sequence of independent <table class="automatic">
+blocks with nesting implied only via a border-left-width style (20px per level),
+while "Message Groups and Messages" and "Micro Dialogs" genuinely nest tables.
+The balanced-tag scanner that tells these apart lives in :mod:`app.pmcp_html`;
+:mod:`app.coaching_model` builds the browsable model on top of the same helpers.
 """
 from __future__ import annotations
 
-import html
 import re
 from collections import Counter
 
-_TAG_PATTERN_CACHE: dict[str, re.Pattern] = {}
-
-
-def _tag_pattern(tag: str) -> re.Pattern:
-    if tag not in _TAG_PATTERN_CACHE:
-        _TAG_PATTERN_CACHE[tag] = re.compile(rf"<{tag}\b[^>]*>|</{tag}>")
-    return _TAG_PATTERN_CACHE[tag]
-
-
-def _find_matching_close(text: str, pos: int, tag: str) -> int:
-    """`pos` must sit right after an already-open <tag ...> (implied depth 1).
-    Returns the start index of the </tag> that closes it, correctly skipping
-    over any nested <tag>...</tag> occurrences in between."""
-    depth = 1
-    for m in _tag_pattern(tag).finditer(text, pos):
-        if m.group(0)[1] == "/":
-            depth -= 1
-            if depth == 0:
-                return m.start()
-        else:
-            depth += 1
-    return len(text)
-
-
-def _iter_blocks(text: str, tag: str, class_value: str | None = None):
-    """Yield inner_html for each top-level <tag ...>...</tag> block in text
-    (i.e. not nested inside another block of the same tag already returned),
-    optionally filtered to a given class="..." attribute value."""
-    open_re = re.compile(rf"<{tag}\b([^>]*)>")
-    pos = 0
-    while True:
-        m = open_re.search(text, pos)
-        if not m:
-            return
-        close_start = _find_matching_close(text, m.end(), tag)
-        if class_value is None or f'class="{class_value}"' in m.group(1):
-            yield text[m.end():close_start]
-        pos = close_start + len(f"</{tag}>")
-
-
-def _section_div(body: str, header_text: str) -> str:
-    """Inner HTML of the <div> immediately following <h2>header_text</h2>."""
-    marker = f"<h2>{header_text}</h2>"
-    idx = body.find(marker)
-    if idx == -1:
-        return ""
-    rest = body[idx + len(marker):]
-    open_m = re.search(r"<div[^>]*>", rest)
-    if not open_m:
-        return ""
-    start = idx + len(marker) + open_m.end()
-    close_start = _find_matching_close(body, start, "div")
-    return body[start:close_start]
-
-
-_TAG_STRIP_RE = re.compile(r"<[^>]+>")
-
-
-def _clean_text(raw: str | None) -> str:
-    if not raw:
-        return ""
-    return html.unescape(_TAG_STRIP_RE.sub("", raw)).strip()
-
-
-def _field(inner_html: str, label: str) -> str | None:
-    m = re.search(rf"<th[^>]*>{re.escape(label)}</th><td\s*>(.*?)</td>", inner_html, re.DOTALL)
-    return m.group(1) if m else None
+from app.pmcp_html import clean_text as _clean_text
+from app.pmcp_html import field as _field
+from app.pmcp_html import find_matching_close as _find_matching_close
+from app.pmcp_html import iter_blocks as _iter_blocks
+from app.pmcp_html import section_div as _section_div
 
 
 # ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@ from flask import (
     Blueprint,
     abort,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -11,6 +12,8 @@ from flask import (
 
 from app import storage
 from app.auth import login_required
+from app.coaching_model import load_model
+from app.coaching_sim import Simulator
 from app.coaching_stats import extract_rules_tree
 
 bp = Blueprint("main", __name__)
@@ -78,7 +81,57 @@ def coaching_view(coaching_id):
     meta = storage.get_coaching(coaching_id)
     if meta is None:
         abort(404)
-    return render_template("coaching_view.html", coaching=meta)
+    return render_template(
+        "coaching_view.html", coaching=meta, model=load_model(coaching_id)
+    )
+
+
+@bp.route("/coachings/<coaching_id>/tab/micro-dialogs")
+@login_required
+def coaching_micro_dialogs(coaching_id):
+    meta = storage.get_coaching(coaching_id)
+    model = load_model(coaching_id)
+    if meta is None or model is None:
+        abort(404)
+    return render_template(
+        "_tab_micro_dialogs.html", coaching=meta, model=model
+    )
+
+
+@bp.route("/coachings/<coaching_id>/sim/init")
+@login_required
+def coaching_sim_init(coaching_id):
+    model = load_model(coaching_id)
+    if model is None:
+        abort(404)
+    sim = Simulator(model)
+    return jsonify(
+        state=sim.initial_state(),
+        dialogs=[{"i": d.i, "name": d.name} for d in model.micro_dialogs],
+        groups=[{"i": g.i, "name": g.name} for g in model.message_groups],
+        languages=model.languages,
+    )
+
+
+@bp.route("/coachings/<coaching_id>/sim/step", methods=["POST"])
+@login_required
+def coaching_sim_step(coaching_id):
+    model = load_model(coaching_id)
+    if model is None:
+        abort(404)
+    payload = request.get_json(silent=True) or {}
+    state = payload.get("state")
+    action = payload.get("action") or {}
+    sim = Simulator(model, lang=payload.get("lang"))
+    if not isinstance(state, dict):
+        state = sim.initial_state()
+    try:
+        state = sim.step(state, action)
+    except Exception as exc:  # keep a bad rule from 500-ing the whole run
+        state.setdefault("transcript", []).append(
+            {"kind": "system", "text": f"Simulation error: {exc}", "t": ""}
+        )
+    return jsonify(state=state)
 
 
 @bp.route("/coachings/<coaching_id>/raw")

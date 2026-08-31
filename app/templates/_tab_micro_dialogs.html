@@ -1,0 +1,78 @@
+{% macro var_link(name) -%}
+<a class="var" href="#var-{{ name[1:] }}" data-jump>{{ name }}</a>
+{%- endmacro %}
+
+{% macro dialog_target(model, name) -%}
+	{% set anchor = model.dialog_anchor(name) %}
+	{% if anchor %}<a href="#{{ anchor }}" data-jump>{{ name }}</a>{% else %}{{ name }}{% endif %}
+{%- endmacro %}
+
+{% macro lang_text(mapping) -%}
+	{% for lang, txt in mapping.items() %}<span class="lang lang--{{ lang }}">{{ txt or '[not set]' }}</span>{% endfor %}
+{%- endmacro %}
+
+<div class="md-toolbar panel-toolbar">
+	<input type="search" id="dlg-filter" placeholder="Filter dialogs by name&hellip;">
+	<label class="muted">Language
+		<select id="md-lang">
+			{% for lang in model.languages %}<option value="{{ lang }}">{{ lang }}</option>{% endfor %}
+		</select>
+	</label>
+</div>
+
+<div class="md-panel" data-lang="{{ model.languages[0] }}">
+{% for d in model.micro_dialogs %}
+<details class="dlg" id="{{ d.anchor }}" data-name="{{ d.name | lower }}">
+	<summary>
+		<span class="dlg-name">{{ d.name }}</span>
+		<span class="chip chip-neutral">{{ d.nodes | length }} nodes</span>
+		{% if d.comment %}<span class="muted">{{ d.comment }}</span>{% endif %}
+	</summary>
+	{% if d.nodes %}
+	<ol class="node-list">
+		{% for n in d.nodes %}
+		<li class="node node-{{ n.type }}" id="{{ n.anchor(d.i) }}">
+			<div class="node-body">
+				<span class="chip chip-neutral">{{ n.type }}</span>
+				{% if n.comment %}<span class="node-comment">{{ n.comment }}</span>{% endif %}
+			</div>
+
+			{% if n.type == 'message' %}
+				{% if n.text_by_lang %}<div class="node-line node-text">{{ lang_text(n.text_by_lang) }}</div>{% endif %}
+				{% if n.answer_options_by_lang %}
+					<div class="answer-opts">
+						{% for lang, opt in n.answer_options_by_lang.items() %}<span class="lang lang--{{ lang }}">{{ opt }}</span>{% endfor %}
+					</div>
+				{% endif %}
+				{% if n.media_file %}<div class="node-meta">media: {{ n.media_file }}</div>{% endif %}
+				{% if n.jump_msg_true %}<div class="node-meta">on TRUE &rarr; jumps to another message</div>{% endif %}
+				{% if n.jump_msg_false %}<div class="node-meta">on FALSE &rarr; jumps to another message</div>{% endif %}
+			{% elif n.type == 'command' %}
+				<div class="node-line mono">{{ lang_text(n.command_by_lang) }}</div>
+			{% elif n.type == 'decision' %}
+				{% for b in n.branches %}
+				<div class="branch">
+					<span class="mono muted">{{ b.expr }}</span>
+					{% if b.jump_dialog %}<div>on TRUE &rarr; jumps to {{ dialog_target(model, b.jump_dialog) }}</div>{% endif %}
+					{% if b.cascade_dialog %}<div>on TRUE &rarr; cascades to {{ dialog_target(model, b.cascade_dialog) }}</div>{% endif %}
+					{% if b.stop_micro_dialog %}<div class="muted">stops this micro dialog</div>{% endif %}
+					{% if b.leave_decision_point %}<div class="muted">leaves this decision point</div>{% endif %}
+					{% if b.writes_var %}<div>&rarr; writes {{ var_link(b.writes_var) }}</div>{% endif %}
+				</div>
+				{% endfor %}
+			{% endif %}
+
+			{% if n.trigger_exprs and n.type != 'decision' %}
+				<div class="node-meta">shown when: {{ n.trigger_exprs | join('; ') }}</div>
+			{% endif %}
+			{% if n.channel %}<div class="node-meta">channel: {{ n.channel }}</div>{% endif %}
+			{% if n.writes_var %}<div class="node-meta">&rarr; writes {{ var_link(n.writes_var) }}</div>{% endif %}
+		</li>
+		{% endfor %}
+	</ol>
+	{% else %}
+	<p class="muted" style="padding: 0 12px 12px">This dialog has no nodes.</p>
+	{% endif %}
+</details>
+{% endfor %}
+</div>
