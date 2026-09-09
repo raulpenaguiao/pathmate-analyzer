@@ -4,6 +4,7 @@ A web tool for analysing PMCP coaching exports. Upload an HTML export, get stati
 
 ## TL;DR
 
+- `TASKS.md` is the checklist, in the user's own task wording. This file is the writeup — read both.
 - Five open workstreams are tracked below, each on its own branch. Workstream 1 (the `r_` groups report) is done.
 - Everything else waits on **Stage 3 of the coaching exporter**: pulling rule-level timing data out of the live PMCP editor.
 - **Big correction today (2026-09-09):** PMCP has no priority/tier field anywhere. Pile-up behaviour comes from rule execution order and per-rule timeouts, not a P0–P3 system. Our earlier `ALEX_v02_simulator_scope.md` design assumed a tier system that doesn't exist. See "Status" below.
@@ -103,3 +104,5 @@ Workstreams 2–4 all eventually need hands-on time in the live PMCP Vaadin edit
 - **The Rules tab has no explicit priority/tier/interrupt field anywhere.** Confirmed by opening live "Edit rule:" modals and grepping their full HTML. See "The priority-field correction" above. Don't go looking for a priority column — it isn't there.
 
 See also `tools/coaching-bundle-export/README.md`'s "Known hiccups" section. It overlaps with this list but is scoped to the export script specifically.
+
+Every live-portal session (exploration or write) gets a dated log entry in `autochanges/` — see `autochanges/README.md` for the format. That's the raw log; this section is the maintained summary of what it taught us.
