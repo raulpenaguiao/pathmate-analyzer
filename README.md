@@ -34,15 +34,21 @@ Interruption and pile-up behaviour is emergent, from two real mechanisms:
 
 ## Roadmap: five workstreams
 
-Reordered here by dependency, not by the order they were raised. **Workstream 3 (finish the export) is the pivot everything else leans on.** The pile-up analysis needs real rule-timing data. The in-app simulator and patient simulation both need routing/delay data too. All three can start in parallel on what already exists, but none reach full fidelity without workstream 3.
+Reordered here by dependency, not by the order they were raised.
+
+**Replanned 2026-09-09.** We originally thought workstream 3 (finish the export) had to happen before workstream 2 (pile-up analysis) could start at all. That's wrong. Since pile-up is just rule order + per-rule timeout — both fully visible today in the live Rules tab, and rules are literally drag-to-reorder in that UI ("Rules can be moved with the mouse!", per the tab's own Info panel) — a first, useful pass at workstream 2 needs no export at all. So workstream 2 is split: **2a** (read the live Rules tab by hand, write findings) is unblocked and is the next concrete step. **2b** (a rigorous pass covering every reminder rule, cross-checked in bulk) still waits on workstream 3.
 
 ```
 1. r_ report        [done]
-3. Finish export ────────► 2. Pile-up first steps  (needs rule-timing data)
-   (Stage 3: rule            │
-   delay/timeout/routing)    │
-        │                    │
-        ▼                    ▼
+
+2a. Pile-up: manual first pass  [unblocked, do next]
+        │
+        ▼
+3. Finish export (Stage 3: rule delay/timeout/routing)
+        │
+        ├──────────────► 2b. Pile-up: rigorous pass (bulk data)
+        │
+        ▼
 4. In-app faithful simulator (Stage 4) ────► 5. Markov patient simulation
    (bundle → CoachingModel → Chat tab)         (batch runs, invariant checks)
 ```
@@ -50,8 +56,9 @@ Reordered here by dependency, not by the order they were raised. **Workstream 3 
 | # | Workstream | Status | Branch |
 |---|---|---|---|
 | 1 | **`r_` entries report** | Done. `docs/randomisation_groups_ALEX_v01.md`, backed by `tools/rgroups-table/rgroups_table.csv`. | merged to `main` |
-| 2 | **ALEX pile-up first steps** | Not started. Blocked on #3 for real rule order/timeout data. Can start qualitatively now by reading the live Rules tab. | `alex-pileup-analysis` |
-| 3 | **Exhaustive machine-readable export** | Partial. Stage 1+2 done (`coaching.bundle.v2.json`). Stage 3 not started: rule-level send-delay/timeout and answer→child routing, from per-rule "Edit rule:" modals. `probe_node_editor.py` is the groundwork; confirmed live it can open these modals. | `bundle-export-stage3` |
+| 2a | **ALEX pile-up — manual first pass** | Not started, **unblocked, do next**. Read the live Rules tab's actual order/timeouts for the reminder rules. | `alex-pileup-analysis` |
+| 2b | **ALEX pile-up — rigorous pass** | Not started. Needs #3's bulk data instead of hand-reading. | `alex-pileup-analysis` |
+| 3 | **Exhaustive machine-readable export** | Partial. Stage 1+2 done (`coaching.bundle.v2.json`). Stage 3 not started: rule-level send-delay/timeout and answer→child routing, from per-rule "Edit rule:" modals. `probe_node_editor.py` is the groundwork; confirmed live it can open these modals. Some schema questions open first — see "Open questions" below. | `bundle-export-stage3` |
 | 4 | **In-platform faithful chat simulator** | Not started (Stage 4). `coaching_model.py` needs `parse_bundle()`. `coaching_sim.py` needs r_group random-pick collapsing, branch routing, and rule-order/timeout-aware interruption. Wire into the existing Chat tab. | `bundle-sim-integration` |
 | 5 | **Markov-chain patient simulation over time** | Not started. Design exists in `ALEX_v02_simulator_scope.md`: 10 patient archetypes, 1000 seeded runs, invariant checks for starvation/engagement-lock/double-fire. Needs #4's engine as its substrate. | `patient-markov-simulation` |
 
@@ -64,7 +71,9 @@ Reordered here by dependency, not by the order they were raised. **Workstream 3 
 - Rule execution order within each of the DAILY BASIS / PERIODIC BASIS / UNEXPECTED MESSAGE / USER INTENTION trees. Top-to-bottom. Non-matching branches are skipped. Execution stops the instant a rule "solves the issue."
 - Each dialog-starting rule's own send-delay and not-answered timeout.
 
-A first qualitative pass can be done today: read the live Rules tab's actual tree order and timeouts for the spirometry/medication/ACQ/education rules — those are the ones most likely to collide. A rigorous pass needs workstream 3's data pulled in bulk, not read by hand. Deliverable: a findings doc naming specific rules to reorder, re-delay, or guard with an extra "already showing something else" condition.
+**2a — manual first pass, do next, no export needed.** Read the live Rules tab's actual tree order and timeouts for the spirometry/medication/ACQ/education rules — those are the ones most likely to collide. Deliverable: a findings doc naming specific rules to reorder, re-delay, or guard with an extra "already showing something else" condition. The fix mechanism is drag-and-drop in the same tab — the Rules tab's Info panel says outright "Rules can be moved with the mouse!" — so a finding here can plausibly be applied by hand in the same sitting, no code required.
+
+**2b — rigorous pass.** Needs workstream 3's data pulled in bulk instead of read by hand: every reminder-generating rule's order and timeout, cross-checked systematically rather than sampled.
 
 **3 — Finish the machine-readable export.** `coaching.bundle.v2.json` already has node order, type, comment, channel, randomisation group, and (where enriched) full text and decision branches. That's enough to reconstruct *content*, not enough to reconstruct *timing behaviour*. Stage 3 closes that gap — on the **rule** level, not the message level. Per dialog-starting rule, scrape: the send hour, the not-answered timeout, and the DOES-answer / DOES-NOT-answer subtrees. These live in each rule's "Edit rule:" modal, not the message's "Edit micro dialog message:" modal (which has no timing fields at all). `probe_node_editor.py` already opens both modal types live. It needs extending to walk the Rules tab tree, not just Micro Dialogs, and to parse these specific fields. This is the direct prerequisite for a faithful simulation, so it's worth finishing before deep investment in 2, 4, or 5.
 
@@ -76,6 +85,16 @@ A first qualitative pass can be done today: read the live Rules tab's actual tre
 Variable tracking and clock-advancing already work in the existing simulator. This workstream extends fidelity, not the basic interaction model.
 
 **5 — Markov-chain patient simulation over a period.** `ALEX_v02_simulator_scope.md` §4–7 already specs this: 10 patient archetypes as parameterized stochastic processes (response latency, completion-after-engagement rate, per-reminder adherence, time-of-day availability, reschedule acceptance). Run 10×100 seeded times over a 14-day simulated horizon. Check against invariants: starvation, engagement-lock duration, flag-leak, double-fire, window-overrun, delivery-rate. Needs workstream 4's engine as its substrate, so it runs the real bundle-driven content rather than a synthetic rule model. Estimated ~1 focused week per the existing effort table in that doc.
+
+### Open questions from today's exploration
+
+Things the live probing surfaced but didn't answer. Worth resolving before Stage 3's scraper schema is considered final — otherwise it'll need a second pass.
+
+- **A rule can send a single message directly, or start a whole micro dialog.** The "Edit rule:" form has two independent checkboxes: "Send message if rule result is TRUE" and "Start micro dialog if rule result is TRUE." We only exercised the micro-dialog path on our one sample. Does the single-message path have the same delay/timeout fields? Does it matter for pile-up the same way?
+- **"Message group to send messages from"** is a field on the rule form we saw but didn't investigate — blank/disabled in our sample. It hints at a possible second dispatch layer alongside "micro dialog." Needs a sample where it's actually set.
+- **Only one rule was sampled.** We don't know if "Start micro dialog" rules under UNEXPECTED MESSAGE or USER INTENTION carry the same fields as the PERIODIC BASIS one we opened, or whether answer routing for a decision point *inside* a micro dialog works the same way as the rule-level DOES/DOES-NOT-answer subtree we saw at the top level.
+- **The Rules tab is a different Vaadin widget** (`.v-tree`, expand/collapse triangles) from the Micro Dialogs picker (`.v-menubar`). Stage 3's scraper needs its own tree-walker — it can't just extend `tools/coaching-bundle-export/_menu_nav.py`.
+- **The rule tree shows different icons per row** (a chat-bubble-ish icon on message-sending rules, a gear on calculation-only ones, a warning triangle on rules commented "BEISPIEL"/example, others unidentified). These likely encode the action type and could drive an automated parser — worth mapping the icon set before writing the bulk scraper.
 
 ## Branches
 

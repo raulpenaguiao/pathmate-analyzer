@@ -114,6 +114,28 @@ below was a wrong guess. What actually exists:
   dialogs; decision points inside a micro dialog may route differently and
   need their own probe), the 3 decision points with no parsed branch (likely
   JS-only), media/survey references beyond the file name.
+- **Open, unresolved as of 2026-09-09 (resolve before finalizing the Stage 3
+  schema):**
+  - The "Edit rule:" form has **two independent action checkboxes**: "Send
+    message if rule result is TRUE" and "Start micro dialog if rule result is
+    TRUE." Only the micro-dialog path was sampled. Unknown whether the
+    single-message path has the same delay/timeout fields, and whether it
+    matters for pile-up the same way.
+  - **"Message group to send messages from"** — a field on the rule form,
+    blank/disabled in the one sample taken. May be a second dispatch layer
+    alongside "micro dialog." Needs a sample where it's actually set.
+  - **Only one rule was sampled**, under PERIODIC BASIS. Unconfirmed whether
+    UNEXPECTED MESSAGE / USER INTENTION rules carry the same field set, and
+    whether decision-point answer routing *inside* a micro dialog matches the
+    rule-level DOES/DOES-NOT-answer mechanism seen at the top level.
+  - **The Rules tab (`.v-tree`) is a structurally different Vaadin widget**
+    from the Micro Dialogs picker (`.v-menubar`) that `_menu_nav.py` walks.
+    Stage 3's bulk scraper needs its own tree-walker, not an extension of the
+    existing menu navigation.
+  - The rule tree renders **different icons per row** (message-send vs
+    calculation-only vs "BEISPIEL"/example rules, at least). These probably
+    encode action type and could drive automated classification — worth
+    mapping the icon set before writing the bulk scraper.
 - Practical hazard found live: some node-editor modals' dismiss button reads
   "Close" and is a pure cancel (message editor); on the **rule editor it
   actually commits** ("The rule has been updated" toast fires even with no

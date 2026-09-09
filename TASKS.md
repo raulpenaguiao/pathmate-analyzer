@@ -38,8 +38,16 @@ workstreams" section — this file is the checklist, that's the writeup.
       the Rules tab (top-to-bottom, stops the instant a rule "solves the
       issue") and (2) each dialog-starting rule's own send-delay and
       not-answered-timeout. See README.md's "priority-field correction".
-      Not started as an actual findings doc yet; a qualitative first pass
-      is now possible by reading the live Rules tab directly.
+      **Replanned 2026-09-09** — split into two passes, since the manual one
+      turns out not to need the export:
+      - [ ] **2a, do next, unblocked.** Read the live Rules tab's order and
+            timeouts for the spirometry/medication/ACQ/education rules by
+            hand. Write a findings doc naming specific rules to reorder or
+            re-delay. Rules are drag-to-reorder in the same tab, so a finding
+            here may be directly actionable, no code required.
+      - [ ] **2b, rigorous pass.** Needs Coaching-export Stage 3 (below)
+            finished, so every reminder rule's order/timeout is pulled in
+            bulk instead of read by hand.
 
 ## Coaching export
 

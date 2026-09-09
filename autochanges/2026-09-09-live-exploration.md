@@ -79,3 +79,32 @@ exporter.
   assumed (per the user). Don't leave long gaps between live-portal actions.
 - A plain `page.reload()` drops the Vaadin SPA back to the login screen even
   with a valid cookie — never use it to "reset" a stuck view.
+
+## Follow-up analysis and replanning (same session)
+
+Reviewing the findings above surfaced a replanning worth acting on
+immediately, plus some genuine unknowns to flag rather than paper over.
+
+**Replanning:** workstream 2 (pile-up) doesn't need workstream 3 (the Stage-3
+export) finished to get a useful first pass — it needs a human or Claude
+reading the live Rules tab's order and timeouts for the reminder rules, which
+is fully possible today. Split into 2a (manual pass, unblocked, next
+concrete step) and 2b (rigorous bulk pass, still needs Stage 3). Written up
+in `README.md`'s roadmap and `TASKS.md`.
+
+**Open questions, not yet resolved** (also in `README.md`'s "Open questions
+from today's exploration" and `tools/coaching-bundle-export/DESIGN.md`):
+- Two independent rule actions exist ("Send message" vs "Start micro
+  dialog") — only the micro-dialog path was sampled.
+- "Message group to send messages from" field on the rule form, seen
+  blank/disabled — possible second dispatch layer, unexplored.
+- Only one rule was sampled overall; field-set consistency across
+  UNEXPECTED MESSAGE / USER INTENTION rules and decision-point-level answer
+  routing (vs. the rule-level DOES/DOES-NOT-answer subtree) is unconfirmed.
+- The Rules tab (`.v-tree`) needs its own scraper — it's a different Vaadin
+  widget from the Micro Dialogs `.v-menubar`.
+- Rule-tree row icons likely encode action type; not yet mapped.
+
+**Left as-is, deliberately:** Monitoring stays deactivated on this sandbox
+coaching for now (user's explicit call, 2026-09-09) — do not re-enable
+without asking.
