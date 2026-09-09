@@ -126,3 +126,64 @@ Each branches from `main` at the commit that added this roadmap. `main` stays
 the deploy branch (`release_frontend.sh` tags `main`'s HEAD for the
 `release_frontend` GitHub Actions workflow); merge a workstream back to `main`
 when it's ready to ship.
+
+## Navigating the live PMCP portal (hurdles)
+
+Workstreams 2–4 all eventually need hands-on time in the live PMCP Vaadin
+editor (`https://cp22.pathmate.cloud/PMCP/admin`), by a person or by a CDP
+script driving a shared browser. It's an old-school server-rendered app with
+non-obvious client state, so the same hurdles bite every time. Notes so far:
+
+- **You always land on the Home/Welcome page after login**, never inside a
+  coaching. Click **"Coachings"** in the left nav first — there is no
+  shortcut/deep link into a specific coaching.
+- **Select the coaching row, then click "Edit"** — the row-select and the
+  "Edit" button are two separate clicks; clicking the row alone only shows the
+  read-only toolbar (Report / Validate / Results / …). For this repo's
+  reference coaching that's **"ALEX v01 zum Ausprobieren"**.
+- **Deactivate Monitoring before touching Micro Dialogs.** Inside Edit →
+  "Basic Settings and Modules" there's a "Monitoring is active! Click to
+  deactivate." toggle. This changes live coaching state (it can affect
+  message delivery to real participants), so an assistant should never click
+  it unattended — a human should do it by hand — and it should be **turned
+  back on** when the session is done. It's unclear yet whether it's a hard
+  requirement for every view (the Micro Dialogs *tab* rendered fine once
+  during a quick check with monitoring still on) or just the safe/established
+  habit — treat it as required until proven otherwise.
+- **Widen the browser window a lot (~9000–12000px) before touching the Micro
+  Dialogs menu.** The dialog-picker is a Vaadin `MenuBar`; past a handful of
+  items it collapses into a `►` overflow submenu that will **not** open under
+  scripted/automated input (mouse-hit-testing on it is unreliable). At
+  ~9000px+ every top-level item renders inline instead and the `►` never
+  appears. Resize the *real* window via the CDP `Browser.setWindowBounds` call
+  — `Emulation.setDeviceMetricsOverride` (viewport-only emulation) desyncs
+  mouse hit-testing on a headed browser instead of fixing this.
+- **A Vaadin MenuBar top item opens its popup on click, not hover, from a
+  closed state** (hover only switches between menus that are already open).
+  Ad-hoc clicks (e.g. Playwright `get_by_text(...).click()`) can select/
+  highlight a top item without actually opening its dropdown, leaving the menu
+  in a state the automated tooling doesn't expect. If a folder that reliably
+  opens through the automation (`tools/coaching-bundle-export/_menu_nav.py`)
+  suddenly reports **"popup 1 for '…' never opened"**, first suspect leftover
+  state from a manual click and re-navigate cleanly from "Coachings" — do
+  *not* just retry in place.
+- **Never call a plain page reload to "reset" the view.** Confirmed live
+  2026-09-09: `page.reload()` drops the Vaadin SPA straight back to the
+  username/password/TOTP login screen, even though the underlying session
+  cookie may still be valid — the app's client-side state (not just auth) is
+  what a reload destroys. If you need a clean slate, re-navigate via the
+  in-app "Coachings" link, don't reload the page.
+- **The PMCP session expires after ~1–2h.** Symptom: "popup N for '…' never
+  opened" / hover timeouts on *every* folder, not just one. Fix: reload
+  (accepting the forced re-login) and re-navigate from "Coachings" by hand,
+  then rerun the automation.
+- **One folder failing while the rest succeed** is a different, intermittent
+  MenuBar quirk unrelated to session expiry — just rerun, or ignore it if
+  that folder is an empty grouper (its children are usually still reachable
+  directly).
+- `.md-menu` and `.v-menubar` select the **same element** in this app (not
+  ancestor/descendant) — don't assume nesting when reading selectors in the
+  tooling.
+
+See also `tools/coaching-bundle-export/README.md`'s "Known hiccups" section,
+which overlaps with this list but is scoped to the export script specifically.
