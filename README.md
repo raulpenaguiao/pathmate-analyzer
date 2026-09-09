@@ -79,12 +79,14 @@ Variable tracking and clock-advancing already work in the existing simulator. Th
 
 ## Branches
 
+No workstream branches exist right now — four were created ahead of time and then deleted (2026-09-09) since they sat empty. Create a branch from `main` when a workstream actually starts, not before:
+
 - `alex-pileup-analysis` — workstream 2
 - `bundle-export-stage3` — workstream 3
 - `bundle-sim-integration` — workstream 4
 - `patient-markov-simulation` — workstream 5
 
-Each branches from `main` at the commit that added this roadmap. `main` stays the deploy branch: `release_frontend.sh` tags `main`'s HEAD for the `release_frontend` GitHub Actions workflow. Merge a workstream back to `main` when it's ready to ship.
+`main` stays the deploy branch: `release_frontend.sh` tags `main`'s HEAD for the `release_frontend` GitHub Actions workflow. Merge a workstream back to `main` when it's ready to ship.
 
 ## Navigating the live PMCP portal (hurdles)
 
