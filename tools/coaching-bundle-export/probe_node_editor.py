@@ -66,7 +66,7 @@ FORM_DUMP_JS = r"""
       caption: (w.querySelector('.v-window-header') || {}).textContent || '',
       tabs, buttons,
       fields: fields.filter(f => f.cap || f.val),
-      html: w.outerHTML.slice(0, 20000),
+      html: w.outerHTML.slice(0, 60000),
     };
   });
 }
@@ -90,15 +90,20 @@ async def node_edit_button(page):
 
 
 async def close_windows(page):
-    for _ in range(4):
+    for _ in range(6):
         wins = page.locator(".v-window")
         if not await wins.count():
             return
-        # prefer a Cancel/Close button
-        cancel = page.locator(".v-window .v-button-caption", has_text="Cancel")
-        if await cancel.count():
-            await cancel.first.click()
-        else:
+        # prefer an explicit dismiss button - different node-editor modals use
+        # "Cancel" or "Close" (Escape alone does not reliably close either)
+        dismissed = False
+        for label in ("Close", "Cancel", "Exit"):
+            btn = page.locator(".v-window .v-button-caption", has_text=label)
+            if await btn.count():
+                await btn.last.click()
+                dismissed = True
+                break
+        if not dismissed:
             await page.keyboard.press("Escape")
         await page.wait_for_timeout(500)
 
@@ -140,7 +145,11 @@ async def main():
                     slug = f"{tag.split()[0]}_row{ri}"
                     (OUT / f"form_{slug}.json").write_text(
                         json.dumps(dump, indent=1, ensure_ascii=False))
-                    await page.screenshot(path=str(OUT / f"form_{slug}.png"))
+                    try:
+                        await page.screenshot(
+                            path=str(OUT / f"form_{slug}.png"), timeout=5000)
+                    except Exception as e:  # noqa: BLE001
+                        print(f"  (screenshot skipped: {e!r})")
                     for w in dump:
                         print(f"  row {ri} -> window {w['caption'][:60]!r} "
                               f"tabs={w['tabs']} buttons={w['buttons']}")

@@ -72,15 +72,64 @@ with < 10 distinct variants.
 
 ## Not yet captured (Stage 3 — needs the detail modals)
 
-- send **delay** / message **priority** / the "Low Priority" placeholder row semantics
-- answer **quick-reply → child routing** (Report has option text, not the target)
-- the 3 decision points with no parsed branch (likely JS-only)
-- media/survey references beyond the file name
+**Correction from live exploration (2026-09-09, via `probe_node_editor.py`
+against the live "ALEX v01 zum Ausprobieren" sandbox coaching):** PMCP has
+**no explicit message-level "priority" field at all** — "message priority"
+below was a wrong guess. What actually exists:
+
+- The **"Edit micro dialog message:" modal** (per node) has: Comment, text
+  (with placeholders), media, message key, **randomisation group** (already
+  captured), "is command" / "expects answer" checkboxes, answer type +
+  options, result-variable, no-reply-value. No priority, no delay. The
+  earlier "Low Priority" hit in a probe dump wasn't a field — it was one
+  node's literal **Comment text** (a human-authored placeholder-message
+  label), i.e. content, not a schema field.
+- **Send delay and interruption timing live on the *rule* that starts a
+  micro dialog** (Rules tab → e.g. PERIODIC BASIS → nested conditions → a
+  leaf with "Start micro dialog if rule result is TRUE"), not on the message.
+  The **"Edit rule:" modal** has: which micro dialog to start, **"Hour to
+  send message (24h hours, 0 = immediately)"**, **"Minutes after sending
+  until message is handled as not answered"** (the real expiry/timeout - a
+  slider, common presets 1/5/10/30/60 min, up to multi-hour), and two nested
+  rule-subtrees: **"Rules if participant DOES answer"** / **"...DOES NOT
+  answer"** — this is the actual answer→routing mechanism.
+- **There is no interruption/tier attribute anywhere.** The Rules tab's own
+  "Info" panel states the real semantics: rules execute **top-to-bottom,
+  down the tree**; a non-matching rule's children are skipped; **execution
+  stops the moment a rule "solves the issue" or stops the whole coaching**.
+  So pile-up/interruption behaviour is *emergent* from (a) the order rules
+  are listed under DAILY BASIS / PERIODIC BASIS / UNEXPECTED MESSAGE / USER
+  INTENTION, and (b) each rule's own send-delay + not-answered timeout — not
+  from a P0–P3-style tag PMCP tracks anywhere. `ALEX_v02_simulator_scope.md`'s
+  tier model (P0–P3) is **our abstraction over this**, not a PMCP concept;
+  workstream 2's pile-up analysis needs to read rule *order and timeouts* in
+  the live Rules tree, not look for a priority column that doesn't exist.
+- Confirmed live: the rule → micro-dialog trigger link (which memory flagged
+  as "only weakly present" in the Report HTML) **is** fully present in the
+  live editor's Rules tab, on every "Start micro dialog" leaf — it's a
+  scraping gap, not a missing-from-PMCP gap.
+- Still open: answer **quick-reply → child routing** for decision points
+  specifically (Report has option text, not the target — the DOES-answer
+  rule-subtree above is presumably where this lives for rule-triggered
+  dialogs; decision points inside a micro dialog may route differently and
+  need their own probe), the 3 decision points with no parsed branch (likely
+  JS-only), media/survey references beyond the file name.
+- Practical hazard found live: some node-editor modals' dismiss button reads
+  "Close" and is a pure cancel (message editor); on the **rule editor it
+  actually commits** ("The rule has been updated" toast fires even with no
+  edits made). Harmless on this sandbox coaching (not production, all writes
+  logged) but any Stage-3 scraper must not click a modal's dismiss button
+  assuming it's read-only — check for a real Cancel/Escape path, or accept
+  that opening an "Edit rule:" modal writes a no-op save.
 
 ## Analyzer import (Stage 4 — not started)
 
 `app/coaching_model.py` gains `parse_bundle(json)` → existing
 `CoachingModel`/`MicroDialog`/`Node` dataclasses, extended with `uid`,
-`randomisation_group`, `order`, `delay`. `app/coaching_sim.py` gains: collapse a
-run of same-`r_group` siblings into one random pick; follow scraped branch
-routes; honour delays.
+`randomisation_group`, `order`, and **rule-level** `send_hour`/`not_answered_timeout_minutes`
+(sourced from the Rules tree, not the message). `app/coaching_sim.py` gains:
+collapse a run of same-`r_group` siblings into one random pick; follow
+scraped branch routes; honour rule delays/timeouts; and — since there's no
+PMCP-native priority field — implement interruption purely as "rule order +
+timeout", matching what the live Rules tab actually does, rather than a
+tier system.

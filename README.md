@@ -26,10 +26,26 @@ Built and on `main`:
 - `docs/randomisation_groups_ALEX_v01.md` — the committed **`r_` groups
   report** (see Workstream 1 below).
 
-Not yet built: message **delay/priority** capture, answer→child routing
-capture (bundle "Stage 3"), importing the bundle into the analyzer's own
-model (bundle "Stage 4"), and any tier/priority-aware pile-up logic in the
-simulator.
+Not yet built: **rule-level** send-delay/not-answered-timeout capture,
+answer→child routing capture (bundle "Stage 3"), importing the bundle into
+the analyzer's own model (bundle "Stage 4"), and rule-order-aware pile-up
+logic in the simulator.
+
+**Correction (live exploration, 2026-09-09):** PMCP has **no explicit
+message-priority or tier field anywhere**. Confirmed by opening the live
+"Edit micro dialog message:" and "Edit rule:" modals on the sandbox
+"ALEX v01 zum Ausprobieren" coaching. Interruption/pile-up behaviour is
+*emergent*, from two real mechanisms: (1) **rule execution order** — the
+Rules tab runs top-to-bottom/down-the-tree, skips a rule's children if it
+doesn't match, and **stops entirely once a rule "solves the issue"**; (2)
+each dialog-starting rule's own **"Hour to send message"** delay and
+**"Minutes after sending until message is handled as not answered"**
+timeout, plus separate **"Rules if participant DOES/DOES NOT answer"**
+subtrees. `ALEX_v02_simulator_scope.md`'s P0–P3 tier model is *our*
+abstraction over this, not a PMCP concept — see the "Not yet captured"
+section of `tools/coaching-bundle-export/DESIGN.md` for the full writeup.
+This reframes workstreams 2 and 3 below (their descriptions are updated
+accordingly).
 
 ## Roadmap: five workstreams
 
@@ -54,9 +70,9 @@ exists.
 | # | Workstream | Status | Branch |
 |---|---|---|---|
 | 1 | **`r_` entries report** | Done — `docs/randomisation_groups_ALEX_v01.md`, backed by `tools/rgroups-table/rgroups_table.csv` | merged to `main` |
-| 2 | **ALEX pile-up first steps** | Not started — blocked on #3 for real priority data; can start qualitatively now from `ALEX_v02_simulator_scope.md`'s tier model | `alex-pileup-analysis` |
-| 3 | **Exhaustive machine-readable export** | Partial — Stage 1+2 done (`coaching.bundle.v2.json`); Stage 3 (delay/priority/"Low Priority" placeholder, answer→child routing) not started, needs the per-node detail modal (`tools/coaching-bundle-export/probe_node_editor.py` is the groundwork) | `bundle-export-stage3` |
-| 4 | **In-platform faithful chat simulator** | Not started (Stage 4) — `coaching_model.py` needs `parse_bundle()`, `coaching_sim.py` needs r_group random-pick collapsing + branch routing + delay/priority-aware interruption, wired into the existing Chat tab | `bundle-sim-integration` |
+| 2 | **ALEX pile-up first steps** | Not started — blocked on #3 for real rule order/timeout data; can start qualitatively now from the Rules tab's actual semantics (see correction above) | `alex-pileup-analysis` |
+| 3 | **Exhaustive machine-readable export** | Partial — Stage 1+2 done (`coaching.bundle.v2.json`); Stage 3 (rule-level send-delay/not-answered-timeout, answer→child routing) not started, needs per-rule "Edit rule:" modals, not per-message ones (`tools/coaching-bundle-export/probe_node_editor.py` is the groundwork; confirmed live it opens both) | `bundle-export-stage3` |
+| 4 | **In-platform faithful chat simulator** | Not started (Stage 4) — `coaching_model.py` needs `parse_bundle()`, `coaching_sim.py` needs r_group random-pick collapsing + branch routing + rule-order/timeout-aware interruption, wired into the existing Chat tab | `bundle-sim-integration` |
 | 5 | **Markov-chain patient simulation over time** | Not started — design already exists in `ALEX_v02_simulator_scope.md` (10 patient archetypes, 1000 seeded runs, invariant checks for starvation/engagement-lock/double-fire); needs #4's engine as its substrate | `patient-markov-simulation` |
 
 ### Workstream detail
@@ -68,41 +84,48 @@ trigger conditions are in `tools/rgroups-table/rgroups_table.csv`. Re-run
 the live portal for a coaching other than ALEX v01, or after ALEX v01 changes.
 
 **2 — Pile-up problem in ALEX "zum Ausprobieren".** The pile-up problem (a
-high-priority message pushing out a lower-priority one that was mid-flow) is
-exactly what `ALEX_v02_simulator_scope.md` was written to stress-test — tiers
-P0–P3, the interruption rule ("strictly-higher tier interrupts and deletes the
-open dialog; same-or-lower waits"), and the engagement-lock edge case. That
-document is a simulator *design*, not yet an analysis of the live coaching. A
-first pass can be done today by walking the `r_` groups/micro dialogs already
-exported (workstream 1) against the known tier assignments; a rigorous pass
-needs each message's actual priority/delay, which only exists in the
-per-node detail modal and is workstream 3's Stage 3. Deliverable: a findings
-doc naming specific micro dialogs/messages to retier, delay, or exempt from
-interruption.
+message pushing out one that was mid-flow) is real, but not governed by a
+tier system PMCP tracks — `ALEX_v02_simulator_scope.md`'s P0–P3 model was our
+own abstraction, written before we could see the live Rules tab. What
+actually governs it, confirmed live: **rule execution order** within each of
+the DAILY BASIS / PERIODIC BASIS / UNEXPECTED MESSAGE / USER INTENTION trees
+(top-to-bottom, non-matching branches skipped, **execution stops the instant
+a rule "solves the issue"**), plus each dialog-starting rule's own send-delay
+and not-answered-timeout. A first qualitative pass can be done today by
+reading the live Rules tab's actual tree order and timeouts for the
+spirometry/medication/ACQ/education rules (the ones most likely to collide);
+a rigorous pass needs workstream 3's Stage 3 data pulled in bulk rather than
+read by hand. Deliverable: a findings doc naming specific rules to reorder,
+re-delay, or guard with an extra "already showing something else" condition.
 
 **3 — Finish the machine-readable export.** `coaching.bundle.v2.json`
 already has node order, type, comment, channel, randomisation group, and
 (where enriched) full text and decision branches — enough to reconstruct
-*content*, not enough to reconstruct *timing/priority behaviour*. Stage 3
-closes that gap: scrape send delay, message priority, the "Low Priority"
-placeholder row's semantics, and answer-option → child-node routing from each
-node's detail modal (~1200 modal opens; `probe_node_editor.py` is the
-reconnaissance script for this). This is the direct prerequisite for a
+*content*, not enough to reconstruct *timing behaviour*. Stage 3 closes that
+gap, but on the **rule** level, not the message level (confirmed live —
+see the correction above): scrape, per dialog-starting rule, the send **hour**,
+the **not-answered timeout**, and the **DOES-answer / DOES-NOT-answer**
+subtrees, from each rule's "Edit rule:" modal (not the message's "Edit micro
+dialog message:" modal, which has no timing fields at all).
+`probe_node_editor.py` already opens both modal types live; it needs
+extending to walk the Rules tab tree (not just Micro Dialogs) and to parse
+these specific fields out of the form. This is the direct prerequisite for a
 *faithful* (not just content-accurate) simulation, so it's the one workstream
 worth finishing before deep investment in 2, 4, or 5.
 
 **4 — Simulate a chat in the analyzer itself.** The Chat tab and tick-based
 `Simulator` already exist, but they run against `coaching_model.py`'s
-Report-HTML parse (dialogs launched manually, no randomisation, no tier
-logic) — not the bundle. Stage 4 (sketched in
+Report-HTML parse (dialogs launched manually, no randomisation, no
+interruption logic) — not the bundle. Stage 4 (sketched in
 `tools/coaching-bundle-export/DESIGN.md`): `parse_bundle()` to load
 `coaching.bundle.v2.json` into the existing `CoachingModel`/`MicroDialog`/`Node`
-dataclasses (extended with `uid`, `randomisation_group`, `order`, `delay`);
-`Simulator` gains r_group collapsing (one random pick per run, like the real
-engine), scraped-branch routing, and delay/priority handling built from
-workstream 2's tier logic. Variable tracking and clock-advancing already work
-in the existing simulator — this workstream extends fidelity, not the basic
-interaction model.
+dataclasses (extended with `uid`, `randomisation_group`, `order`, and
+rule-level `send_hour`/`not_answered_timeout_minutes`); `Simulator` gains
+r_group collapsing (one random pick per run, like the real engine),
+scraped-branch routing, and interruption modeled as "rule order + timeout"
+per workstream 2's corrected understanding — not a tier lookup. Variable
+tracking and clock-advancing already work in the existing simulator — this
+workstream extends fidelity, not the basic interaction model.
 
 **5 — Markov-chain patient simulation over a period.** `ALEX_v02_simulator_scope.md`
 §4–7 already specs this: 10 patient archetypes as parameterized stochastic
@@ -141,15 +164,18 @@ non-obvious client state, so the same hurdles bite every time. Notes so far:
   "Edit" button are two separate clicks; clicking the row alone only shows the
   read-only toolbar (Report / Validate / Results / …). For this repo's
   reference coaching that's **"ALEX v01 zum Ausprobieren"**.
-- **Deactivate Monitoring before touching Micro Dialogs.** Inside Edit →
-  "Basic Settings and Modules" there's a "Monitoring is active! Click to
-  deactivate." toggle. This changes live coaching state (it can affect
-  message delivery to real participants), so an assistant should never click
-  it unattended — a human should do it by hand — and it should be **turned
-  back on** when the session is done. It's unclear yet whether it's a hard
-  requirement for every view (the Micro Dialogs *tab* rendered fine once
-  during a quick check with monitoring still on) or just the safe/established
-  habit — treat it as required until proven otherwise.
+- **Deactivate Monitoring before touching Micro Dialogs — confirmed hard
+  requirement, not just habit.** Inside Edit → "Basic Settings and Modules"
+  there's a "Monitoring is active! Click to deactivate." toggle. Confirmed
+  live 2026-09-09: the Micro Dialogs *tab* renders fine either way, but the
+  dialog-picker MenuBar's popups reliably fail ("popup 1 for '…' never
+  opened") while Monitoring is active, and work immediately once it's
+  deactivated — same window, same navigation, only variable changed. This
+  changes live coaching state, so an assistant should never click it
+  unattended — a human should do it by hand (on this repo's sandbox
+  coaching, "ALEX v01 zum Ausprobieren", that's low-stakes and logged; a
+  different, real coaching may not be). Turn it back on when the session is
+  done unless told otherwise.
 - **Widen the browser window a lot (~9000–12000px) before touching the Micro
   Dialogs menu.** The dialog-picker is a Vaadin `MenuBar`; past a handful of
   items it collapses into a `►` overflow submenu that will **not** open under
@@ -173,17 +199,42 @@ non-obvious client state, so the same hurdles bite every time. Notes so far:
   cookie may still be valid — the app's client-side state (not just auth) is
   what a reload destroys. If you need a clean slate, re-navigate via the
   in-app "Coachings" link, don't reload the page.
-- **The PMCP session expires after ~1–2h.** Symptom: "popup N for '…' never
-  opened" / hover timeouts on *every* folder, not just one. Fix: reload
-  (accepting the forced re-login) and re-navigate from "Coachings" by hand,
-  then rerun the automation.
+- **The PMCP session expires quickly when idle — closer to ~10 minutes than
+  the ~1–2h originally assumed** (per the user, 2026-09-09). Symptom: "popup
+  N for '…' never opened" / hover timeouts on *every* folder, not just one.
+  Fix: reload (accepting the forced re-login) and re-navigate from
+  "Coachings" by hand, then rerun the automation. Practical consequence: keep
+  gaps between live-portal actions short during a session, and expect to
+  need a fresh login if you pause to write up findings for more than a few
+  minutes.
 - **One folder failing while the rest succeed** is a different, intermittent
   MenuBar quirk unrelated to session expiry — just rerun, or ignore it if
   that folder is an empty grouper (its children are usually still reachable
   directly).
+- **A modal left open by a crashed/interrupted script blocks *all* further
+  MenuBar clicks**, producing the exact same "popup 1 for '…' never opened"
+  symptom as session expiry or the width issue — it's a third, easy-to-miss
+  cause. Confirmed live 2026-09-09: a script that threw mid-loop (on an
+  unrelated `page.screenshot` timeout) left a `.v-window` open; nothing else
+  was wrong, but every subsequent menu click failed until that window was
+  explicitly closed. If navigation suddenly stops working after a script
+  errored out, check `document.querySelectorAll('.v-window').length` (or
+  just screenshot) before assuming session expiry or re-widening the window.
+- **A node-editor modal's dismiss button is not consistently labeled, and
+  not consistently safe.** The "Edit micro dialog message:" modal's button
+  reads **"Close"** and is a pure cancel. The "Edit rule:" modal's button
+  *also* reads "Close" but **commits the form** — it fires a "The rule has
+  been updated." toast even with zero fields touched. A few modals instead
+  use "Exit". Never assume a modal's dismiss button is read-only from its
+  label alone; on a sandbox coaching a same-value re-save is harmless
+  (confirmed with the user), but treat it as a real write on anything else.
 - `.md-menu` and `.v-menubar` select the **same element** in this app (not
   ancestor/descendant) — don't assume nesting when reading selectors in the
   tooling.
+- **The Rules tab has no explicit priority/tier/interrupt field anywhere** —
+  confirmed by opening live "Edit rule:" modals and grepping their full HTML.
+  See the Status section's correction above; don't go looking for a priority
+  column, it isn't there.
 
 See also `tools/coaching-bundle-export/README.md`'s "Known hiccups" section,
 which overlaps with this list but is scoped to the export script specifically.

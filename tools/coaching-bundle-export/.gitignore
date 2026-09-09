@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+probe.json
+probe_ctx0_pg0.png
+spike/
