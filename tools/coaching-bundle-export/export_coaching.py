@@ -52,6 +52,40 @@ _TYPE = {"Message": "message", "DECISION POINT": "decision",
 # phase 1 — micro dialogs
 # ---------------------------------------------------------------------------
 
+async def _widen_for_menubar(page, cdp, wid) -> None:
+    """Widen the browser window until every Micro Dialogs top-level item
+    renders inline. Past a handful of items the Vaadin MenuBar collapses the
+    rest into a `►` overflow submenu that will not open under scripted input,
+    so discovery silently misses them (that's the ~40%-capture failure). Keep
+    doubling the width until the trailing `►` is gone; abort loudly if it
+    can't (usually the compositor clamped the window and it never actually
+    got wide)."""
+    bar = ".v-menubar.md-menu > .v-menubar-menuitem"
+    w = WIDE
+    for _ in range(5):
+        await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
+            "left": 0, "top": 0, "width": w, "height": 1400,
+            "windowState": "normal"}})
+        await page.wait_for_timeout(1500)
+        actual = (await cdp.send("Browser.getWindowBounds",
+                                 {"windowId": wid}))["bounds"].get("width")
+        try:
+            n = await page.locator(bar).count()
+            last = (await page.locator(bar).last.inner_text()).strip() if n else ""
+        except Exception:  # noqa: BLE001
+            n, last = 0, ""
+        print(f"  window: asked {w}px, got {actual}px  ->  {n} menubar items, "
+              f"last={last!r}")
+        if last != "►":
+            return
+        w = min(w * 2, 40000)
+    sys.exit("The Micro Dialogs menubar still shows a `►` overflow at the "
+             "widest window — top-level items are hidden and the sweep would "
+             "miss most dialogs. The browser window likely didn't actually "
+             "resize (compositor clamp). Try a non-maximized / non-Wayland "
+             "session, or set PMCP_WIDE higher.")
+
+
 async def sweep_micro_dialogs(page) -> tuple[list[dict], list[dict]]:
     if not await M.ensure_micro_dialogs(page):
         sys.exit("Micro Dialogs menu not on screen — open the coaching's Edit "
@@ -292,10 +326,7 @@ async def main() -> int:
         try:
             if do_dialogs:
                 print("--- phase 1: micro dialogs ---")
-                await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
-                    "left": 0, "top": 0, "width": WIDE, "height": 1400,
-                    "windowState": "normal"}})
-                await page.wait_for_timeout(1500)
+                await _widen_for_menubar(page, cdp, wid)
                 md, nodes = await sweep_micro_dialogs(page)
                 bundle["microDialogs"] = md
                 bundle["nodes"] = nodes
