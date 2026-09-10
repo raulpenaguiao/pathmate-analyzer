@@ -121,18 +121,17 @@ workstreams" section — this file is the checklist, that's the writeup.
       later/standalone pass; a standalone re-check against a saved pair is a
       possible bonus but not required.)
 
-- [ ] **Later: export polish.**
-      - Default output name should carry a timestamp, e.g.
-        `data/rgroups/coaching_<coaching-slug>_<YYYYMMDD-HHMMSS>.json`, so
-        successive runs don't overwrite each other and each file is
-        traceable to when it was scraped. (Explicit `OUT.json` arg still
-        wins.)
-      - Print the total wall-clock run time at the end (phase timings too if
-        cheap).
-      - Tighten `_widen_for_menubar`: wait for the Micro Dialogs bar to
-        actually render before checking for the `►` overflow (right now it
-        can check too early and see 0 items / `''`, so a real overflow could
-        slip through).
+- [x] **Export polish (2026-09-10).**
+      - Default output name now carries a timestamp:
+        `data/rgroups/coaching_<slug>_<YYYYMMDD-HHMMSS>.json` (slug from the
+        coaching name read off the editor header). Explicit `OUT.json` still
+        wins; `rebuild_all.sh` passes an explicit path so it's unaffected.
+      - Total wall-clock run time + per-phase seconds printed at the end and
+        stored in the JSON's `run` block.
+      - `bundle.coaching.name` is populated (was `null`).
+      - `_widen_for_menubar` now waits for the menubar to render before the
+        `►`-overflow check, and doubles the width (to 40000) until it clears
+        or aborts with a clear message.
 
 ## Simulate chat — Stage 4 (depends on `coaching.json`)
 

@@ -3,7 +3,7 @@
 # toggle, then run the single-file export. See WORKFLOW.md.
 #
 # Usage:  ./export_coaching.sh [options] [output.json]
-#   output.json defaults to data/rgroups/coaching.json
+#   output.json defaults to data/rgroups/coaching_<slug>_<YYYYMMDD-HHMMSS>.json
 #   passes every option straight through to export_coaching.py:
 #     --report FILE      enrich from the coaching's Report-HTML export
 #     --dialogs-only     Micro Dialogs sweep only (no live writes)

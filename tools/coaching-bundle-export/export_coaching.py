@@ -12,8 +12,9 @@ Drives the already-logged-in Chromium (see ../start_pmcp.sh) over CDP:
            export and the committed baseline? A canary for PMCP UI changes
            that would otherwise silently break the export.
 
-Output: the single file you name. No coaching.bundle.json / .v2 / .v3 /
-coaching.rules.json — those are gone.
+Output: the single file you name, or (default)
+data/rgroups/coaching_<slug>_<YYYYMMDD-HHMMSS>.json. No coaching.bundle.json
+/ .v2 / .v3 / coaching.rules.json — those are gone. Prints total run time.
 
   export_coaching.py [OUT.json] [--report REPORT.html] [--dialogs-only]
                      [--rules-only] [--no-modals] [--update-baseline]
@@ -29,6 +30,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -61,22 +63,31 @@ async def _widen_for_menubar(page, cdp, wid) -> None:
     can't (usually the compositor clamped the window and it never actually
     got wide)."""
     bar = ".v-menubar.md-menu > .v-menubar-menuitem"
+    if not await M.ensure_micro_dialogs(page):
+        sys.exit("Micro Dialogs menu not on screen — open the coaching's Edit "
+                 "view, deactivate Monitoring, then rerun.")
     w = WIDE
     for _ in range(5):
         await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
             "left": 0, "top": 0, "width": w, "height": 1400,
             "windowState": "normal"}})
-        await page.wait_for_timeout(1500)
+        # wait for the menubar to actually re-render at the new width before
+        # judging the `►` overflow (checking too early sees 0 items)
+        n = 0
+        for _ in range(20):
+            await page.wait_for_timeout(500)
+            n = await page.locator(bar).count()
+            if n:
+                break
         actual = (await cdp.send("Browser.getWindowBounds",
                                  {"windowId": wid}))["bounds"].get("width")
         try:
-            n = await page.locator(bar).count()
-            last = (await page.locator(bar).last.inner_text()).strip() if n else ""
+            last = (await page.locator(bar).last.inner_text()).strip() if n else "?"
         except Exception:  # noqa: BLE001
-            n, last = 0, ""
+            last = "?"
         print(f"  window: asked {w}px, got {actual}px  ->  {n} menubar items, "
               f"last={last!r}")
-        if last != "►":
+        if n and last != "►":
             return
         w = min(w * 2, 40000)
     sys.exit("The Micro Dialogs menubar still shows a `►` overflow at the "
@@ -287,7 +298,14 @@ def write_baseline(bundle: dict, report_html: str | None) -> None:
 
 # ---------------------------------------------------------------------------
 
+def _slug(text: str) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")
+    return s[:48] or "coaching"
+
+
 async def main() -> int:
+    t0 = time.monotonic()
+    timings: dict[str, float] = {}
     args = sys.argv[1:]
     flags = {a for a in args if a.startswith("--")}
     report = None
@@ -296,11 +314,9 @@ async def main() -> int:
         if not Path(report).is_file():
             sys.exit(f"--report file not found: {report}")
     pos = [a for a in args if not a.startswith("--") and a != report]
-    default_out = HERE.parents[1] / "data" / "rgroups" / "coaching.json"
-    out_path = Path(pos[0]) if pos else default_out
-    if out_path.suffix != ".json":
-        out_path = out_path.with_suffix(".json")
-    print(f"output -> {out_path}")
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    explicit_out = Path(pos[0]).with_suffix(".json") if pos else None
+    out_dir = HERE.parents[1] / "data" / "rgroups"
     do_dialogs = "--rules-only" not in flags
     do_rules = "--dialogs-only" not in flags
 
@@ -320,31 +336,46 @@ async def main() -> int:
         orig = {"left": 60, "top": 60, "width": 1400, "height": 1000,
                 "windowState": "normal"}
 
+        # coaching name from the editor header (Coaching "…")
+        name = await page.evaluate(
+            r"""(()=>{const m=(document.body?document.body.innerText:'')
+                 .match(/Coaching\s+"([^"]+)"/); return m?m[1]:null;})()""")
         bundle: dict = {"coaching": {
-            "name": None, "languages": ["en-GB", "ro-RO"],
+            "name": name, "languages": ["en-GB", "ro-RO"],
             "scrapedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z")}}
+        out_path = explicit_out or (
+            out_dir / f"coaching_{_slug(name) if name else 'coaching'}_{ts}.json")
+        print(f"coaching: {name!r}")
+        print(f"output -> {out_path}")
+
         try:
             if do_dialogs:
                 print("--- phase 1: micro dialogs ---")
+                t = time.monotonic()
                 await _widen_for_menubar(page, cdp, wid)
                 md, nodes = await sweep_micro_dialogs(page)
                 bundle["microDialogs"] = md
                 bundle["nodes"] = nodes
+                timings["phase1_dialogs"] = time.monotonic() - t
             else:
                 bundle["microDialogs"], bundle["nodes"] = [], []
 
             if report and do_dialogs:
                 print("--- phase 2: enrich from Report HTML ---")
+                t = time.monotonic()
                 enrich_bundle.enrich_dict(bundle, Path(report))
+                timings["phase2_enrich"] = time.monotonic() - t
 
             if do_rules:
                 print("--- phase 3: rules ---")
+                t = time.monotonic()
                 await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
                     "left": 0, "top": 0, "width": 2400, "height": 1600,
                     "windowState": "normal"}})
                 await page.wait_for_timeout(800)
                 bundle["rules"] = await sweep_rules(
                     page, open_modals="--no-modals" not in flags)
+                timings["phase3_rules"] = time.monotonic() - t
         finally:
             await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": orig})
 
@@ -356,6 +387,10 @@ async def main() -> int:
         print(f"  ! {w}")
     print(f"  ok = {bundle['validation']['ok']}")
 
+    elapsed = time.monotonic() - t0
+    bundle["run"] = {"seconds": round(elapsed, 1),
+                     "phaseSeconds": {k: round(v, 1) for k, v in timings.items()},
+                     "finishedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(bundle, indent=2, ensure_ascii=False))
     m = bundle["validation"]["metrics"]
@@ -363,6 +398,10 @@ async def main() -> int:
     print(f"  microDialogs={m['microDialogs']}  nodes={m['nodesTotal']}  "
           f"r_groups={m['randomisationGroups']}  "
           f"ruleTree={m['ruleTreeNodes']}  senders={m['sendingRules']}")
+    mm, ss = divmod(int(elapsed), 60)
+    parts = "  ".join(f"{k.split('_', 1)[1]} {v:.0f}s" for k, v in timings.items())
+    print(f"  run time: {mm}m {ss:02d}s   ({parts})" if parts
+          else f"  run time: {mm}m {ss:02d}s")
     return 0 if bundle["validation"]["ok"] else 1
 
 
