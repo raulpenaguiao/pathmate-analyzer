@@ -1,0 +1,36 @@
+{
+  "coaching": "ALEX v01 (\"ALEX v01 zum Ausprobieren\")",
+  "generatedAt": "2026-09-10T14:43:29+0200",
+  "note": "Known-good structural counts. export_coaching.py --update-baseline regenerates this against a fresh export you trust.",
+  "metrics": {
+    "microDialogs": 83,
+    "nodesTotal": 1177,
+    "messageNodes": 919,
+    "decisionNodes": 258,
+    "randomisationGroups": 102,
+    "ruleTreeNodes": 117,
+    "sendingRules": 25
+  },
+  "acceptedPerDialogDeltas": {
+    "Prompt patient to conduct daily spirometry / Feedback on compliance regarding daily spirometry / Good Compliance": [
+      11,
+      12
+    ],
+    "Prompt patient to prepare for nighttime monitoring / Feedback on compliance regarding nighttime monitoring / Good Compliance": [
+      11,
+      12
+    ],
+    "Prompt patient to prepare for nighttime monitoring / Feedback on compliance regarding nighttime monitoring / Poor Compliance": [
+      14,
+      0
+    ],
+    "Adherence barriers dialog / Medication": [
+      18,
+      4
+    ],
+    "Testing questionnaires": [
+      6,
+      4
+    ]
+  }
+}

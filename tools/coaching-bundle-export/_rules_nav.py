@@ -1,6 +1,6 @@
 """Shared toolkit for the PMCP **Rules tab** (a Vaadin 7 `.v-tree`).
 
-Used by `probe_rules_tree.py` (discovery) and `export_rules.py` (production).
+Used by `probe_rules_tree.py` (discovery) and `export_coaching.py` (the export).
 The menubar equivalent is `_menu_nav.py`.
 
 Vaadin 7 tree facts confirmed live 2026-09-10 (see
@@ -150,6 +150,38 @@ SECTION_ICON = {
     "bubble-icon-small.png": "UNEXPECTED MESSAGE",
     "signs-icon-small.png": "USER INTENTION",
 }
+SENDER_ICON = "message-icon-small.png"       # rule sends a message / starts a dialog
+CONDITION_ICON = "rule-icon-small.png"       # condition / calculation rule
+
+
+def build_rule_tree(tree_nodes: list[dict]) -> list[dict]:
+    """A flat, ordered rule list with stable uids + parent links, from a
+    TREE_DUMP_JS node list. Section roots (depth 0) set the `section` of
+    everything under them and are dropped from the output."""
+    out: list[dict] = []
+    last_at_depth: dict[int, str | None] = {}
+    section = None
+    counter = 0
+    for n in tree_nodes:
+        d = n["depth"]
+        if d == 0:
+            section = SECTION_ICON.get(n["icon"], n["caption"])
+            last_at_depth = {0: None}
+            continue
+        uid = f"r-{counter:03d}"
+        counter += 1
+        kind = ("sender" if SENDER_ICON in n["icon"]
+                else "condition" if CONDITION_ICON in n["icon"] else "other")
+        out.append({
+            "uid": uid, "section": section, "depth": d, "order": counter,
+            "parentUid": last_at_depth.get(d - 1),
+            "kind": kind, "icon": n["icon"], "caption": n["caption"],
+            "treeIndex": n["i"],
+        })
+        last_at_depth[d] = uid
+        for deeper in [k for k in last_at_depth if k > d]:
+            del last_at_depth[deeper]
+    return out
 
 
 # ---------------------------------------------------------------------------

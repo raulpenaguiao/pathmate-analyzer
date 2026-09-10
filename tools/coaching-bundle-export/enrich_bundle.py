@@ -7,7 +7,7 @@ Join key: (micro-dialog leaf name, node order). A dialog is merged only when
 exactly one Report dialog matches by name AND node count - otherwise its nodes
 are left text-unresolved and listed for follow-up.
 
-Usable as a module (export_bundle.py --enrich calls enrich()) or standalone:
+Usable as a module (`export_coaching.py` calls `enrich_dict()`) or standalone:
 
   .venv/bin/python enrich_bundle.py coaching.bundle.json Coaching_XXX.html [OUT_DIR]
 
@@ -38,8 +38,16 @@ def parse_report(html_bytes: bytes):
     return parse_model(html_bytes)
 
 
-def enrich(bundle_path: Path, report_html: Path, out_dir: Path) -> dict:
-    bundle = json.loads(Path(bundle_path).read_text())
+def report_dialog_counts(report_html: Path) -> dict[str, int]:
+    """{micro-dialog name: node count} from the Report HTML — for the
+    coherence check."""
+    m = parse_report(Path(report_html).read_bytes())
+    return {d.name: len(d.nodes) for d in m.micro_dialogs}
+
+
+def enrich_dict(bundle: dict, report_html: Path) -> dict:
+    """Join Report-HTML text/branches into an in-memory bundle dict, in place.
+    Returns the same dict (with an `enrich` summary block added)."""
     model = parse_report(Path(report_html).read_bytes())
     by_name = defaultdict(list)
     for d in model.micro_dialogs:
@@ -87,14 +95,21 @@ def enrich(bundle_path: Path, report_html: Path, out_dir: Path) -> dict:
                         "dialogsMerged": merged, "emptyDialogs": empty,
                         "dialogsUnresolved": len(unresolved),
                         "unresolved": unresolved}
-    Path(out_dir).mkdir(parents=True, exist_ok=True)
-    out = Path(out_dir) / "coaching.bundle.v2.json"
-    out.write_text(json.dumps(bundle, indent=2, ensure_ascii=False))
     print(f"enriched {merged} dialogs, {empty} empty, "
-          f"{len(unresolved)} unresolved (of {len(bundle['microDialogs'])}) -> {out}")
+          f"{len(unresolved)} unresolved (of {len(bundle['microDialogs'])})")
     for u in unresolved:
         print(f"  unresolved: {u['name']}  bundle={u['bundleNodes']} "
               f"report={u['reportCandidates']}")
+    return bundle
+
+
+def enrich(bundle_path: Path, report_html: Path, out_dir: Path) -> dict:
+    """File wrapper: read a bundle JSON, enrich, write coaching.bundle.v2.json."""
+    bundle = enrich_dict(json.loads(Path(bundle_path).read_text()), report_html)
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
+    out = Path(out_dir) / "coaching.bundle.v2.json"
+    out.write_text(json.dumps(bundle, indent=2, ensure_ascii=False))
+    print(f"  -> {out}")
     return bundle
 
 

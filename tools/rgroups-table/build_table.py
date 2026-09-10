@@ -1,4 +1,4 @@
-"""Build the randomisation-group tables from a coaching.bundle.v2.json
+"""Build the randomisation-group tables from a coaching.json
 (produced by ../coaching-bundle-export/).
 
   rgroups_table.csv    one row per message that carries an r_* group:
@@ -8,7 +8,7 @@
                        still needs top-up (a *pool* = one group x micro dialog,
                        the set actually randomised together at run time)
 
-Run:  .venv/bin/python build_table.py [path/to/coaching.bundle.v2.json]
+Run:  .venv/bin/python build_table.py [path/to/coaching.json]
       TARGET=10 .venv/bin/python build_table.py        # top-up threshold
 """
 from __future__ import annotations
@@ -21,7 +21,7 @@ from collections import defaultdict
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_BUNDLE = HERE.parents[1] / "data" / "rgroups" / "coaching.bundle.v2.json"
+DEFAULT_BUNDLE = HERE.parents[1] / "data" / "rgroups" / "coaching.json"
 TARGET = int(os.environ.get("TARGET", "10"))
 
 TABLE = HERE / "rgroups_table.csv"

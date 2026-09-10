@@ -19,17 +19,17 @@ need Claude, an API key, or an internet AI service to run it.
 | --- | --- |
 | `WORKFLOW.md` | the end-to-end recipe (start here) |
 | `../start_pmcp.sh` | launch a CDP Chromium and log it into PMCP from `.env` (browser + login in one; shared across tools) |
-| `export_coaching.sh` | check login, pause once for Monitoring, run both sweeps, write one named JSON |
-| `export_bundle.py` | Micro Dialogs sweep: the `.v-menubar` → `coaching.bundle.json` (node content + randomisation groups) |
-| `enrich_bundle.py` | joins the Report-HTML export for full text + branches → `coaching.bundle.v2.json` (also runs standalone) |
-| `export_rules.py` | **Rules-tab sweep**: the `.v-tree` + every sending rule's "Edit rule:" modal → `coaching.rules.json`; `--merge` also writes `coaching.bundle.v3.json` (v2 + a `rules` key). Opens ~25 read-only modals whose dismiss commits a no-op re-save — sandbox coachings only; `--no-modals` for the tree skeleton with zero writes. |
-| `_menu_nav.py` | Vaadin MenuBar discovery / navigation helpers used by `export_bundle.py` |
-| `_rules_nav.py` | Vaadin `.v-tree` navigation + "Edit rule:" modal JS + `parse_rule_fields()`, shared by `export_rules.py` and `probe_rules_tree.py` |
-| `DESIGN.md` | the fuller picture: data sources, Stage 3 (captured) / Stage 4, schema |
+| `export_coaching.sh` | thin wrapper: one Monitoring pause, then `export_coaching.py` |
+| `export_coaching.py` | **the export.** One run: Micro Dialogs sweep → enrich (`--report`) → Rules sweep → coherence check → one `<name>.json`. |
+| `enrich_bundle.py` | Report-HTML join (`parse_report`, `enrich_dict`, `report_dialog_counts`) — a module `export_coaching.py` calls; also runs standalone |
+| `_menu_nav.py` | Vaadin MenuBar nav + the micro-dialog `.v-table` sweep (`all_targets`, `sweep_table`) |
+| `_rules_nav.py` | Vaadin `.v-tree` nav + "Edit rule:" modal JS + `parse_rule_fields()` + `build_rule_tree()`, shared with `probe_rules_tree.py` |
+| `coherence_baseline.json` | known-good structural counts for ALEX v01; the phase-4 canary compares against it (`--update-baseline` to regenerate) |
+| `DESIGN.md` | the fuller picture: data sources, Stage 3 / Stage 4, schema |
 | `probe_dom.py` | read-only: dump the page's DOM structure / selectors (for when the portal markup changes) |
 | `probe_node_editor.py` | read-only: open a *message* node's detail editor and dump its fields |
 | `probe_rules_tree.py` | discovery wrapper over `_rules_nav.py`: dump the whole Rules tree + sample N "Edit rule:" modals (`PMCP_RULE_SAMPLE`, `PMCP_RULE_ICONS`) |
-| `rules_stage3_ALEX_v01.json` | reference `export_rules.py` output for ALEX v01 (also `../../docs/rules_stage3_ALEX_v01.md`) |
+| `rules_stage3_ALEX_v01.json` | reference rule data for ALEX v01 (also `../../docs/rules_stage3_ALEX_v01.md`) |
 
 ## Prerequisites
 
@@ -46,65 +46,22 @@ need Claude, an API key, or an internet AI service to run it.
 
 ## Run it
 
-**1. Start a Chromium with a debug port** (detached, so it survives script
-restarts):
+See **`WORKFLOW.md`** — `tools/start_pmcp.sh` then `./export_coaching.sh <name>.json`.
+
+`export_coaching.py` can also be run directly (skips the Monitoring pause):
 
 ```bash
-CHROME=~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome    # or your chrome
-setsid nohup $CHROME --remote-debugging-port=9222 \
-  --user-data-dir=/tmp/pmcp-cdp-profile --no-first-run --start-maximized \
-  https://cp22.pathmate.cloud/PMCP/admin >/tmp/pmcp-chrome.log 2>&1 & disown
+export PMCP_CDP=http://127.0.0.1:9222
+.venv/bin/python tools/coaching-bundle-export/export_coaching.py \
+  data/rgroups/coaching.json --report Coaching_<name>.html
+
+# no live writes: skip the Edit-rule modals
+.venv/bin/python tools/coaching-bundle-export/export_coaching.py \
+  data/rgroups/coaching.json --report Coaching_<name>.html --no-modals
 ```
 
-**2. In that window, by hand:** log in, then
-`Coaching → <your coaching> → Edit → Basic Settings and Modules →
-Monitoring: inactive → Micro Dialogs`, and click any dialog so a table shows.
-
-**3. Run the export:**
-
-```bash
-cd /path/to/pathmate-analyzer
-export PMCP_CDP=http://127.0.0.1:9222 PMCP_OUT="$PWD/data/rgroups"
-
-# grid data only
-.venv/bin/python tools/coaching-bundle-export/export_bundle.py
-
-# grid data + full text + decision branches
-.venv/bin/python tools/coaching-bundle-export/export_bundle.py \
-  --enrich "$PWD/Coaching_ALEX_v01_zum_Ausprobieren.html"
-```
-
-Takes roughly 8–12 minutes for ~100 micro dialogs. The window is widened to
-~12000 px during the run (goes off-screen — intentional; it is restored at the
-end).
-
-`enrich_bundle.py` can also be run on its own afterwards:
-
-```bash
-.venv/bin/python tools/coaching-bundle-export/enrich_bundle.py \
-  data/rgroups/coaching.bundle.json Coaching_ALEX_v01_zum_Ausprobieren.html data/rgroups
-```
-
-**4. Rule-level timing (`export_rules.py`).** Separate sweep, separate view:
-navigate the browser to `Edit → Rules` for the same coaching (the script
-clicks the in-app "Rules" tab if the view has drifted). Then:
-
-```bash
-export PMCP_CDP=http://127.0.0.1:9222 PMCP_OUT="$PWD/data/rgroups"
-
-# rule tree + every sending rule's Edit-rule modal -> coaching.rules.json
-.venv/bin/python tools/coaching-bundle-export/export_rules.py --merge
-
-# tree skeleton only, no modals opened, zero writes
-.venv/bin/python tools/coaching-bundle-export/export_rules.py --no-modals
-```
-
-`--merge` also writes `coaching.bundle.v3.json` = the v2 bundle plus a
-`rules` key (`sections`, `ruleTree`, `sendingRules`). Opening each sending
-rule's "Edit rule:" modal fires a no-op "The rule has been updated." toast on
-close — **sandbox coachings only**, and log an `autochanges/` entry
-(see `autochanges/2026-09-10-rules-tree-stage3-sweep.md`).
-
+`enrich_bundle.py` still works standalone on a saved export if you only want
+to (re)join the Report HTML.
 ## Output
 
 `coaching.bundle.json` (and `.v2.json` with `--enrich`):

@@ -16,28 +16,35 @@ only exists in the live Vaadin editor.
 
 | Source | Gives | Misses |
 | --- | --- | --- |
-| Editor `.v-table` sweep (`export_bundle.py`) | node type, order, comment, channel, answer type, result var, **randomisation group**, all flags, accurate counts (1177 nodes / 107 dialogs, matches the metadata sidecar) | full text (grid truncates with `…`), branch conditions, answer routing, delay/priority |
+| Editor `.v-table` sweep (`_menu_nav` + `export_coaching.py`) | node type, order, comment, channel, answer type, result var, **randomisation group**, all flags, accurate counts (1177 nodes / 107 dialogs, matches the metadata sidecar) | full text (grid truncates with `…`), branch conditions, answer routing, delay/priority |
 | Report HTML (`app/coaching_model.py`) | full per-language text, decision branches, trigger expressions, answer options | randomisation groups, node ids, correct counts for ~5 dialogs |
 | Editor detail modal (per node) | everything, incl. delay/priority, answer→route | slow: ~1200 modal opens + nested sub-editors |
 
 ## Pipeline (built)
 
-1. **`export_bundle.py`** — CDP-attach to a hand-logged-in Chromium, widen the
-   window to defeat the menubar's `►` overflow, DFS the menu (folders included),
-   select each micro dialog, round-trip-aware positional sweep of its table.
-   → `coaching.bundle.json` (uids, order, grid columns, r_ group).
-2. **`enrich_bundle.py`** (`export_bundle.py --enrich REPORT.html`) — join the
-   bundle with the Report-HTML model on `(micro-dialog leaf name, node order)`,
-   only where a Report dialog matches by name AND node count. Attaches
-   `textByLang`, `branches`, `triggerExprs`, `answerOptionsByLang`.
-   → `coaching.bundle.v2.json` — 92/107 dialogs enriched (15 empty folders),
-   0 unresolved; 255/258 decision points have branch data.
-3. **`../rgroups-table/build_table.py`** — `coaching.bundle.v2.json` →
-   `rgroups_table.csv` / `rgroups_summary.csv` (one row per r_ message / per
-   group; pool = `(group, micro dialog)`).
-4. **`../rgroups-table/expand_rgroups.py`** — every pool with < N distinct
-   variants → Claude or ChatGPT for the rest (same meaning, ~same length, emoji,
-   age-appropriate for 10-19; both en-GB and ro-RO) → `rgroups_table.expanded.csv`.
+One script, one run, one file: **`export_coaching.py OUT.json --report REPORT.html`**
+(wrapper `export_coaching.sh` adds the Monitoring pause). Phases:
+
+1. **Micro Dialogs** — widen the window to defeat the menubar's `►` overflow,
+   DFS the menu (folders included), round-trip-aware positional sweep of each
+   dialog's `.v-table` (`_menu_nav.all_targets` / `sweep_table`).
+   → `microDialogs`, `nodes` (uids, order, grid columns, r_ group).
+2. **Enrich** — `enrich_bundle.enrich_dict()` joins the Report-HTML model on
+   `(micro-dialog leaf name, node order)`, only where a Report dialog matches
+   by name AND node count. Attaches `textByLang`, `branches`, `triggerExprs`,
+   `answerOptionsByLang`. (92/107 dialogs, 0 unresolved on ALEX v01.)
+3. **Rules** — `_rules_nav`: expand the `.v-tree`, `build_rule_tree()`, and
+   for every `message-icon` sender open its "Edit rule:" modal and
+   `parse_rule_fields()`. → `rules` (`sections`, `ruleTree`, `sendingRules`).
+4. **Coherence check** — `coherence_check()` compares the sweep to the Report
+   HTML and to `coherence_baseline.json` (dialog / node / rule / r_-group
+   counts, per-dialog deltas). Writes `validation`; the script exits non-zero
+   if the sweep collapsed or drifted — a canary for PMCP UI changes.
+   `--update-baseline` rewrites the baseline from a run you trust.
+
+Downstream (unchanged): **`../rgroups-table/build_table.py`** reads the
+export's `nodes` → `rgroups_table.csv` / `rgroups_summary.csv`;
+**`expand_rgroups.py`** tops up thin pools with an LLM.
 
 ## Result (ALEX v01, 2026-09-03)
 
@@ -47,7 +54,7 @@ type). **96 distinct `r_` randomisation groups** (the earlier count of 63 was
 from a sweep that truncated tall dialogs). 127 randomisation pools, 110 of them
 with < 10 distinct variants.
 
-## `coaching.bundle.json` schema
+## Export schema
 
 ```jsonc
 {
@@ -181,8 +188,8 @@ below was a wrong guess. What actually exists:
 
 ## Analyzer import (Stage 4 — not started)
 
-Input is now **`coaching.bundle.v3.json`** = the v2 bundle + a `rules` key
-(`export_rules.py --merge`):
+Input is the single `export_coaching.py` output (`coaching` / `microDialogs` /
+`nodes` / `rules` / `validation`):
 
 ```jsonc
 "rules": {

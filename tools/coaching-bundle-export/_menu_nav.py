@@ -293,6 +293,108 @@ async def ensure_micro_dialogs(page) -> bool:
     return bool(await page.locator(".v-menubar.md-menu").count())
 
 
+# ---------------------------------------------------------------------------
+# Micro-dialog table sweep (the editor grid) — used by export_coaching.py
+# ---------------------------------------------------------------------------
+
+GRAB_JS = r"""
+() => {
+  const t = document.querySelector('.v-table');
+  if (!t) return { total: 0, rows: [], ch: 0, sh: 0 };
+  const sc = t.querySelector('.v-table-body-wrapper');
+  const trs = [...t.querySelectorAll('.v-table-body tr')];
+  const withCells = trs.filter(tr => tr.querySelectorAll('.v-table-cell-wrapper').length);
+  const rh = trs[0] ? trs[0].offsetHeight : 24;
+  const ch = sc.clientHeight, sh = sc.scrollHeight;
+  const scrollable = sh > ch + 4;
+  const total = scrollable ? Math.max(withCells.length, Math.round(sh / rh))
+                           : withCells.length;
+  const base = sc.getBoundingClientRect().top;
+  const rows = [];
+  withCells.forEach(tr => {
+    const cells = [...tr.querySelectorAll('.v-table-cell-wrapper')]
+      .map(c => c.textContent.replace(/ /g, ' ').trim());
+    const idx = scrollable
+      ? Math.round((tr.getBoundingClientRect().top - base + sc.scrollTop) / rh)
+      : trs.indexOf(tr);
+    rows.push([idx, cells]);
+  });
+  return { total, rows, ch, sh, top: sc.scrollTop, scrollable };
+}
+"""
+
+SET_SCROLL_JS = "(y) => { const w = document.querySelector('.v-table .v-table-body-wrapper'); if (w) w.scrollTop = y; }"
+
+COLS = ["Type", "Comment", "Message Text / Events", "Channel", "Answer Type",
+        "Result Variable", "Randomisation Group", "Command Message",
+        "Contains Media Content", "Contains Link To Survey", "Contains Rules"]
+
+
+async def sweep_table(page):
+    """Scroll-and-accumulate every row of the current micro-dialog `.v-table`.
+    Returns (total, {row_index: [cells]}, [missing_indices])."""
+    seen: dict[int, list[str]] = {}
+    try:
+        await page.wait_for_selector(".v-table .v-table-body tr", timeout=8000)
+    except Exception:
+        pass
+    await page.wait_for_timeout(350)
+    meta = await page.evaluate(GRAB_JS)
+    total = meta["total"]
+    for idx, cells in meta["rows"]:
+        if 0 <= idx < total:
+            seen[idx] = cells
+    if total == 0:
+        return 0, {}, []
+    if not meta["scrollable"]:
+        return total, seen, [i for i in range(total) if i not in seen]
+    step = meta["ch"] or 240
+    y, stale = 0, 0
+    while y <= meta["sh"] + step:
+        await page.evaluate(SET_SCROLL_JS, y)
+        try:
+            await page.locator(".v-loading-indicator").wait_for(state="visible", timeout=350)
+            await page.locator(".v-loading-indicator").wait_for(state="hidden", timeout=15000)
+        except Exception:
+            pass
+        await page.wait_for_timeout(230)
+        g = await page.evaluate(GRAB_JS)
+        before = len(seen)
+        for idx, cells in g["rows"]:
+            if 0 <= idx < total:
+                seen[idx] = cells
+        stale = stale + 1 if len(seen) == before else 0
+        if stale >= 3 and len(seen) >= total:
+            break
+        y += step
+    missing = [i for i in range(total) if i not in seen]
+    return total, seen, missing
+
+
+async def all_targets(page) -> list[dict]:
+    """Every menu node (folders + leaves) as {labels, isFolder}, ordered so
+    each folder comes just before its children."""
+    leaves = await discover(page)
+    leafset = {tuple(l["labels"]) for l in leaves}
+    folders: set[tuple] = set()
+    for l in leaves:
+        for k in range(1, len(l["labels"])):
+            folders.add(tuple(l["labels"][:k]))
+    targets = [{"labels": list(t), "isFolder": True} for t in sorted(folders)]
+    targets += [{"labels": l["labels"], "isFolder": False} for l in leaves]
+    order = {tuple(l["labels"]): i for i, l in enumerate(leaves)}
+
+    def sortkey(t):
+        lab = tuple(t["labels"])
+        if t["isFolder"]:
+            firstchild = min((order[k] for k in leafset if k[:len(lab)] == lab), default=1e9)
+            return (firstchild, 0, len(lab))
+        return (order[lab], 1, 0)
+
+    targets.sort(key=sortkey)
+    return targets
+
+
 async def main() -> None:
     RAW_JSONL.unlink(missing_ok=True)
     for f in (GO_FILE, ABORT_FILE):

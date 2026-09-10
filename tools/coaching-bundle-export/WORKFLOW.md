@@ -56,51 +56,54 @@ cd tools/coaching-bundle-export
 ./export_coaching.sh --report /path/to/Coaching_<name>.html  my_coaching.json
 ```
 
-`my_coaching.json` is whatever name you want. `--report` is the coaching's
-**Report-HTML export** (Coaching → Report → save the page) — optional but
-strongly recommended: it's the only source of full message text and
-decision-branch conditions. It first checks you're logged in (from step 1)
-and bails with a pointer to `start_pmcp.sh` if not.
+`my_coaching.json` is the single output — whatever name you want. `--report`
+is the coaching's **Report-HTML export** (Coaching → Report → save the page)
+— optional but strongly recommended: it's the only source of full message
+text and decision-branch conditions, *and* it's what the coherence check
+compares the DOM sweep against.
 
-What it does:
+`export_coaching.sh` pauses once for the Monitoring toggle, then runs
+`export_coaching.py`, which does everything in one pass:
 
-1. **Checks you're logged in** (step 1 did this). Bails to `start_pmcp.sh`
-   if not.
-2. **Pauses once** — *"open your coaching → click Edit → DEACTIVATE
-   MONITORING"*. This is the only manual browser action. Monitoring must be
-   off or the Micro Dialogs menu's popups silently fail. Turn it back on when
-   you're done unless told otherwise. Press Enter.
-3. **Micro Dialogs sweep** — navigates to that view itself, sweeps every
+1. **phase 1 — Micro Dialogs.** Navigates to that view itself, sweeps every
    dialog (~8–12 min for ~100; the window goes very wide and off-screen on
-   purpose, then is restored).
-4. **Rules sweep** — navigates to the Rules tab itself, expands the whole
-   rule tree, opens each sending rule's "Edit rule:" modal (~25 no-op
-   re-saves on the sandbox).
-5. Copies the richest bundle produced to `my_coaching.json` and prints a
-   count summary.
+   purpose, then is restored). → `microDialogs`, `nodes` (incl. the
+   randomisation group).
+2. **phase 2 — enrich.** With `--report`, joins the Report HTML for full
+   per-language text + decision branches.
+3. **phase 3 — Rules.** Navigates to the Rules tab, expands the whole rule
+   tree, opens each sending rule's "Edit rule:" modal (~25 no-op re-saves on
+   the sandbox). → `rules` (`sections`, `ruleTree`, `sendingRules`).
+4. **phase 4 — coherence check.** Compares the sweep to the Report HTML and
+   to `coherence_baseline.json` (micro-dialog / node / rule / r_-group
+   counts, per-dialog deltas). Writes a `validation` block and **exits
+   non-zero** if the sweep collapsed or drifted off the baseline — the
+   canary for a PMCP UI change that would otherwise silently break the
+   export. Small, expected drift is a warning, not a failure.
 
-### Options
+### Options (passed straight through to `export_coaching.py`)
 
 | flag | effect |
 | --- | --- |
-| `--report FILE` | enrich with full text + decision branches from the Report HTML |
-| `--dialogs-only` | Micro Dialogs sweep only — **no live writes** |
-| `--rules-only` | Rules sweep only |
+| `--report FILE` | enrich + coherence-check against the Report HTML |
+| `--dialogs-only` | phase 1 (+2) only — **no live writes** |
+| `--rules-only` | phase 3 only |
+| `--no-modals` | rule tree skeleton only, no "Edit rule:" modals (phase 3, zero writes) |
+| `--update-baseline` | rewrite `coherence_baseline.json` from this run (do this once against an export you trust) |
+| `--yes` | don't pause at the Monitoring step |
 | `--cdp URL` | CDP endpoint (default `http://127.0.0.1:9222`) |
-| `--workdir DIR` | where intermediate `coaching.bundle*.json` land (default `../../data/rgroups`) |
-| `--yes` | don't pause at the Monitoring step (you already did it) |
 
-## Output shape
+## Output shape (one file)
 
 ```jsonc
 {
-  "coaching":     { "name", "languages", "scrapedAt", "stage" },
-  "microDialogs": [ { "uid", "name", "folderPath", "nodeCount", "nodeUids" } ],
+  "coaching":     { "name", "languages", "scrapedAt" },
+  "microDialogs": [ { "uid", "name", "folderPath", "isFolder", "nodeCount", "nodeUids" } ],
   "nodes":        [ { "uid", "microDialogUid", "order", "type", "comment",
                       "channel", "randomisationGroup", "flags",
                       // with --report:
                       "textByLang", "answerOptionsByLang", "branches" } ],
-  "rules": {                                  // from the Rules sweep
+  "rules": {
     "sections":  ["DAILY BASIS", "PERIODIC BASIS", "USER INTENTION"],
     "ruleTree":  [ { "uid", "section", "depth", "order", "parentUid",
                      "kind": "condition|sender", "caption" } ],
@@ -108,11 +111,13 @@ What it does:
                         "microDialogPath": [], "messageGroup",
                         "sendHourVariable", "notAnsweredTimeoutMinutes",
                         "doesAnswerRules": [], "doesNotAnswerRules": [] } ]
-  }
+  },
+  "validation": { "ok": true, "metrics": {…}, "htmlVsSweep": {…},
+                  "vsBaseline": {…}, "warnings": [] }
 }
 ```
 
-Full field reference: `DESIGN.md`. Reference output for ALEX v01:
+Full field reference: `DESIGN.md`. Reference rule data for ALEX v01:
 `rules_stage3_ALEX_v01.json` + `../../docs/rules_stage3_ALEX_v01.md`.
 
 ## When something goes wrong
