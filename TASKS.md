@@ -121,6 +121,19 @@ workstreams" section — this file is the checklist, that's the writeup.
       later/standalone pass; a standalone re-check against a saved pair is a
       possible bonus but not required.)
 
+- [ ] **Later: export polish.**
+      - Default output name should carry a timestamp, e.g.
+        `data/rgroups/coaching_<coaching-slug>_<YYYYMMDD-HHMMSS>.json`, so
+        successive runs don't overwrite each other and each file is
+        traceable to when it was scraped. (Explicit `OUT.json` arg still
+        wins.)
+      - Print the total wall-clock run time at the end (phase timings too if
+        cheap).
+      - Tighten `_widen_for_menubar`: wait for the Micro Dialogs bar to
+        actually render before checking for the `►` overflow (right now it
+        can check too early and see 0 items / `''`, so a real overflow could
+        slip through).
+
 ## Simulate chat — Stage 4 (depends on `coaching.json`)
 
 **Full cold-start brief: `docs/stage4_chat_engine_plan.md`** — architecture,
