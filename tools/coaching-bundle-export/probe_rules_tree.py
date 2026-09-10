@@ -212,87 +212,77 @@ async def dump_tree(page, tag: str) -> list[dict]:
     return trees
 
 
-async def _node_cap(page, ti: int, caption: str):
-    return (page.locator(".v-tree").nth(ti)
-            .locator(".v-tree-node", has_text=caption).first
-            .locator(".v-tree-node-caption").first)
+async def _tree_node_count(page) -> int:
+    return await page.evaluate(
+        "[...document.querySelectorAll('.v-tree .v-tree-node')].length")
 
 
-async def _click_expander(page, ti: int, caption: str) -> None:
-    """Expand a node: select it (caption click) then ArrowRight — the method
-    that worked in run 1. Fall back to a left-edge click on the node itself
-    (the Vaadin +/- triangle) and a double-click."""
-    cap = await _node_cap(page, ti, caption)
+async def _click_expander(page, ti: int, i: int) -> None:
+    """Expand the i-th .v-tree-node (DOM order) of tree ti: select its caption,
+    then ArrowRight — the method that worked in run 1. `.nth(i)` positional,
+    NOT has_text (a parent node's text contains its children's)."""
+    cap = (page.locator(".v-tree").nth(ti)
+           .locator(".v-tree-node").nth(i)
+           .locator(".v-tree-node-caption").first)
     try:
         await cap.click(timeout=3000)
         await page.wait_for_timeout(120)
         await page.keyboard.press("ArrowRight")
         await page.wait_for_timeout(200)
-        await page.keyboard.press("ArrowRight")   # 1st can just select
-        await page.wait_for_timeout(200)
-        return
     except Exception:  # noqa: BLE001
-        pass
-    for attempt in (
-        lambda: cap.click(position={"x": 4, "y": 8}, timeout=3000),
-        lambda: cap.dblclick(timeout=3000),
-    ):
         try:
-            await attempt()
+            await cap.dblclick(timeout=3000)
             await page.wait_for_timeout(200)
-            return
-        except Exception:  # noqa: BLE001
-            continue
-    print(f"    expand {caption[:40]!r}: all methods failed")
+        except Exception as e:  # noqa: BLE001
+            print(f"    expand node {ti}/{i}: {e!r}")
 
 
 async def _liveness_ok(page) -> bool:
-    """Try to expand the first non-leaf root; return True if the tree grew.
-    A dead (expired) PMCP session leaves the tree DOM on screen but silently
-    drops every expand RPC — this catches that before any modal is opened."""
+    """Expand the first non-leaf collapsed root; True if the tree grew. Catches
+    an expired PMCP session (tree DOM stays, expand RPCs are dropped) before
+    any modal is opened."""
     trees = await page.evaluate(TREE_DUMP_JS)
-    roots = [n["caption"] for n in trees[0]["nodes"]
-             if n["depth"] == 0 and not n["leaf"] and not n["expanded"]]
-    before = sum(t["nodeCount"] for t in trees)
-    for cap in roots:
-        await _click_expander(page, 0, cap)
-        after = await page.evaluate(
-            "[...document.querySelectorAll('.v-tree .v-tree-node')].length")
-        if after > before:
-            return True
+    before = await _tree_node_count(page)
+    for n in trees[0]["nodes"]:
+        if n["depth"] == 0 and not n["leaf"] and not n["expanded"]:
+            await _click_expander(page, 0, n["i"])
+            if await _tree_node_count(page) > before:
+                return True
     return False
 
 
-async def expand_all(page, rounds: int = 25) -> dict:
-    """Expand every collapsible node. Terminates when a full round adds no
-    nodes. Nodes that resist 2 attempts are reported as `stuckRoots`
-    (probably empty)."""
+async def expand_all(page, rounds: int = 30) -> dict:
+    """Expand every collapsible node. Each round re-dumps the tree (indices
+    shift as nodes appear) and clicks every still-collapsed node by position.
+    Stops when a round adds nothing. Nodes that never expand are reported as
+    `stuckRoots` (empty sections)."""
     tried: dict[str, int] = {}
-    prev_total = -1
     for r in range(rounds):
         trees = await page.evaluate(TREE_DUMP_JS)
         total = sum(t["nodeCount"] for t in trees)
-        collapsed = [(ti, n["caption"]) for ti, t in enumerate(trees)
+        collapsed = [(ti, n["i"], n["caption"]) for ti, t in enumerate(trees)
                      for n in t["nodes"]
                      if not n["leaf"] and not n["expanded"] and n["caption"]
                      and tried.get(n["caption"], 0) < 2]
         if not collapsed:
             print(f"  settled after {r} round(s), {total} nodes")
             break
-        if total == prev_total and r > 0:
-            # a round changed nothing structurally — bump every remaining try
-            for _, cap in collapsed:
-                tried[cap] = tried.get(cap, 0) + 1
-        prev_total = total
         print(f"  round {r}: {total} nodes, {len(collapsed)} still collapsed")
-        for ti, cap in collapsed:
+        grew = False
+        for ti, i, cap in collapsed:
             tried[cap] = tried.get(cap, 0) + 1
-            await _click_expander(page, ti, cap)
+            await _click_expander(page, ti, i)
+        if await _tree_node_count(page) > total:
+            grew = True
+        if not grew:
+            # nothing this round expanded; the rest are empty — one more pass
+            for _, _, cap in collapsed:
+                tried[cap] = 2
     trees = await page.evaluate(TREE_DUMP_JS)
     stuck = [n["caption"] for t in trees for n in t["nodes"]
              if not n["leaf"] and not n["expanded"] and n["caption"]]
     if stuck:
-        print(f"  stuck (likely empty sections): {stuck}")
+        print(f"  never expanded (likely empty sections): {stuck}")
     return {"stuckRoots": stuck}
 
 
@@ -356,10 +346,11 @@ async def sample_rule_modals(page, trees: list[dict]) -> list[dict]:
         cap = n["caption"]
         chain = _parent_chain(nodes, j)
         print(f"[{k + 1}/{len(picks)}] d{n['depth']} {n['icon']}  {cap[:64]!r}")
-        node = page.locator(".v-tree").nth(ti).locator(
-            ".v-tree-node", has_text=cap).first
+        node_cap = (page.locator(".v-tree").nth(ti)
+                    .locator(".v-tree-node").nth(j)
+                    .locator(".v-tree-node-caption").first)
         try:
-            await node.locator(".v-tree-node-caption").first.click(timeout=4000)
+            await node_cap.click(timeout=4000)
             await page.wait_for_timeout(350)
             btn = await rule_edit_button(page)
             if not btn:
