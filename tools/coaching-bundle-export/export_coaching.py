@@ -13,7 +13,7 @@ Drives the already-logged-in Chromium (see ../start_pmcp.sh) over CDP:
            that would otherwise silently break the export.
 
 Output: the single file you name, or (default)
-data/rgroups/coaching_<slug>_<YYYYMMDD-HHMMSS>.json. No coaching.bundle.json
+data/exports/coaching_<slug>_<YYYYMMDD-HHMMSS>.json. No coaching.bundle.json
 / .v2 / .v3 / coaching.rules.json — those are gone. Prints total run time.
 
   export_coaching.py [OUT.json] [--report REPORT.html] [--dialogs-only]
@@ -316,7 +316,7 @@ async def main() -> int:
     pos = [a for a in args if not a.startswith("--") and a != report]
     ts = time.strftime("%Y%m%d-%H%M%S")
     explicit_out = Path(pos[0]).with_suffix(".json") if pos else None
-    out_dir = HERE.parents[1] / "data" / "rgroups"
+    out_dir = HERE.parents[1] / "data" / "exports"
     do_dialogs = "--rules-only" not in flags
     do_rules = "--dialogs-only" not in flags
 

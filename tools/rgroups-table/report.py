@@ -13,7 +13,7 @@ Per-message detail lives in `rgroups_table.csv` (`build_table.py`).
 
 Run:
   .venv/bin/python tools/rgroups-table/report.py [coaching.json] [--out FILE]
-  # default input : data/rgroups/coaching.json
+  # default input : data/exports/coaching.json
   # default output: tools/rgroups-table/rgroups_report.md
 """
 from __future__ import annotations
@@ -26,7 +26,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-DEFAULT_IN = REPO / "data" / "rgroups" / "coaching.json"
+DEFAULT_IN = REPO / "data" / "exports" / "coaching.json"
 DEFAULT_OUT = HERE / "rgroups_report.md"
 
 
@@ -62,7 +62,7 @@ def build(bundle: dict) -> str:
     out = [
         f"# Randomisation groups (`r_*`) in {name}",
         "",
-        f"Generated from `data/rgroups/coaching.json` "
+        f"Generated from `data/exports/coaching.json` "
         f"(`coaching.scrapedAt` = {coaching.get('scrapedAt', '?')}) by "
         f"`tools/rgroups-table/report.py`. The Report-HTML export does not "
         f"carry the Randomisation Group column — this comes from the live "

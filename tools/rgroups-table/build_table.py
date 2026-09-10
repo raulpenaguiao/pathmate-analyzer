@@ -21,7 +21,7 @@ from collections import defaultdict
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_BUNDLE = HERE.parents[1] / "data" / "rgroups" / "coaching.json"
+DEFAULT_BUNDLE = HERE.parents[1] / "data" / "exports" / "coaching.json"
 TARGET = int(os.environ.get("TARGET", "10"))
 
 TABLE = HERE / "rgroups_table.csv"

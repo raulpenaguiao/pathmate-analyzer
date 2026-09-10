@@ -76,33 +76,30 @@ transcript.
 | `tools/coaching-bundle-export/export_coaching.py` | produces `coaching.json` = `{coaching, microDialogs, nodes, rules{sections, ruleTree, sendingRules}, validation}`. `_rules_nav.build_rule_tree()` builds `ruleTree` (captions only, no parsed exprs yet). `_rules_nav.parse_rule_fields()` already parses the sender modals into `sendingRules` (`primaryAction`, `microDialogPath`, `messageGroup`, `sendHourVariable`, `notAnsweredTimeoutMinutes`, `doesAnswerRules`, `doesNotAnswerRules`). | it's the producer |
 
 Reference data on disk:
-- `data/rgroups/coaching.bundle.v2.json` — ALEX v01, Sept 3, **no rules** (old schema, `microDialogs` + `nodes` + enrich).
-- `tools/coaching-bundle-export/rules_stage3_ALEX_v01.json` — ALEX v01 rules: `ruleTree` (117 nodes, captions) + `sendingRules` (25, fully parsed).
+- **`data/exports/coaching.json`** — ALEX v01, first live unified export
+  (2026-09-10). `microDialogs` + `nodes` (+ enrich `textByLang`/`branches`) +
+  `rules{sections, ruleTree, sendingRules}` + `validation` + `run`. One
+  dialog ("Adherence barriers dialog / Medication") is present with an
+  `error` field and no nodes (a transient sweep timeout) — re-run to get a
+  clean one. `coaching.name` may be `null` on this file (predates name
+  capture).
+- `tools/coaching-bundle-export/rules_stage3_ALEX_v01.json` — ALEX v01 rules
+  reference: `ruleTree` (captions) + `sendingRules` (25, fully parsed).
 - `tools/coaching-bundle-export/coherence_baseline.json` — known-good counts.
-- **No real unified `coaching.json` exists yet** — see §3.
 
 ---
 
-## 3. The blocker & the workaround
+## 3. Input & how to start
 
-**Blocker:** no real `coaching.json` from a live `export_coaching.sh` run has
-been produced. Needed to lock the exact schema and test against real content.
+Use **`data/exports/coaching.json`** directly — it exists now. Re-run
+`tools/coaching-bundle-export/export_coaching.sh --report <Report.html>`
+(via `tools/start_pmcp.sh`) for a fresh/clean one (also populates
+`coaching.name`).
 
-**Workaround to start before the live run:** stitch a synthetic
-`coaching.json` from the two reference files —
-`data/rgroups/coaching.bundle.v2.json` + the `rules` block from
-`tools/coaching-bundle-export/rules_stage3_ALEX_v01.json`. Build phases A–C
-against that; swap in the real file when it lands. ~80 % of the engine can be
-done this way.
-
-```python
-import json
-b = json.load(open("data/rgroups/coaching.bundle.v2.json"))
-r = json.load(open("tools/coaching-bundle-export/rules_stage3_ALEX_v01.json"))
-b["rules"] = {"sections": r["sections"], "ruleTree": r["ruleTree"],
-              "sendingRules": r["sendingRules"]}
-json.dump(b, open("data/rgroups/coaching.synthetic.json", "w"), indent=2, ensure_ascii=False)
-```
+If that file is ever unusable, a synthetic stand-in can be stitched from
+`tools/coaching-bundle-export/rules_stage3_ALEX_v01.json`'s `rules` block +
+whatever `microDialogs`/`nodes` you have — but the real export is the
+reference now.
 
 **First real target:** ALEX v01 — it's the only coaching with full Stage-3
 data and a baseline. The engine must stay coaching-agnostic (no ALEX

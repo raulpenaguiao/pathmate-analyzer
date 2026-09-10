@@ -1,6 +1,6 @@
 # Randomisation groups (`r_*`) in (unnamed coaching)
 
-Generated from `data/rgroups/coaching.json` (`coaching.scrapedAt` = 2026-09-10T16:41:23+0200) by `tools/rgroups-table/report.py`. The Report-HTML export does not carry the Randomisation Group column — this comes from the live editor sweep in `tools/coaching-bundle-export/export_coaching.py`.
+Generated from `data/exports/coaching.json` (`coaching.scrapedAt` = 2026-09-10T16:41:23+0200) by `tools/rgroups-table/report.py`. The Report-HTML export does not carry the Randomisation Group column — this comes from the live editor sweep in `tools/coaching-bundle-export/export_coaching.py`.
 
 **96 distinct `r_` groups**, 460 grouped messages, 1161 nodes, 83 micro dialogs. Fully text-resolved: 95/96 groups.
 

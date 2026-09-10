@@ -14,7 +14,7 @@ workstreams" section — this file is the checklist, that's the writeup.
       languages).
 - [ ] Augment these instances with a tool using an LLM API key.
       Tool works (`tools/rgroups-table/expand_rgroups.py`; one-command chain
-      `rebuild_all.sh`). ro-RO output constrained: informal *tu*, house-style
+      `rgroups_pipeline.sh`). ro-RO output constrained: informal *tu*, house-style
       gender agreement, native (non-calque) phrasing, no English loanwords.
       **Sample run done** (PR #1): `--limit 10` → 70 variants for 10 pools in
       `tools/rgroups-table/rgroups_review.md`; human review of those 70 done.
@@ -33,11 +33,11 @@ workstreams" section — this file is the checklist, that's the writeup.
 
 ### After `coaching.json` is regenerated (unblocks the rest)
 
-- [ ] Regenerate `data/rgroups/coaching.json` with the current export
+- [ ] Regenerate `data/exports/coaching.json` with the current export
       (`tools/coaching-bundle-export/export_coaching.py`, via `start_pmcp.sh`).
       The `rgroups_table.csv` in the repo predates the export consolidation.
-- [ ] Full expansion run: `BUNDLE=data/rgroups/coaching.json
-      tools/rgroups-table/rebuild_all.sh` (no `--limit`) → ~800 more variants
+- [ ] Full expansion run: `BUNDLE=data/exports/coaching.json
+      tools/rgroups-table/rgroups_pipeline.sh` (no `--limit`) → ~800 more variants
       for the ~100 `TO_GENERATE` pools, refreshing `rgroups_review.md`.
 - [ ] Human review of that full batch (the 10-pool sample is already ticked;
       this is the remaining ~100 pools).
@@ -127,15 +127,15 @@ workstreams" section — this file is the checklist, that's the writeup.
       — no browser scrape (was: hand-assembled from a live sweep). Wire it
       (and `build_table.py`) into `export_coaching.sh` — or a
       `--with-rgroups` flag — so one run gives `coaching.json` *and* the
-      up-to-date CSVs + report, without the full `rebuild_all.sh` (which also
-      does the LLM expansion). `rebuild_all.sh` already chains
+      up-to-date CSVs + report, without the full `rgroups_pipeline.sh` (which also
+      does the LLM expansion). `rgroups_pipeline.sh` already chains
       `report.py` in as its step 3.
 
 - [x] **Export polish (2026-09-10).**
       - Default output name now carries a timestamp:
-        `data/rgroups/coaching_<slug>_<YYYYMMDD-HHMMSS>.json` (slug from the
+        `data/exports/coaching_<slug>_<YYYYMMDD-HHMMSS>.json` (slug from the
         coaching name read off the editor header). Explicit `OUT.json` still
-        wins; `rebuild_all.sh` passes an explicit path so it's unaffected.
+        wins; `rgroups_pipeline.sh` passes an explicit path so it's unaffected.
       - Total wall-clock run time + per-phase seconds printed at the end and
         stored in the JSON's `run` block.
       - `bundle.coaching.name` is populated (was `null`).
@@ -146,8 +146,8 @@ workstreams" section — this file is the checklist, that's the writeup.
 ## Simulate chat — Stage 4 (depends on `coaching.json`)
 
 **Full cold-start brief: `docs/stage4_chat_engine_plan.md`** — architecture,
-current-code inventory, the blocker + synthetic-json workaround, phases 0–F
-with acceptance checks, open questions. Read that first. Summary:
+current-code inventory, where `coaching.json` lives (`data/exports/`), phases
+0–F with acceptance checks, open questions. Read that first. Summary:
 
 Design (agreed 2026-09-10 with the user): a **pure-function, stateless**
 engine driven **only** by `coaching.json` (HTML is a side double-check, never

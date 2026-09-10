@@ -17,7 +17,7 @@ pools that happen to share a name.
 | `report.py` | `coaching.json` → `rgroups_report.md` — the one-table-per-group summary (the committed-deliverable view, see `docs/randomisation_groups_*`). Parses the JSON, no browser. |
 | `expand_rgroups.py` | asks Claude or ChatGPT for extra variants for every thin pool → `rgroups_table.expanded.csv` |
 | `render_review_report.py` | `rgroups_table.expanded.csv` → `rgroups_review.md` (per-pool review with checkboxes) |
-| `rebuild_all.sh` | the whole chain: (bundle →) build_table → report → expand → review |
+| `rgroups_pipeline.sh` | the whole chain: (bundle →) build_table → report → expand → review |
 | `apply_approved.py` | write ticked `rgroups_review.md` proposals back into the live coaching (Playwright) |
 | `expand_prompts.txt` | the exact prompt sent per pool (written on every run, incl. `--dry-run`) |
 
@@ -46,12 +46,12 @@ pools that happen to share a name.
 
 ## Full pipeline (one command)
 
-`rebuild_all.sh` runs the whole chain — coaching JSON → tables → LLM top-up →
+`rgroups_pipeline.sh` runs the whole chain — coaching JSON → tables → LLM top-up →
 review report — from a single entry point. **Preferred:** hand it a ready-made
 JSON and it never touches the portal:
 
 ```bash
-BUNDLE=data/rgroups/coaching.json tools/rgroups-table/rebuild_all.sh
+BUNDLE=data/exports/coaching.json tools/rgroups-table/rgroups_pipeline.sh
 ```
 
 Any JSON meeting the [Bundle JSON contract](#bundle-json-contract) works — in
@@ -61,16 +61,16 @@ that export itself, which needs the browser from `tools/start_pmcp.sh` and the
 coaching's "Report" HTML export on disk:
 
 ```bash
-tools/rgroups-table/rebuild_all.sh /path/to/Report_export.html
+tools/rgroups-table/rgroups_pipeline.sh /path/to/Report_export.html
 ```
 
-Steps: obtain JSON → `build_table.py` → `expand_rgroups.py` →
-`render_review_report.py`.
+Steps: obtain JSON → `build_table.py` → `report.py` → `expand_rgroups.py` →
+`render_review_report.py`. (`SKIP_EXPAND=1` stops after `report.py`.)
 
 Knobs (env vars): `BUNDLE` (ready-made JSON; skips step 1), `PMCP_CDP`
 (default `http://127.0.0.1:9222`), `TARGET` (healthy-pool size, default 10),
 `EXPAND_ARGS` (e.g. `--limit 10`, `--dry-run`, `--provider chatgpt`),
-`SKIP_EXPORT=1` (reuse the existing `data/rgroups/coaching.json`),
+`SKIP_EXPORT=1` (reuse the existing `data/exports/coaching.json`),
 `SKIP_EXPAND=1` (stop after the tables), `PYTHON` (interpreter; default
 `.venv/bin/python`). `ANTHROPIC_API_KEY` is read from a git-ignored `.env` at
 the repo root.
@@ -123,7 +123,7 @@ fields, a ~20-line adapter to this shape is enough — no scraper of our own.
 TARGET=12 .venv/bin/python tools/rgroups-table/build_table.py
 ```
 
-Default input is `../../data/rgroups/coaching.json` (produced by
+Default input is `../../data/exports/coaching.json` (produced by
 `../coaching-bundle-export/`).
 
 Reference run: **96 `r_` groups, 458 messages, 127 pools; 83 groups have at
@@ -246,7 +246,7 @@ editor is Vaadin 7; these bite anything that drives it:
   skeleton CSV, prompts written); the live Anthropic path verified with
   `--limit 3` and `--limit 10` (70 real variants, ro-RO informal `tu` + gender
   house-style checks passed). A full unlimited run has not been done yet.
-- `rebuild_all.sh` — the three post-scrape steps it chains are individually
+- `rgroups_pipeline.sh` — the three post-scrape steps it chains are individually
   tested (above); the wrapper's control flow is `bash -n` clean but has not been
   run start-to-finish against a live CDP session.
 - `apply_approved.py` — `--apply` verified on the **sandbox** ("ALEX v01 zum

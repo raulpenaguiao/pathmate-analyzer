@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reproducible r_ randomisation-group pipeline, end to end:
+# The r_ randomisation-group pipeline, end to end (rename of rebuild_all.sh):
 #
 #   1. obtain a bundle JSON  (BUNDLE=... , or reuse , or live scrape)
 #   2. build_table.py                     -> rgroups_table.csv + rgroups_summary.csv
@@ -13,8 +13,8 @@
 # tools/start_pmcp.sh and the coaching's Report-HTML export on disk).
 #
 # Usage:
-#   BUNDLE=/path/to/coaching.json tools/rgroups-table/rebuild_all.sh
-#   tools/rgroups-table/rebuild_all.sh /path/to/Report_export.html   # run the export
+#   BUNDLE=/path/to/coaching.json tools/rgroups-table/rgroups_pipeline.sh
+#   tools/rgroups-table/rgroups_pipeline.sh /path/to/Report_export.html   # run the export
 #
 # Env / knobs:
 #   BUNDLE        ready-made coaching JSON; skips step 1 entirely (the forward path)
@@ -24,7 +24,7 @@
 #   PYTHON        interpreter to use (default: <repo>/.venv/bin/python, else python3)
 #   TARGET        healthy-pool size, forwarded to build_table.py + expand_rgroups.py (default 10)
 #   EXPAND_ARGS   extra args for expand_rgroups.py, e.g. "--limit 10" or "--dry-run"
-#   SKIP_EXPORT=1 reuse the existing data/rgroups/coaching.json (skip step 1)
+#   SKIP_EXPORT=1 reuse the existing data/exports/coaching.json (skip step 1)
 #   SKIP_EXPAND=1 stop after build_table.py (no API calls, no report)
 #
 # ANTHROPIC_API_KEY is read from <repo>/.env (git-ignored) or the environment.
@@ -33,7 +33,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
 EXPORT_DIR="$REPO/tools/coaching-bundle-export"
-DATA_DIR="$REPO/data/rgroups"
+DATA_DIR="$REPO/data/exports"
 DEFAULT_BUNDLE="$DATA_DIR/coaching.json"
 
 REPORT_HTML="${REPORT_HTML:-${1:-}}"

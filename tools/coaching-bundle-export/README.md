@@ -53,11 +53,11 @@ See **`WORKFLOW.md`** — `tools/start_pmcp.sh` then `./export_coaching.sh <name
 ```bash
 export PMCP_CDP=http://127.0.0.1:9222
 .venv/bin/python tools/coaching-bundle-export/export_coaching.py \
-  data/rgroups/coaching.json --report Coaching_<name>.html
+  data/exports/coaching.json --report Coaching_<name>.html
 
 # no live writes: skip the Edit-rule modals
 .venv/bin/python tools/coaching-bundle-export/export_coaching.py \
-  data/rgroups/coaching.json --report Coaching_<name>.html --no-modals
+  data/exports/coaching.json --report Coaching_<name>.html --no-modals
 ```
 
 `enrich_bundle.py` still works standalone on a saved export if you only want
@@ -98,7 +98,7 @@ attached branch logic to 255 of 258 decision points.
 - `enrich_bundle.py` — yes, end-to-end against the real `coaching.bundle.json`
   and Report HTML (92 dialogs merged, 0 unresolved).
 - `export_bundle.py` — the sweep logic is the code that produced the reference
-  bundle above (`data/rgroups/coaching.bundle.json`, 1177 nodes, cross-checked
+  bundle above (`data/exports/coaching.bundle.json`, 1177 nodes, cross-checked
   against the coaching's own metadata sidecar). The `--enrich` wiring and
   `_menu_nav` import were re-verified.
 
