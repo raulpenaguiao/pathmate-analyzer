@@ -23,12 +23,15 @@ In the repo root `.env` (gitignored; copy from `.env.example`):
 ```
 PMCP_USERNAME=you@example.com
 PMCP_PASSWORD=...
-PMCP_TOTP_SECRET=JBSWY3DPEHPK3PXP        # base32 seed from the authenticator setup
+PMCP_TOTP_SECRET=JBSWY3DPEHPK3PXP        # optional
 ```
 
-`PMCP_TOTP_SECRET` is the secret shown (often as a QR code / "manual entry
-key") when you set up the 2FA authenticator; spaces are fine. Leave the keys
-blank to always log in by hand.
+Username + password are always auto-filled. `PMCP_TOTP_SECRET` — the seed
+shown (QR code / "manual entry key") when you set up the 2FA authenticator,
+spaces fine — is **optional**: with it the 6-digit code is generated too;
+without it, the script fills user + password and then waits ~2 min for you to
+type the code in the browser. Leave `PMCP_USERNAME`/`PMCP_PASSWORD` blank to
+log in fully by hand.
 
 ## Step 1 — open the browser
 
@@ -55,9 +58,11 @@ decision-branch conditions.
 
 What it does:
 
-1. **Auto-login** from `.env` (`pmcp_login.py`) — no-op if already logged in.
-   If it can't (missing keys, changed login page), it says so and pauses for
-   you to log in by hand.
+1. **Auto-login** from `.env` (`pmcp_login.py`) — fills username + password
+   (and the 2FA code if `PMCP_TOTP_SECRET` is set; otherwise it fills
+   user/password and waits for you to type the code). No-op if already
+   logged in. If it can't (no keys, changed login page), it says so and
+   pauses for a hand login.
 2. **Pauses once** — *"open your coaching → click Edit → DEACTIVATE
    MONITORING"*. This is the only manual browser action. Monitoring must be
    off or the Micro Dialogs menu's popups silently fail. Turn it back on when
