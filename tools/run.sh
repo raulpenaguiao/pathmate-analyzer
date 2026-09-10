@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Runs the Pathmate Analyzer web portal locally, for development/testing.
 # Creates a local virtualenv (.venv) and a .env file on first run, so this
-# works out of the box on a fresh checkout.
+# works out of the box on a fresh checkout. Run it from anywhere:
+#   tools/run.sh
 set -euo pipefail
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
+cd "$(dirname "${BASH_SOURCE[0]}")/.."   # repo root
 
 if [ ! -f .env ]; then
 	echo "==> No .env found, creating one from .env.example - edit it before trusting the login." >&2

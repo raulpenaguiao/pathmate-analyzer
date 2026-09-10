@@ -113,7 +113,7 @@ No workstream branches exist right now — four were created ahead of time and t
 - `bundle-sim-integration` — workstream 4
 - `patient-markov-simulation` — workstream 5
 
-`main` stays the deploy branch: `release_frontend.sh` tags `main`'s HEAD for the `release_frontend` GitHub Actions workflow. Merge a workstream back to `main` when it's ready to ship.
+`main` stays the deploy branch: `tools/release_frontend.sh` tags `main`'s HEAD for the `release_frontend` GitHub Actions workflow. Merge a workstream back to `main` when it's ready to ship.
 
 ## Navigating the live PMCP portal (hurdles)
 

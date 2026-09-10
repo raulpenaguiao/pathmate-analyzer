@@ -7,8 +7,10 @@
 #
 # This does NOT stage or commit your working-tree changes for you: commit
 # what you want released first, then run this script to mark and push that
-# commit as a release point.
+# commit as a release point. Run it from anywhere: tools/release_frontend.sh
 set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."   # repo root
 
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 	echo "Not inside a git repository." >&2

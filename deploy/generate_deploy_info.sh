@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Writes DEPLOY.md at the repo root, recording which commit produced this
-# checkout. Called by run.sh for local dev, and by the release_frontend
+# checkout. Called by tools/run.sh for local dev, and by the release_frontend
 # workflow (before rsync) so it travels with the synced code to the server.
 # Never committed to git - it's only meaningful for the checkout that
 # generated it.

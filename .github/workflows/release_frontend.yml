@@ -1,7 +1,7 @@
 name: Release frontend
 
 # Fires on any tag matching release_frontend* (tag names must be unique in git,
-# so release_frontend.sh mints a fresh "release_frontend-<timestamp>" tag per
+# so tools/release_frontend.sh mints a fresh "release_frontend-<timestamp>" tag per
 # release rather than reusing a single literal tag name).
 on:
   push:
