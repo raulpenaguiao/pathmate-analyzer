@@ -86,6 +86,34 @@
 
 				<h3>Original file</h3>
 				<p><a class="button secondary" href="{{ url_for('main.coaching_download', coaching_id=coaching.id) }}">&#8681; Download original .html</a></p>
+
+				<h3>Chat engine data (coaching.json)</h3>
+				{% set b = coaching.get('bundle') %}
+				{% if b %}
+				{% set bs = b.get('summary', {}) %}
+				<table class="data-table">
+					<tr><th>Attached</th><td>{{ b.uploaded_at[:19] }}</td></tr>
+					<tr><th>Micro dialogs</th><td>{{ bs.get('microDialogs', 0) }}</td></tr>
+					<tr><th>Nodes</th><td>{{ bs.get('nodes', 0) }}</td></tr>
+					<tr><th>Rule-tree nodes</th><td>{{ bs.get('ruleTreeNodes', 0) }}{% if not bs.get('hasRules') %} <span class="chip chip-warn">no rules — dialogs-only export</span>{% endif %}</td></tr>
+					{% if bs.get('sendingRules') is not none %}<tr><th>Sending rules</th><td>{{ bs.get('sendingRules') }}</td></tr>{% endif %}
+					<tr><th>Coherence check</th><td>
+						{% if bs.get('coherenceOk') == true %}<span class="chip">ok</span>
+						{% elif bs.get('coherenceOk') == false %}<span class="chip chip-danger">failed</span>
+						{% else %}<span class="muted">not run</span>{% endif %}
+					</td></tr>
+				</table>
+				{% for w in bs.get('coherenceWarnings', []) %}<p class="node-meta">&#9888; {{ w }}</p>{% endfor %}
+				<form method="post" action="{{ url_for('main.coaching_bundle_delete', coaching_id=coaching.id) }}" onsubmit="return confirm('Detach the coaching.json?');">
+					<button type="submit" class="secondary">Detach coaching.json</button>
+				</form>
+				{% else %}
+				<p class="muted">No <code>coaching.json</code> attached. The Chat tab runs on the simplified HTML parse. Attach a Stage-3 export (from <code>tools/coaching-bundle-export/export_coaching.sh</code>) to unlock the faithful chat engine.</p>
+				<form method="post" action="{{ url_for('main.coaching_bundle_upload', coaching_id=coaching.id) }}" enctype="multipart/form-data" class="inline-form">
+					<input type="file" name="bundle" accept=".json,application/json" required>
+					<button type="submit" class="secondary">Attach coaching.json</button>
+				</form>
+				{% endif %}
 			</section>
 		</div>
 	</section>
@@ -188,6 +216,8 @@
 			Simplified model of this coaching's <strong>declarative</strong> rules. JS-snippet
 			rules and a few operators are skipped (shown as <em>skipped unsupported rule</em>).
 			This is not the real PMCP engine &mdash; use it to explore flow, not to certify behaviour.
+			{% if coaching.get('bundle') %}<br><span class="muted">A <code>coaching.json</code> is attached; the bundle-driven engine (Stage 4) will use it once wired in.</span>
+			{% else %}<br><span class="muted">Runs on the HTML parse. Attach a <code>coaching.json</code> (Statistics tab) for the faithful engine.</span>{% endif %}
 		</div>
 		<div class="sim"
 			data-init-url="{{ url_for('main.coaching_sim_init', coaching_id=coaching.id) }}"

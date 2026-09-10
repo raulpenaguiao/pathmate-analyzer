@@ -85,6 +85,8 @@ def delete_coaching(coaching_id: str) -> bool:
         return False
     file_path = Config.COACHING_FILES_DIR / meta["stored_filename"]
     file_path.unlink(missing_ok=True)
+    if meta.get("bundle"):
+        (Config.COACHING_FILES_DIR / meta["bundle"]["stored_filename"]).unlink(missing_ok=True)
     (Config.COACHINGS_DIR / f"{coaching_id}.json").unlink(missing_ok=True)
     return True
 
@@ -94,6 +96,82 @@ def coaching_file_path(coaching_id: str) -> Path | None:
     if meta is None:
         return None
     return Config.COACHING_FILES_DIR / meta["stored_filename"]
+
+
+# ---------------------------------------------------------------------------
+# Coaching bundle (coaching.json — the Stage-3 machine-readable export that
+# unlocks the faithful chat engine). Attached to an existing coaching; the
+# upload flow itself stays HTML-only.
+# ---------------------------------------------------------------------------
+
+class BundleError(ValueError):
+    """Raised when an attached file isn't a usable coaching.json."""
+
+
+def _bundle_summary(data: dict) -> dict:
+    rules = data.get("rules") or {}
+    sr = rules.get("sendingRules")
+    val = data.get("validation") or {}
+    return {
+        "microDialogs": len(data.get("microDialogs") or []),
+        "nodes": len(data.get("nodes") or []),
+        "ruleTreeNodes": len(rules.get("ruleTree") or []),
+        "sendingRules": len(sr) if sr is not None else None,
+        "hasRules": bool(rules.get("ruleTree")),
+        "scrapedAt": (data.get("coaching") or {}).get("scrapedAt"),
+        "coherenceOk": val.get("ok"),
+        "coherenceWarnings": val.get("warnings") or [],
+    }
+
+
+def save_coaching_bundle(coaching_id: str, file_bytes: bytes) -> dict:
+    """Validate and attach a coaching.json to an existing coaching. Returns
+    the updated coaching meta. Raises BundleError on a bad file."""
+    meta = get_coaching(coaching_id)
+    if meta is None:
+        raise BundleError("coaching not found")
+    try:
+        data = json.loads(file_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        raise BundleError(f"not valid JSON: {e}") from None
+    if not isinstance(data, dict):
+        raise BundleError("expected a JSON object")
+    missing = [k for k in ("microDialogs", "nodes") if not isinstance(data.get(k), list)]
+    if missing:
+        raise BundleError(
+            f"not a coaching.json — missing list field(s): {', '.join(missing)}. "
+            "Produce one with tools/coaching-bundle-export/export_coaching.sh.")
+
+    stored = f"{coaching_id}.bundle.json"
+    with open(Config.COACHING_FILES_DIR / stored, "wb") as f:
+        f.write(file_bytes)
+
+    meta["bundle"] = {
+        "stored_filename": stored,
+        "uploaded_at": _now_iso(),
+        "size_bytes": len(file_bytes),
+        "summary": _bundle_summary(data),
+    }
+    _write_json(Config.COACHINGS_DIR / f"{coaching_id}.json", meta)
+    return meta
+
+
+def delete_coaching_bundle(coaching_id: str) -> bool:
+    meta = get_coaching(coaching_id)
+    if meta is None or not meta.get("bundle"):
+        return False
+    (Config.COACHING_FILES_DIR / meta["bundle"]["stored_filename"]).unlink(missing_ok=True)
+    meta.pop("bundle", None)
+    _write_json(Config.COACHINGS_DIR / f"{coaching_id}.json", meta)
+    return True
+
+
+def coaching_bundle_path(coaching_id: str) -> Path | None:
+    meta = get_coaching(coaching_id)
+    if meta is None or not meta.get("bundle"):
+        return None
+    p = Config.COACHING_FILES_DIR / meta["bundle"]["stored_filename"]
+    return p if p.exists() else None
 
 
 # ---------------------------------------------------------------------------

@@ -179,6 +179,40 @@ def coaching_delete(coaching_id):
     return redirect(url_for("main.coachings_list"))
 
 
+@bp.route("/coachings/<coaching_id>/bundle", methods=["POST"])
+@login_required
+def coaching_bundle_upload(coaching_id):
+    """Attach a coaching.json (the Stage-3 export) to this coaching — unlocks
+    the faithful chat engine. The main upload flow stays HTML-only."""
+    if storage.get_coaching(coaching_id) is None:
+        abort(404)
+    upload = request.files.get("bundle")
+    if not upload or not upload.filename:
+        flash("Choose a coaching.json file.", "error")
+    elif not upload.filename.lower().endswith(".json"):
+        flash("Expected a .json file (from export_coaching.sh).", "error")
+    else:
+        try:
+            meta = storage.save_coaching_bundle(coaching_id, upload.read())
+            s = meta["bundle"]["summary"]
+            flash(f"coaching.json attached — {s['microDialogs']} dialogs, "
+                  f"{s['nodes']} nodes, {s['ruleTreeNodes']} rule-tree nodes.",
+                  "success")
+        except storage.BundleError as e:
+            flash(f"Not attached: {e}", "error")
+    return redirect(url_for("main.coaching_view", coaching_id=coaching_id) + "#stats")
+
+
+@bp.route("/coachings/<coaching_id>/bundle/delete", methods=["POST"])
+@login_required
+def coaching_bundle_delete(coaching_id):
+    if storage.delete_coaching_bundle(coaching_id):
+        flash("coaching.json detached.", "success")
+    else:
+        flash("No coaching.json was attached.", "error")
+    return redirect(url_for("main.coaching_view", coaching_id=coaching_id) + "#stats")
+
+
 # ---------------------------------------------------------------------------
 # Patient models
 # ---------------------------------------------------------------------------
