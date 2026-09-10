@@ -15,7 +15,7 @@ Drives the already-logged-in Chromium (see ../start_pmcp.sh) over CDP:
 Output: the single file you name. No coaching.bundle.json / .v2 / .v3 /
 coaching.rules.json — those are gone.
 
-  export_coaching.py OUT.json [--report REPORT.html] [--dialogs-only]
+  export_coaching.py [OUT.json] [--report REPORT.html] [--dialogs-only]
                      [--rules-only] [--no-modals] [--update-baseline]
 
 phase 3 opens ~25 "Edit rule:" modals; each dismiss commits a no-op re-save.
@@ -261,14 +261,12 @@ async def main() -> int:
         report = args[args.index("--report") + 1]
         if not Path(report).is_file():
             sys.exit(f"--report file not found: {report}")
-    pos = [a for a in args if not a.startswith("--")
-           and a != report]
-    if not pos:
-        sys.exit("usage: export_coaching.py OUT.json [--report R.html] "
-                 "[--dialogs-only] [--rules-only] [--no-modals] [--update-baseline]")
-    out_path = Path(pos[0])
+    pos = [a for a in args if not a.startswith("--") and a != report]
+    default_out = HERE.parents[1] / "data" / "rgroups" / "coaching.json"
+    out_path = Path(pos[0]) if pos else default_out
     if out_path.suffix != ".json":
         out_path = out_path.with_suffix(".json")
+    print(f"output -> {out_path}")
     do_dialogs = "--rules-only" not in flags
     do_rules = "--dialogs-only" not in flags
 

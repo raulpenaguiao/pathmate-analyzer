@@ -2,7 +2,8 @@
 # Thin wrapper around export_coaching.py: one manual pause for the Monitoring
 # toggle, then run the single-file export. See WORKFLOW.md.
 #
-# Usage:  ./export_coaching.sh [options] <output.json>
+# Usage:  ./export_coaching.sh [options] [output.json]
+#   output.json defaults to data/rgroups/coaching.json
 #   passes every option straight through to export_coaching.py:
 #     --report FILE      enrich from the coaching's Report-HTML export
 #     --dialogs-only     Micro Dialogs sweep only (no live writes)
