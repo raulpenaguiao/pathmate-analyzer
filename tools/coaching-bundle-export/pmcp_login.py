@@ -34,6 +34,10 @@ CDP = os.environ.get("PMCP_CDP", "http://127.0.0.1:9222")
 REPO = Path(__file__).resolve().parents[2]
 
 
+def log(msg: str) -> None:
+    print(msg, flush=True)
+
+
 def load_env(path: Path) -> dict[str, str]:
     env: dict[str, str] = {}
     if not path.is_file():
@@ -95,14 +99,26 @@ FORM_JS = r"""
 """
 
 
-async def _vfill(page, el_id: str, value: str) -> None:
-    """Fill a Vaadin .v-textfield and blur it — VTextField only pushes its
-    value to the server on blur / the value-change timer, so a fill without a
-    blur submits an empty string."""
+async def _vfill(page, el_id: str, value: str) -> bool:
+    """Type a value into a Vaadin .v-textfield with real keystrokes and blur.
+    VTextField only pushes to the server on blur, and on a cold-loaded page
+    its JS connector may not be bound yet — so type (not .fill), Tab to blur,
+    and verify the value stuck; retry a couple of times while the app boots."""
     loc = page.locator(f"#{el_id}")
-    await loc.fill(value)
-    await loc.blur()
-    await page.wait_for_timeout(150)
+    for _ in range(3):
+        try:
+            await loc.click(timeout=5000)
+            await loc.press("Control+a")
+            await loc.press("Delete")
+            await loc.press_sequentially(value, delay=15)
+            await loc.press("Tab")
+            await page.wait_for_timeout(250)
+            if (await loc.input_value()) == value:
+                return True
+        except Exception:  # noqa: BLE001
+            pass
+        await page.wait_for_timeout(1000)  # app may still be initialising
+    return False
 
 
 async def _click_login(page) -> None:
@@ -132,11 +148,17 @@ async def main() -> int:
     env_path = REPO / ".env"
     if "--env" in sys.argv:
         env_path = Path(sys.argv[sys.argv.index("--env") + 1])
-    env = {**load_env(env_path), **os.environ}
+    # .env is authoritative for these keys; a real env var only fills a gap
+    # (an *empty* exported PMCP_* must not shadow a real value in .env)
+    file_env = load_env(env_path)
+    env = {**os.environ, **{k: v for k, v in file_env.items() if v}}
     user = env.get("PMCP_USERNAME")
     pw = env.get("PMCP_PASSWORD")
     secret = env.get("PMCP_TOTP_SECRET")
     url = env.get("PMCP_LOGIN_URL", "https://cp22.pathmate.cloud/PMCP/admin")
+    log(f"env: {env_path}  ->  username={'set' if user else 'MISSING'}, "
+        f"password={'set' if pw else 'MISSING'}, "
+        f"totp_secret={'set' if secret else 'not set (manual code)'}")
 
     async with async_playwright() as apw:
         try:
@@ -150,52 +172,76 @@ async def main() -> int:
         if page is None:
             print("browser has no pages", file=sys.stderr)
             return 2
+        log(f"attached to page: {page.url}")
 
         if "pathmate" not in (page.url or ""):
+            log(f"navigating to {url}")
             await page.goto(url, wait_until="domcontentloaded")
-            await page.wait_for_timeout(1500)
 
         if await page.evaluate(LOGGED_IN_JS):
-            print("already logged in")
+            log("already logged in")
             return 0
 
         if not (user and pw):
             print("PMCP_USERNAME / PMCP_PASSWORD not set in .env — log in by "
                   "hand in the browser, then rerun the export.", file=sys.stderr)
             return 2
-        # wait for the login form to render
+
+        # Wait for the Vaadin login app to be *interactive*, not just for the
+        # <input> to exist in the DOM — on a cold browser the elements render
+        # before Vaadin binds its JS, and a fill then silently does nothing.
+        log("waiting for the login form to be ready...")
+        try:
+            await page.wait_for_load_state("networkidle", timeout=15000)
+        except Exception:  # noqa: BLE001
+            pass
         form = {}
-        for _ in range(12):
+        for i in range(30):  # up to ~45s for a cold Vaadin bootstrap
             form = await page.evaluate(FORM_JS)
-            if form.get("hasPassword"):
+            btn = await page.locator('.v-button:has-text("Login"), '
+                                     '.v-button:has-text("Log in")').count()
+            if form.get("hasPassword") and btn:
+                await page.wait_for_timeout(800)  # settle
                 break
-            await page.wait_for_timeout(1000)
-        if not form.get("hasPassword"):
             if await page.evaluate(LOGGED_IN_JS):
-                print("logged in")
+                log("logged in")
                 return 0
-            print("no login form found — finish login by hand, then rerun.",
-                  file=sys.stderr)
+            if i and i % 4 == 0:
+                log(f"  ...still waiting for the form ({i * 1.5:.0f}s)")
+            await page.wait_for_timeout(1500)
+        else:
+            print("login form never became ready — the PMCP app is slow or "
+                  "the page is stuck. Reload it and rerun.", file=sys.stderr)
             return 2
 
-        if form.get("userId"):
-            await _vfill(page, form["userId"], user)
-        await _vfill(page, form["passId"], pw)
-        print("  filled username + password")
+        log("form ready — typing username + password")
+        u_ok = await _vfill(page, form["userId"], user) if form.get("userId") else False
+        p_ok = await _vfill(page, form["passId"], pw)
+        if not (u_ok and p_ok):
+            log("  fields didn't take — retrying after a longer settle")
+            await page.wait_for_timeout(2000)
+            form = await page.evaluate(FORM_JS)
+            u_ok = await _vfill(page, form["userId"], user) if form.get("userId") else u_ok
+            p_ok = await _vfill(page, form["passId"], pw)
+        if not (u_ok and p_ok):
+            print("could not type username/password into the form (Vaadin not "
+                  "accepting input) — log in by hand, then rerun.", file=sys.stderr)
+            return 2
+        log("  username + password entered")
 
         otp_id = form.get("otpId")
         if otp_id and secret:
             code = totp(secret)
             await _vfill(page, otp_id, code)
-            print(f"  filled 2FA code {code}")
+            log(f"  2FA code entered ({code})")
         elif otp_id and not secret:
-            print("  >>> PMCP_TOTP_SECRET not set — type your 6-digit 2FA code "
-                  "in the browser now (waiting up to ~2 min).")
+            log("  >>> PMCP_TOTP_SECRET not set — type your 6-digit 2FA code "
+                "in the browser now (waiting up to ~2 min).")
             deadline = time.time() + 130
             while time.time() < deadline:
                 await page.wait_for_timeout(2000)
                 if await page.evaluate(LOGGED_IN_JS):
-                    print("logged in")
+                    log("logged in")
                     return 0
                 f = await page.evaluate(FORM_JS)
                 if f.get("hasPassword") and (f.get("otpValue") or "").strip():
@@ -204,12 +250,14 @@ async def main() -> int:
                 print("timed out waiting for the 2FA code.", file=sys.stderr)
                 return 2
 
+        log("clicking Login...")
         await _click_login(page)
 
-        for _ in range(15):
+        log("waiting for the admin app to load...")
+        for _ in range(20):
             await page.wait_for_timeout(1000)
             if await page.evaluate(LOGGED_IN_JS):
-                print("logged in")
+                log("logged in")
                 return 0
             f = await page.evaluate(FORM_JS)
             if f.get("notif"):
