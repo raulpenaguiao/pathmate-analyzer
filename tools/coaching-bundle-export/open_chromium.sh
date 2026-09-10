@@ -51,8 +51,10 @@ setsid nohup "$CHROME_BIN" \
   "${URL}" >/tmp/pmcp-chrome-${PORT}.log 2>&1 &
 disown || true
 
-# cold profile + slow GL init can take ~10-20s to bring the debug port up
-for _ in $(seq 1 60); do
+# A cold profile + slow Wayland/GL init means the debug port can take a while
+# to come up - usually ~10-20s, occasionally up to a minute. Be patient here.
+echo "Waiting for the browser's debug port (cold start can take up to ~1 min)..."
+for _ in $(seq 1 120); do
   if curl -sf "http://127.0.0.1:${PORT}/json/version" >/dev/null 2>&1; then
     echo
     echo "Ready. CDP is live on http://127.0.0.1:${PORT}"
@@ -66,9 +68,9 @@ for _ in $(seq 1 60); do
   sleep 0.5
 done
 
-echo "Browser started but :${PORT} never came up after 30s." >&2
+echo "Browser started but :${PORT} never came up after ~1 min." >&2
 echo "--- tail of /tmp/pmcp-chrome-${PORT}.log ---" >&2
 tail -15 "/tmp/pmcp-chrome-${PORT}.log" >&2 || true
 echo "If you see 'DevTools listening on ws://127.0.0.1:${PORT}' above, it's" >&2
-echo "just slow — wait a few seconds and re-run the export directly." >&2
+echo "just slow - wait a bit and run the export directly (it re-checks)." >&2
 exit 1

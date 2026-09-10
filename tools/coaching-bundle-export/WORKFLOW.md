@@ -42,6 +42,8 @@ cd tools/coaching-bundle-export
 
 Launches a Chromium with a debug port on `127.0.0.1:9222` and a throwaway
 profile, pointed at the PMCP admin login. Reuses one already on that port.
+The window may appear before the debug port is ready — a cold start can take
+**up to ~1 minute**; the script waits and tells you when it's up.
 (`./open_chromium.sh 9333` for a different port — pass
 `--cdp http://127.0.0.1:9333` to `export_coaching.sh` too.)
 
