@@ -212,31 +212,55 @@ async def dump_tree(page, tag: str) -> list[dict]:
     return trees
 
 
+async def _node_cap(page, ti: int, caption: str):
+    return (page.locator(".v-tree").nth(ti)
+            .locator(".v-tree-node", has_text=caption).first
+            .locator(".v-tree-node-caption").first)
+
+
 async def _click_expander(page, ti: int, caption: str) -> None:
-    """Toggle a node by clicking the ::before triangle at the left edge of its
-    caption. Falls back to double-click, then select + ArrowRight."""
-    node = page.locator(".v-tree").nth(ti).locator(
-        ".v-tree-node", has_text=caption).first
-    cap = node.locator(".v-tree-node-caption").first
-    try:
-        await cap.click(position={"x": 6, "y": 8}, timeout=3000)
-        await page.wait_for_timeout(160)
-        return
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        await cap.dblclick(timeout=3000)
-        await page.wait_for_timeout(160)
-        return
-    except Exception:  # noqa: BLE001
-        pass
+    """Expand a node: select it (caption click) then ArrowRight — the method
+    that worked in run 1. Fall back to a left-edge click on the node itself
+    (the Vaadin +/- triangle) and a double-click."""
+    cap = await _node_cap(page, ti, caption)
     try:
         await cap.click(timeout=3000)
         await page.wait_for_timeout(120)
         await page.keyboard.press("ArrowRight")
-        await page.wait_for_timeout(160)
-    except Exception as e:  # noqa: BLE001
-        print(f"    expand {caption[:40]!r}: {e!r}")
+        await page.wait_for_timeout(200)
+        await page.keyboard.press("ArrowRight")   # 1st can just select
+        await page.wait_for_timeout(200)
+        return
+    except Exception:  # noqa: BLE001
+        pass
+    for attempt in (
+        lambda: cap.click(position={"x": 4, "y": 8}, timeout=3000),
+        lambda: cap.dblclick(timeout=3000),
+    ):
+        try:
+            await attempt()
+            await page.wait_for_timeout(200)
+            return
+        except Exception:  # noqa: BLE001
+            continue
+    print(f"    expand {caption[:40]!r}: all methods failed")
+
+
+async def _liveness_ok(page) -> bool:
+    """Try to expand the first non-leaf root; return True if the tree grew.
+    A dead (expired) PMCP session leaves the tree DOM on screen but silently
+    drops every expand RPC — this catches that before any modal is opened."""
+    trees = await page.evaluate(TREE_DUMP_JS)
+    roots = [n["caption"] for n in trees[0]["nodes"]
+             if n["depth"] == 0 and not n["leaf"] and not n["expanded"]]
+    before = sum(t["nodeCount"] for t in trees)
+    for cap in roots:
+        await _click_expander(page, 0, cap)
+        after = await page.evaluate(
+            "[...document.querySelectorAll('.v-tree .v-tree-node')].length")
+        if after > before:
+            return True
+    return False
 
 
 async def expand_all(page, rounds: int = 25) -> dict:
@@ -418,6 +442,20 @@ async def main() -> None:
 
             print("\n--- phase 1: tree as-is ---")
             await dump_tree(page, "asis")
+
+            print("\n--- liveness check ---")
+            if not await _liveness_ok(page):
+                print("!! No tree node expanded on a live click. The PMCP "
+                      "session has almost certainly expired (the tree DOM "
+                      "stays on screen but the server drops expand calls).\n"
+                      "   Fix: in the browser, reload -> log in again -> "
+                      "Coachings -> ALEX v01 -> Edit -> Monitoring off -> "
+                      "Rules tab, confirm you can expand a section by hand, "
+                      "then rerun. No modals were opened.")
+                report["error"] = "session likely expired (no expand response)"
+                return
+            print("  ok - tree responds to expand")
+
             print("\n--- phase 2: expand all ---")
             report["expand"] = await expand_all(page)
             trees = await dump_tree(page, "expanded")
