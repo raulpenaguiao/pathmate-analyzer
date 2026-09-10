@@ -42,9 +42,10 @@ One script, one run, one file: **`export_coaching.py OUT.json --report REPORT.ht
    if the sweep collapsed or drifted — a canary for PMCP UI changes.
    `--update-baseline` rewrites the baseline from a run you trust.
 
-Downstream (unchanged): **`../rgroups-table/build_table.py`** reads the
-export's `nodes` → `rgroups_table.csv` / `rgroups_summary.csv`;
-**`expand_rgroups.py`** tops up thin pools with an LLM.
+Downstream: **`../rgroups-table/rgroup_report.py`** reads the export's `nodes` →
+`rgroups_table.csv` (one row per `r_*` message); `rgroup_prepare.py` →
+`rgroup_expand.py --limit N` tops up thin pools with an LLM; `rgroup_apply.py
+--limit N` writes them back to the live editor.
 
 ## Result (ALEX v01, 2026-09-03)
 

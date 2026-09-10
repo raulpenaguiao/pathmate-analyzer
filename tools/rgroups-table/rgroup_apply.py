@@ -1,10 +1,16 @@
-"""Write approved randomisation-pool variants into the live PMCP editor.
+"""Step 4 of the r_ pipeline — rgroups_generated.csv -> the live PMCP editor.
 
-Input: the ticked (``- [x]``) proposals in ``rgroups_review.md``, joined to
-``rgroups_table.expanded.csv`` for each pool's micro dialog, folder path and
-``r_`` group.
+Applies EVERY `ok` variant in ``rgroups_generated.csv`` (from
+``rgroup_expand.py``) — there is no review gate. ``--limit N`` is REQUIRED
+and caps how many variants are added. DEFAULT IS A DRY RUN; pass ``--apply``
+to actually write. Needs a logged-in PMCP tab on the CDP browser
+(``tools/start_pmcp.sh``).
 
-Per approved variant (recipe mapped by
+  PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py --limit 5
+  PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py \
+      --apply --limit 1 --pool 'r_MorningGreetings @ Morning greetings'
+
+Per variant (recipe mapped by
 ``../coaching-bundle-export/probe_add_message.py`` against the sandbox):
 
   1. navigate to the micro dialog (folder -> dialog in the Micro Dialogs menu)
@@ -38,50 +44,8 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REVIEW = HERE / "rgroups_review.md"
-EXPANDED = HERE / "rgroups_table.expanded.csv"
+GENERATED = HERE / "rgroups_generated.csv"
 CDP = os.environ.get("PMCP_CDP", "http://127.0.0.1:9222")
-
-POOL_RE = re.compile(r"^##\s+`(?P<pool>.+?)`\s*$")
-# render_review_report.py writes:  "- [ ] 3. en-GB: <text>"  then  "      ro-RO: <text>"
-EN_RE = re.compile(r"^- \[(?P<mark>[ xX])\]\s+\d+\.\s*en-GB:\s?(?P<en>.*)$")
-RO_RE = re.compile(r"^\s+ro-RO:\s?(?P<ro>.*)$")
-
-
-def parse_review(path: Path):
-    """-> list of dicts {pool, en, ro, approved}."""
-    out, pool = [], None
-    lines = path.read_text(encoding="utf-8").splitlines()
-    for i, ln in enumerate(lines):
-        m = POOL_RE.match(ln)
-        if m:
-            pool = m.group("pool")
-            continue
-        m = EN_RE.match(ln)
-        if m and pool:
-            ro = ""
-            if i + 1 < len(lines):
-                mr = RO_RE.match(lines[i + 1])
-                if mr:
-                    ro = mr.group("ro").strip()
-            out.append({"pool": pool, "en": m.group("en").strip(), "ro": ro,
-                        "approved": m.group("mark").lower() == "x"})
-    return out
-
-
-def load_meta(path: Path):
-    """pool -> {group, microDialog, folderPath, existing_en:set(lower)}."""
-    meta = {}
-    for r in csv.DictReader(path.open(encoding="utf-8")):
-        p = r["pool"]
-        d = meta.setdefault(p, {
-            "group": r["randomisationGroup"], "microDialog": r["microDialog"],
-            "folderPath": r["folderPath"], "existing_en": set()})
-        if r["kind"] == "existing":
-            en = (r["en-GB"] or "").strip().lower()
-            if en and en != "[not set]":
-                d["existing_en"].add(en)
-    return meta
 
 
 def menu_path(meta_row) -> list[str]:
@@ -91,28 +55,29 @@ def menu_path(meta_row) -> list[str]:
 
 
 def build_plan(args):
-    if not REVIEW.is_file() or not EXPANDED.is_file():
-        sys.exit("run expand_rgroups.py + render_review_report.py first")
-    review = parse_review(REVIEW)
-    meta = load_meta(EXPANDED)
-    approved = [x for x in review if x["approved"]]
-    if not approved and not args.dedup:
-        sys.exit(f"no approved (- [x]) variants in {REVIEW.name}; tick some first")
-
+    """Read rgroups_generated.csv (from rgroup_expand.py) and turn every `ok`
+    variant into a plan item. No review gate — everything generated is
+    applied; `--limit` caps the count."""
+    if not GENERATED.is_file():
+        sys.exit(f"{GENERATED.name} not found — run rgroup_expand.py first")
+    rows = list(csv.DictReader(GENERATED.open(encoding="utf-8")))
+    meta = {}
     plan = []
-    for x in approved:
-        if args.pool and x["pool"] != args.pool:
+    for r in rows:
+        pool = r["pool"]
+        meta.setdefault(pool, {
+            "group": r["randomisationGroup"], "microDialog": r["microDialog"],
+            "folderPath": r["folderPath"], "existing_en": set()})
+        if args.pool and pool != args.pool:
             continue
-        m = meta.get(x["pool"])
-        if not m:
-            print(f"  ! {x['pool']}: not in {EXPANDED.name}, skipped")
+        en, ro = (r.get("en-GB") or "").strip(), (r.get("ro-RO") or "").strip()
+        if r.get("status") != "ok" or not en:
             continue
-        skip = x["en"].strip().lower() in m["existing_en"]
-        plan.append({**x, "group": m["group"], "path": menu_path(m),
-                     "skip_existing": skip})
+        plan.append({"pool": pool, "en": en, "ro": ro,
+                     "group": r["randomisationGroup"],
+                     "path": menu_path(r), "skip_existing": False})
     if args.limit:
-        kept = [p for p in plan if not p["skip_existing"]][: args.limit]
-        plan = kept + [p for p in plan if p["skip_existing"]]
+        plan = plan[: args.limit]
     return plan, meta
 
 
@@ -621,7 +586,8 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--apply", action="store_true",
                     help="actually write (default: dry run, navigate + report only)")
-    ap.add_argument("--limit", type=int, default=0, help="cap variants to add")
+    ap.add_argument("--limit", type=int, required=True,
+                    help="REQUIRED: cap the number of variants added")
     ap.add_argument("--pool", help="only this pool (e.g. 'r_X @ Micro Dialog')")
     ap.add_argument("--dedup", action="store_true",
                     help="delete rows in --pool whose text exactly copies an "

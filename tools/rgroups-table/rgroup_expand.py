@@ -1,21 +1,16 @@
-"""Expand thin randomisation pools with an LLM.
+"""Step 3 of the r_ pipeline — rgroups_requests.csv + an API key -> rgroups_generated.csv
 
-Reads rgroups_table.csv (from build_table.py). For every *pool*
-(randomisationGroup x microDialog) that has fewer than TARGET distinct variants,
-it asks an LLM for the missing variants - same meaning, ~same length, natural
-emoji, age-appropriate for 10-19 year olds, both en-GB and ro-RO - and writes
-rgroups_table.expanded.csv (existing rows + new `generated` rows).
+For the first `--limit N` request rows (thin pools), build the prompt, call
+the LLM, and write one row per generated variant. `--limit` is REQUIRED so
+the number of API calls is always an explicit, bounded choice.
 
-Providers (pick with --provider, or it auto-detects from the env var present):
-  claude   -> ANTHROPIC_API_KEY   (model: $ANTHROPIC_MODEL or claude-sonnet-5)
-  chatgpt  -> OPENAI_API_KEY      (model: $OPENAI_MODEL or gpt-4o)
+  ANTHROPIC_API_KEY=sk-... .venv/bin/python rgroup_expand.py --limit 10
+  OPENAI_API_KEY=sk-...    .venv/bin/python rgroup_expand.py --limit 10 --provider chatgpt
+  .venv/bin/python rgroup_expand.py --limit 10 --dry-run   # prompts only, no calls
 
-  .venv/bin/python expand_rgroups.py --dry-run           # write prompts only
-  ANTHROPIC_API_KEY=sk-... .venv/bin/python expand_rgroups.py
-  OPENAI_API_KEY=sk-...    .venv/bin/python expand_rgroups.py --provider chatgpt
-  TARGET=12 .venv/bin/python expand_rgroups.py
-
-No third-party packages - the HTTP calls are plain urllib.
+Provider auto-detects from whichever key env var is set (ANTHROPIC_API_KEY ->
+claude, OPENAI_API_KEY -> chatgpt); --provider forces it. No third-party
+packages — plain urllib.
 """
 from __future__ import annotations
 
@@ -29,10 +24,12 @@ from collections import OrderedDict
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-TABLE = HERE / "rgroups_table.csv"
-OUT = HERE / "rgroups_table.expanded.csv"
+REQUESTS = HERE / "rgroups_requests.csv"
+OUT = HERE / "rgroups_generated.csv"
 PROMPTS = HERE / "expand_prompts.txt"
-TARGET = int(os.environ.get("TARGET", "10"))
+
+GEN_COLS = ["pool", "randomisationGroup", "microDialog", "folderPath",
+            "variantIndex", "en-GB", "ro-RO", "status"]
 
 SYSTEM = (
     "You write message variants for a mobile asthma-coaching app used by "
@@ -131,91 +128,92 @@ def call_llm(provider: str, prompt: str) -> list[dict]:
     return json.loads(text)
 
 
+def build_prompt(req: dict) -> str:
+    """Build the LLM prompt for one request row (from rgroups_requests.csv)."""
+    en = [x for x in (req.get("existing_enGB") or "").split("\n") if x.strip()]
+    ro = (req.get("existing_roRO") or "").split("\n")
+    existing = "\n".join(
+        f'{i+1}. en-GB: {e}\n   ro-RO: {ro[i] if i < len(ro) else ""}'
+        for i, e in enumerate(en)) or "(none yet)"
+    ctx = ""
+    if req.get("folderPath"):
+        ctx += f"Folder: {req['folderPath']}\n"
+    if req.get("comment") and req["comment"] not in ("---", ""):
+        ctx += f"Comment: {req['comment']}\n"
+    if req.get("triggerExprs"):
+        ctx += f"Shown when: {req['triggerExprs']}\n"
+    return PROMPT.format(md=req["microDialog"], group=req["randomisationGroup"],
+                         ctx=ctx, have=req["haveVariants"],
+                         need=req["needVariants"], existing=existing)
+
+
+def expand(requests, provider, limit, dry=False, progress=None):
+    """Process the first `limit` request rows. `progress(i, n, pool, status)`
+    is called before and after each pool. Returns (generated_rows, prompt_log).
+    """
+    reqs = list(requests)[:limit]
+    n = len(reqs)
+    gen_rows, prompt_log = [], []
+    for i, req in enumerate(reqs, 1):
+        pool = req["pool"]
+        prompt = build_prompt(req)
+        prompt_log.append(f"### {pool}\n{prompt}\n")
+        if progress:
+            progress(i, n, pool, "start")
+        need = int(req["needVariants"])
+        variants, status = [], "dry-run"
+        if not dry:
+            try:
+                variants = call_llm(provider, prompt)
+                status = "ok"
+                time.sleep(1)
+            except Exception as e:  # noqa: BLE001
+                status = f"failed: {e!r}"
+        for j in range(need):
+            v = variants[j] if j < len(variants) else {}
+            gen_rows.append({
+                "pool": pool, "randomisationGroup": req["randomisationGroup"],
+                "microDialog": req["microDialog"], "folderPath": req["folderPath"],
+                "variantIndex": j + 1,
+                "en-GB": v.get("en-GB", ""), "ro-RO": v.get("ro-RO", ""),
+                "status": "ok" if v else status,
+            })
+        if progress:
+            progress(i, n, pool, status)
+    return gen_rows, prompt_log
+
+
 def main() -> None:
     dry = "--dry-run" in sys.argv
     provider = "dry-run" if dry else detect_provider()
-    limit = None
-    if "--limit" in sys.argv:
-        limit = int(sys.argv[sys.argv.index("--limit") + 1])
-    if not TABLE.is_file():
-        sys.exit(f"{TABLE.name} not found - run build_table.py first")
+    if "--limit" not in sys.argv:
+        sys.exit("--limit N is required (it caps the number of API calls). "
+                 "See rgroups_requests.csv for how many thin pools there are.")
+    limit = int(sys.argv[sys.argv.index("--limit") + 1])
+    if not REQUESTS.is_file():
+        sys.exit(f"{REQUESTS.name} not found — run rgroup_prepare.py first")
 
-    src_rows = list(csv.DictReader(TABLE.open()))
-    fields = list(src_rows[0].keys()) + ["kind"]
+    reqs = list(csv.DictReader(REQUESTS.open(encoding="utf-8")))
 
-    # group by pool, preserving first-seen order
-    pools: "OrderedDict[str, list[dict]]" = OrderedDict()
-    for r in src_rows:
-        pools.setdefault(r["pool"], []).append(r)
+    def _p(i, n, pool, status):
+        if status == "start":
+            print(f"  [{i}/{n}] {pool[:66]} ...", end="", flush=True)
+        else:
+            print(f" {status}")
 
-    out_rows, prompt_log = [], []
-    n_generated = 0
-    n_generated_pools = 0
-    for pool, rws in pools.items():
-        for r in rws:
-            out_rows.append({**r, "kind": "existing"})
-        seen, variants = set(), []
-        for r in rws:
-            en = (r["en-GB"] or "").strip()
-            if not en or en == "[not set]" or en.lower() in seen:
-                continue
-            seen.add(en.lower())
-            variants.append({"en-GB": en, "ro-RO": (r["ro-RO"] or "").strip()})
-        have = len(variants)
-        if have >= TARGET:
-            continue
-        need = TARGET - have
-        head = rws[0]
-        ctx = ""
-        if head.get("folderPath"):
-            ctx += f"Folder: {head['folderPath']}\n"
-        if head.get("comment") and head["comment"] not in ("---", ""):
-            ctx += f"Comment: {head['comment']}\n"
-        trg = {r["triggerExprs"] for r in rws if r.get("triggerExprs")}
-        if trg:
-            ctx += "Shown when: " + " | ".join(sorted(trg)) + "\n"
-        existing = "\n".join(f'{i+1}. en-GB: {v["en-GB"]}\n   ro-RO: {v["ro-RO"]}'
-                             for i, v in enumerate(variants)) or "(none yet)"
-        prompt = PROMPT.format(md=head["microDialog"], group=head["randomisationGroup"],
-                               ctx=ctx, have=have, need=need, existing=existing)
-        prompt_log.append(f"### {pool}\n{prompt}\n")
-
-        gen = []
-        if not dry and (limit is None or n_generated_pools < limit):
-            try:
-                gen = call_llm(provider, prompt)
-                n_generated += len(gen)
-                n_generated_pools += 1
-                print(f"  +{len(gen):2}/{need}  {pool[:70]}")
-                time.sleep(1)
-            except Exception as e:  # noqa: BLE001
-                print(f"  !! {pool[:70]}  {e!r}")
-        for j in range(need):
-            g = gen[j] if j < len(gen) else {}
-            out_rows.append({
-                **{k: "" for k in fields},
-                "randomisationGroup": head["randomisationGroup"], "pool": pool,
-                "groupTotalMessages": head["groupTotalMessages"],
-                "groupMicroDialogs": head["groupMicroDialogs"],
-                "poolVariants": have + len([x for x in range(j + 1)]),
-                "microDialog": head["microDialog"], "folderPath": head["folderPath"],
-                "comment": head["comment"], "answerType": head["answerType"],
-                "channel": head["channel"],
-                "kind": "generated" if g else "TO_GENERATE",
-                "en-GB": g.get("en-GB", ""), "ro-RO": g.get("ro-RO", ""),
-            })
+    gen_rows, prompt_log = expand(reqs, provider, limit, dry=dry, progress=_p)
 
     with OUT.open("w", newline="") as fh:
-        w = csv.DictWriter(fh, fieldnames=fields)
+        w = csv.DictWriter(fh, fieldnames=GEN_COLS)
         w.writeheader()
-        w.writerows(out_rows)
+        w.writerows(gen_rows)
     PROMPTS.write_text("\n".join(prompt_log))
-    print(f"\nprovider={provider}  pools<{TARGET}={len(prompt_log)}  "
-          f"generated={n_generated}")
-    print(f"wrote {OUT.name} ({len(out_rows)} rows) and {PROMPTS.name}")
+    ok = sum(1 for r in gen_rows if r["status"] == "ok")
+    print(f"\nprovider={provider}  pools processed={min(limit, len(reqs))}/{len(reqs)}  "
+          f"variants ok={ok}/{len(gen_rows)}")
+    print(f"wrote {OUT.name} and {PROMPTS.name}")
     if dry:
-        print("dry run - no API calls made; review expand_prompts.txt, then rerun "
-              "without --dry-run and with an API key")
+        print("dry run — no API calls; review expand_prompts.txt, then rerun with a key")
 
 
 if __name__ == "__main__":

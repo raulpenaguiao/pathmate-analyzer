@@ -13,37 +13,39 @@ workstreams" section — this file is the checklist, that's the writeup.
       `tools/rgroups-table/rgroups_table.csv` (per-message detail, both
       languages).
 - [ ] Augment these instances with a tool using an LLM API key.
-      Tool works (`tools/rgroups-table/expand_rgroups.py`; one-command chain
-      `rgroups_pipeline.sh`). ro-RO output constrained: informal *tu*, house-style
-      gender agreement, native (non-calque) phrasing, no English loanwords.
-      **Sample run done** (PR #1): `--limit 10` → 70 variants for 10 pools in
-      `tools/rgroups-table/rgroups_review.md`; human review of those 70 done.
-      The other ~100 thin pools are still `TO_GENERATE` — full run pending a
-      fresh `coaching.json` (see below).
+      Split into a 4-step pipeline over a pre-made `coaching.json` (never runs
+      the export). Step 1 `rgroup_report.py` → `rgroups_table.csv`; step 2
+      `rgroup_prepare.py` → `rgroups_requests.csv` (one row per thin pool = one
+      API call); step 3 `rgroup_expand.py --limit N` (required) →
+      `rgroups_generated.csv`. ro-RO output constrained: informal *tu*,
+      house-style gender agreement, native (non-calque) phrasing, no English
+      loanwords. **Sample run done** (PR #1): `--limit 10` → 70 variants for 10
+      pools, human-reviewed. Full run (~110 thin pools) still pending.
 - [ ] Using Playwright, add these instances to the coaching (write-back tool).
-      Built and **verified on the sandbox** (PR #1):
-      `tools/rgroups-table/apply_approved.py` reads the ticked proposals in
-      `rgroups_review.md` and, per variant: Duplicate an existing group
-      message → edit the copy's en-GB + ro-RO → Move Up until it is adjacent
-      to the pool (groups only fire when consecutive). Dry-run by default;
-      `--apply` / `--limit` / `--pool` / `--dedup` / `--debug`. Idempotent.
-      PMCP-editor automation gotchas written up in
-      `tools/rgroups-table/README.md` ("PMCP editor automation — pitfalls").
+      Step 4 `rgroup_apply.py --limit N` (required) reads
+      `rgroups_generated.csv` and applies **every** `ok` variant (no review
+      gate) — per variant: Duplicate an existing group message → edit the
+      copy's en-GB + ro-RO → Move Up until it is adjacent to the pool (groups
+      only fire when consecutive). Dry-run by default; `--apply` / `--pool` /
+      `--dedup` / `--debug`. Idempotent. **Verified on the sandbox** (PR #1).
+      PMCP-editor automation gotchas in `tools/rgroups-table/README.md`.
       Not yet run at scale or against the production coaching.
+- [ ] `rgroup_pipeline.sh --json FILE --limit N` — wraps steps 1→4 with a
+      `continue? [y/N]` checkpoint between each. Steps 1–2 tested via the
+      wrapper; full chain not yet run against a live CDP session.
 
 ### After `coaching.json` is regenerated (unblocks the rest)
 
 - [ ] Regenerate `data/exports/coaching.json` with the current export
       (`tools/coaching-bundle-export/export_coaching.py`, via `start_pmcp.sh`).
       The `rgroups_table.csv` in the repo predates the export consolidation.
-- [ ] Full expansion run: `BUNDLE=data/exports/coaching.json
-      tools/rgroups-table/rgroups_pipeline.sh` (no `--limit`) → ~800 more variants
-      for the ~100 `TO_GENERATE` pools, refreshing `rgroups_review.md`.
-- [ ] Human review of that full batch (the 10-pool sample is already ticked;
-      this is the remaining ~100 pools).
-- [ ] Run `apply_approved.py --apply` against the **production** ALEX v01
-      coaching (only the sandbox has been written to so far). Start with
-      `--limit` / `--pool`; watch the Move Up / adjacency result each time.
+- [ ] Full expansion run: `rgroup_pipeline.sh --json data/exports/coaching.json
+      --limit 110` → ~880 variants for the ~110 thin pools.
+- [ ] Human review of that full batch (spot-check `rgroups_generated.csv`; the
+      10-pool sample is already reviewed).
+- [ ] Run `rgroup_apply.py --apply --limit N` against the **production** ALEX
+      v01 coaching (only the sandbox has been written to so far). Start with a
+      small `--limit` / `--pool`; watch the Move Up / adjacency result each time.
 - [ ] Remove the 2 mechanism-test variants left in the "ALEX v01 zum
       Ausprobieren" sandbox (a greeting in *Timeless Greetings*, a spirometry
       prompt in *Prompt patient to conduct daily spirometry*). `--dedup` does
@@ -122,20 +124,18 @@ workstreams" section — this file is the checklist, that's the writeup.
       possible bonus but not required.)
 
 - [ ] **Later: `export_coaching.sh` should also build the r_ report/tables.**
-      A `report.py` now renders the r_ groups summary
-      (`tools/rgroups-table/rgroups_report.md`) straight from `coaching.json`
-      — no browser scrape (was: hand-assembled from a live sweep). Wire it
-      (and `build_table.py`) into `export_coaching.sh` — or a
-      `--with-rgroups` flag — so one run gives `coaching.json` *and* the
-      up-to-date CSVs + report, without the full `rgroups_pipeline.sh` (which also
-      does the LLM expansion). `rgroups_pipeline.sh` already chains
-      `report.py` in as its step 3.
+      `rgroup_report.py` renders `rgroups_table.csv` (and, with `--md`, the
+      `docs/randomisation_groups_*` summary) straight from `coaching.json` — no
+      browser scrape. Wire it into `export_coaching.sh` — or a `--with-rgroups`
+      flag — so one run gives `coaching.json` *and* the up-to-date table +
+      summary, without the rest of `rgroup_pipeline.sh` (which does the LLM
+      expansion and write-back).
 
 - [x] **Export polish (2026-09-10).**
       - Default output name now carries a timestamp:
         `data/exports/coaching_<slug>_<YYYYMMDD-HHMMSS>.json` (slug from the
         coaching name read off the editor header). Explicit `OUT.json` still
-        wins; `rgroups_pipeline.sh` passes an explicit path so it's unaffected.
+        wins; `rgroup_pipeline.sh` passes an explicit path so it's unaffected.
       - Total wall-clock run time + per-phase seconds printed at the end and
         stored in the JSON's `run` block.
       - `bundle.coaching.name` is populated (was `null`).

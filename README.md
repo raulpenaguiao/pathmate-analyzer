@@ -16,7 +16,7 @@ Built and on `main`:
 
 - **Tabbed coaching view** (`app/templates/coaching_view.html`). Tabs: Statistics, Rules, Micro Dialogs, Variables, Chat (simulator), Raw. Backed by `app/coaching_model.py` (parses the PMCP "Report" HTML export) and `app/coaching_sim.py` (a 1-minute-tick interpreter for the declarative rule mini-language). JS-snippet and regex rules are parsed but skipped at run time. See `ALEX_v02_simulator_scope.md` for that scope boundary.
 - **Coaching bundle exporter** (`tools/coaching-bundle-export/`). Browser automation over CDP (Playwright, no LLM) that sweeps the live PMCP Vaadin editor. This is the only place the per-message **Randomisation Group** lives — the Report HTML export omits it entirely. `--enrich` joins the Report HTML back in for full per-language text and decision branches. Reference run (ALEX v01, 2026-09-03): 107 micro dialogs, 1177 nodes, 96 distinct `r_` groups, 92/107 dialogs text-enriched, 255/258 decision branches resolved. Details in `tools/coaching-bundle-export/DESIGN.md`.
-- **Randomisation-group tables** (`tools/rgroups-table/`). Turns the bundle into `rgroups_table.csv` (one row per `r_`-tagged message) and `rgroups_summary.csv` (per-group pool sizes). `expand_rgroups.py` tops up thin pools with an LLM; `render_review_report.py` turns that into a per-pool markdown report for human review.
+- **Randomisation-group pipeline** (`tools/rgroups-table/`). Four steps over a pre-made `coaching.json`: `rgroup_report.py` → `rgroups_table.csv` (one row per `r_`-tagged message); `rgroup_prepare.py` → `rgroups_requests.csv` (one row per thin pool = one LLM call); `rgroup_expand.py --limit N` → LLM-generated variants; `rgroup_apply.py --limit N` → writes them into the live PMCP editor over CDP. `rgroup_pipeline.sh --json FILE --limit N` runs all four with a checkpoint between each.
 - `docs/randomisation_groups_ALEX_v01.md` — the committed **`r_` groups report**. See Workstream 1 below.
 
 Not yet built: rule-level send-delay/timeout capture, answer→child routing capture (bundle "Stage 3"), importing the bundle into the analyzer's own model (bundle "Stage 4"), and rule-order-aware pile-up logic in the simulator.
@@ -64,7 +64,7 @@ Reordered here by dependency, not by the order they were raised.
 
 ### Workstream detail
 
-**1 — `r_` entries report.** Done. `docs/randomisation_groups_ALEX_v01.md` lists all 96 groups with message/dialog counts. Full per-message text and trigger conditions are in `tools/rgroups-table/rgroups_table.csv`. To refresh: re-run `tools/coaching-bundle-export/` then `tools/rgroups-table/build_table.py` against the live portal.
+**1 — `r_` entries report.** Done. `docs/randomisation_groups_ALEX_v01.md` lists all 96 groups with message/dialog counts. Full per-message text and trigger conditions are in `tools/rgroups-table/rgroups_table.csv`. To refresh: re-run `tools/coaching-bundle-export/` then `tools/rgroups-table/rgroup_report.py` against the live portal.
 
 **2 — Pile-up problem in ALEX "zum Ausprobieren".** The pile-up problem is real: a message can push out one that was mid-flow. But it isn't governed by a tier system PMCP tracks. What actually governs it, confirmed live:
 

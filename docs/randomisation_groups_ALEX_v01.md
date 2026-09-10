@@ -1,18 +1,8 @@
-# Randomisation groups (`r_*`) in ALEX v01
+# Randomisation groups (`r_*`) in (unnamed coaching)
 
-Committed deliverable for the "identify all `r_` entries" task. Generated
-2026-09-03 by `tools/coaching-bundle-export/` + `tools/rgroups-table/` sweeping
-the live PMCP Vaadin editor (the Report HTML export the coaching normally ships
-with does not carry the Randomisation Group column at all — see
-[`tools/coaching-bundle-export/DESIGN.md`](../tools/coaching-bundle-export/DESIGN.md)).
-Source data: `data/rgroups/coaching.bundle.v2.json` (gitignored; regenerate with
-that tool's `--enrich` pipeline against the live portal).
+Generated from `data/exports/coaching.json` (`scrapedAt` = 2026-09-10T16:41:23+0200) by `tools/rgroups-table/rgroup_report.py --md`.
 
-**96 distinct `r_` groups**, 1177 nodes, 107 micro dialogs. Text resolved for 107/107 dialogs (0 need editor-modal follow-up). This supersedes an earlier partial sweep that undercounted at 63 groups (truncated on tall dialogs).
-
-Per-message detail (both languages, trigger conditions, pool membership) is in
-[`tools/rgroups-table/rgroups_table.csv`](../tools/rgroups-table/rgroups_table.csv)
-and `rgroups_summary.csv` in the same directory.
+**96 distinct `r_` groups**, 460 grouped messages, 1161 nodes, 83 micro dialogs. Fully text-resolved: 95/96 groups.
 
 | Group | Msgs | MDs | Text | Micro dialog(s) |
 | --- | ---: | ---: | :-: | --- |
@@ -21,7 +11,7 @@ and `rgroups_summary.csv` in the same directory.
 | `r_FeedbackOnPoorCompliance` | 31 | 3 | ok | Prompt patient to conduct daily spirometry / Feedback on compliance regarding daily spirometry / Poor Compliance / One missed session<br>Prompt patient to conduct daily spirometry / Feedback on compliance regarding daily spirometry / Poor Compliance / Several missed sessions<br>Prompt patient to prepare for nighttime monitoring / Feedback on compliance regarding nighttime monitoring / Poor Compliance |
 | `r_InvitationToLookAtAirPollutionAndAllergenConcentration` | 30 | 3 | ok | Information about local air quality (pollutants and allergens)<br>Information about local air quality (pollutants and allergens) / Extreme levels of air pollutants<br>Information about local air quality (pollutants and allergens) / Extreme levels of allergens |
 | `r_PromptForInhalingMedication_Stage1_Push` | 24 | 3 | ok | Prompt patient to take controller medication / Prompt patient to take first dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take second dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take third dose of controller medication |
-| `r_FeedbackOnGoodCompliance` | 20 | 2 | ok | Prompt patient to conduct daily spirometry / Feedback on compliance regarding daily spirometry / Good Compliance<br>Prompt patient to prepare for nighttime monitoring / Feedback on compliance regarding nighttime monitoring / Good Compliance |
+| `r_FeedbackOnGoodCompliance` | 20 | 1 | ok | Prompt patient to conduct daily spirometry / Feedback on compliance regarding daily spirometry / Good Compliance<br>Prompt patient to prepare for nighttime monitoring / Feedback on compliance regarding nighttime monitoring / Good Compliance |
 | `r_MorningGreetings` | 17 | 1 | ok | 👋 Hello / Morning greetings |
 | `r_PromptForWatchingEducationalContent_Stage1` | 17 | 3 | ok | Prompt patient to watch/read/listen educational material / Interaction with educational content and rescheduling / Introductory sentences for podcasts<br>Prompt patient to watch/read/listen educational material / Interaction with educational content and rescheduling / Introductory sentences for text<br>Prompt patient to watch/read/listen educational material / Interaction with educational content and rescheduling / Introductory sentences for videos |
 | `r_FeedbackOnGoodMedicationAdherence` | 10 | 1 | ok | Prompt patient to take controller medication / Feedback medication adherence / Good Compliance |
@@ -34,12 +24,12 @@ and `rgroups_summary.csv` in the same directory.
 | `r_PromptForHealthLiteracyQuiz_Stage2` | 10 | 1 | ok | Prompt patient to answer health literacy questions |
 | `r_ReminderClinicVisit_Push` | 10 | 1 | ok | Reminder quarterly clinic visits |
 | `r_PostponeInhalation` | 9 | 3 | ok | Prompt patient to take controller medication / Prompt patient to take first dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take second dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take third dose of controller medication |
-| `r_PostponeACQ` | 8 | 4 | ok | Prompt patient to answer questions of the ACQ<br>Prompt patient to take controller medication / Prompt patient to take first dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take second dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take third dose of controller medication |
+| `r_PostponeACQ` | 8 | 4 | 7/8 | Prompt patient to answer questions of the ACQ<br>Prompt patient to take controller medication / Prompt patient to take first dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take second dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take third dose of controller medication |
+| `r_TimelessGreetings` | 7 | 1 | ok | 👋 Hello / Timeless Greetings |
 | `r_CompassionateFeedback` | 6 | 1 | ok | Inquire about patient's well-being / Compassionate feedback when patient is not doing so great |
 | `r_GoodByeAfterSuccessfullyCarryingOutSpirometryMeasurement` | 6 | 1 | ok | Prompt patient to conduct daily spirometry / Quit spirometry dialog after successful spirometry procedure |
 | `r_GoodByeAfterSuccessfullyInhalingMedication` | 6 | 1 | ok | Prompt patient to take controller medication / Quit medication reminders dialog after successful inhalation |
 | `r_PromptForSpirometry_Stage3` | 6 | 1 | ok | Prompt patient to conduct daily spirometry |
-| `r_TimelessGreetings` | 6 | 1 | ok | 👋 Hello / Timeless Greetings |
 | `r_InquiryWellBeing` | 5 | 1 | ok | Inquire about patient's well-being |
 | `r_PostponeSpirometry` | 5 | 2 | ok | Attic<br>Prompt patient to conduct daily spirometry |
 | `r_PromptForFAQs_Stage2` | 5 | 1 | ok | Inform the patient about the list of FAQs |
@@ -49,6 +39,7 @@ and `rgroups_summary.csv` in the same directory.
 | `r_PromptForInhalingMedication_Stage0` | 3 | 3 | ok | Prompt patient to take controller medication / Prompt patient to take first dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take second dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take third dose of controller medication |
 | `r_PromptForInhalingMedication_Stage2` | 3 | 3 | ok | Prompt patient to take controller medication / Prompt patient to take first dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take second dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take third dose of controller medication |
 | `r_PromptForInhalingMedication_Stage3` | 3 | 3 | ok | Prompt patient to take controller medication / Prompt patient to take first dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take second dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take third dose of controller medication |
+| `r_PromptForSpirometry_Stage1_Push` | 3 | 1 | ok | Prompt patient to conduct daily spirometry |
 | `r_StartInhalation` | 3 | 3 | ok | Prompt patient to take controller medication / Prompt patient to take first dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take second dose of controller medication<br>Prompt patient to take controller medication / Prompt patient to take third dose of controller medication |
 | `r_StartInteractionWithEducationalMaterial` | 3 | 3 | ok | Prompt patient to watch/read/listen educational material / Interaction with educational content and rescheduling<br>Sequence of educational materials for kids aged 10 to 14<br>Sequence of educational materials for kids aged 15 to 19 |
 | `r_CompassionateFeedbackAndCoaching` | 2 | 1 | ok | Inquire about patient's well-being / Compassionate feedback when patient is not doing so great / Coaching |
@@ -59,7 +50,6 @@ and `rgroups_summary.csv` in the same directory.
 | `r_PostponeInteractionWithEducationalMaterial` | 2 | 1 | ok | Prompt patient to watch/read/listen educational material / Interaction with educational content and rescheduling |
 | `r_PromptForACQ_Stage2` | 2 | 2 | ok | Attic<br>Prompt patient to answer questions of the ACQ |
 | `r_PromptForNighttimeMonitoring_Stage1_Push` | 2 | 1 | ok | Prompt patient to prepare for nighttime monitoring |
-| `r_PromptForSpirometry_Stage1_Push` | 2 | 1 | ok | Prompt patient to conduct daily spirometry |
 | `r_QueryInterestInOutcomes` | 2 | 2 | ok | Prompt patient to conduct daily spirometry / Medical Feedback lung function<br>Prompt patient to prepare for nighttime monitoring / Medical feedback sleep quality |
 | `r_TransitionFromInterruptingDialogIntoOldDialog` | 2 | 1 | ok | Transition message when interrupting dialog has finished |
 | `r_TransitionFromOldDialogIntoInterruptingDialog` | 2 | 1 | ok | Transition message when interrupting dialog kicks in |

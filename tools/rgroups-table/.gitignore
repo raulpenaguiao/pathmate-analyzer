@@ -1,5 +1,5 @@
 __pycache__/
 *.pyc
-rgroups_table.expanded.csv
+rgroups_requests.csv
+rgroups_generated.csv
 expand_prompts.txt
-rgroups_review.md
