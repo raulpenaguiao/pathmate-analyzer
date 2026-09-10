@@ -77,8 +77,13 @@ export PMCP_CDP="$CDP"
 export PMCP_OUT="$WORKDIR"
 
 pause() {
-  [ "$ASSUME_YES" -eq 1 ] && return 0
-  printf '\n>>> %s\n    Press Enter when done (Ctrl-C to abort)... ' "$1"
+  if [ "$ASSUME_YES" -eq 1 ]; then echo ">>> (--yes) skipping manual step: $1"; return 0; fi
+  printf '\n'
+  printf '============================================================\n'
+  printf '  ACTION NEEDED IN THE BROWSER — then come back here:\n'
+  printf '  %s\n' "$1"
+  printf '============================================================\n'
+  printf '  Press Enter here when done (Ctrl-C to abort)... '
   read -r _
 }
 
@@ -91,14 +96,16 @@ echo
 # --- auto-login from .env (idempotent; no-op if already logged in) ----------
 if [ "$DO_LOGIN" -eq 1 ]; then
   echo "--- login (pmcp_login.py) ---"
-  if ! PMCP_CDP="$CDP" "$PY" "$HERE/pmcp_login.py" --env "$ENV_FILE" ; then
+  if PMCP_CDP="$CDP" "$PY" "$HERE/pmcp_login.py" --env "$ENV_FILE" ; then
+    echo "    login OK."
+  else
     echo "    auto-login did not complete — finish it by hand in the browser." >&2
-    pause "Log in to PMCP by hand if the browser is still on the login screen."
+    pause "Finish logging in to PMCP by hand (username / password / 2FA)."
   fi
 fi
 
 # --- the one manual step --------------------------------------------------
-pause "In the browser: open your coaching -> click Edit -> DEACTIVATE MONITORING. (The script never touches that toggle. Switching between Micro Dialogs and Rules after this is automatic.)"
+pause "Open your coaching -> click Edit -> in 'Basic Settings and Modules' click 'Monitoring' to DEACTIVATE it. (The script never touches that toggle; switching between the Micro Dialogs and Rules views after this is automatic.)"
 
 if [ "$DO_DIALOGS" -eq 1 ]; then
   echo "--- Micro Dialogs sweep (export_bundle.py) ---"
