@@ -1,631 +1,2069 @@
 {
-  "coaching": "ALEX v01 (\"ALEX v01 zum Ausprobieren\")",
-  "capturedAt": "2026-09-10",
-  "source": "tools/coaching-bundle-export/probe_rules_tree.py, live PMCP Rules-tab .v-tree + Edit-rule modals",
-  "note": "The 25 message/dialog-sending rules (message-icon-small.png) of the coaching. sendHour is a $variable (user preference or reschedule new-time), not a literal clock. notAnsweredTimeout default is 4h. Action checkboxes 'Mark case as solved... and stop' / 'Stop... and finish coaching' are all false on senders.",
-  "ruleTreeNodes": 122,
-  "sendingRules": 25,
-  "rules": [
+  "coaching": {
+    "name": "ALEX v01 (\"ALEX v01 zum Ausprobieren\")",
+    "scrapedAt": "2026-09-10",
+    "stage": 3
+  },
+  "source": "export_rules.py — live PMCP Rules .v-tree + Edit-rule modals (re-derived offline 2026-09-10 from the sweep dumps)",
+  "sections": [
+    "DAILY BASIS",
+    "PERIODIC BASIS",
+    "USER INTENTION"
+  ],
+  "counts": {
+    "ruleTreeNodes": 117,
+    "senders": 25,
+    "sendersCaptured": 25,
+    "conditions": 92
+  },
+  "ruleTree": [
     {
-      "rule": "🧐💬 If required, send feedback on poor compliance with lung function monitoring scheme: $totalNumberOfConsecutiveDaysWithoutSpirometry calculated value is bigger than $hyperparameterToleranceForNumberOfConsecutiveDaysWithoutSpirometry",
+      "uid": "r-000",
+      "section": "DAILY BASIS",
+      "depth": 1,
+      "order": 1,
+      "parentUid": null,
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "✏️ create $today (current date, dd.mm.yyyy): $systemDayOfMonth.$systemMonth.$systemYear create text but result is always true → $today",
+      "treeIndex": 1
+    },
+    {
+      "uid": "r-001",
       "section": "DAILY BASIS",
       "depth": 2,
-      "parentChain": [
-        "Execution on DAILY BASIS",
-        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      "order": 2,
+      "parentUid": "r-000",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Format date: $today{#d} create text but result is always true → $today",
+      "treeIndex": 2
+    },
+    {
+      "uid": "r-002",
+      "section": "DAILY BASIS",
+      "depth": 1,
+      "order": 3,
+      "parentUid": null,
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1",
+      "treeIndex": 3
+    },
+    {
+      "uid": "r-003",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 4,
+      "parentUid": "r-002",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Start counting participation days: $participationInDays calculated value equals -99",
+      "treeIndex": 4
+    },
+    {
+      "uid": "r-004",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 5,
+      "parentUid": "r-003",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "0 calculate value but result is always true → $participationInDays",
+      "treeIndex": 5
+    },
+    {
+      "uid": "r-005",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 6,
+      "parentUid": "r-002",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "New participation day: $participationInDays+1 calculate value but result is always true → $participationInDays",
+      "treeIndex": 6
+    },
+    {
+      "uid": "r-006",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 7,
+      "parentUid": "r-002",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Counting the number of days on which spirometry was completed: $totalNumberOfDaysWithSpirometryCompleted+$spiroMesDone calculate value but result is always true → $totalNumberOfDaysWithSpirometryCompleted",
+      "treeIndex": 7
+    },
+    {
+      "uid": "r-007",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 8,
+      "parentUid": "r-002",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Start counting the number of consecutive days on which spirometry was not completed: $spiroMesDone calculated value equals 0",
+      "treeIndex": 8
+    },
+    {
+      "uid": "r-008",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 9,
+      "parentUid": "r-007",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Increase $totalNumberOfConsecutiveDaysWithoutSpirometry by one: $totalNumberOfConsecutiveDaysWithoutSpirometry+1 calculate value but result is always true → $totalNumberOfConsecutiveDaysWithoutSpirometry",
+      "treeIndex": 9
+    },
+    {
+      "uid": "r-009",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 10,
+      "parentUid": "r-002",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "With the onboarding completed, calculate date of next ACQ: $dateOfFirstACQ text value not equals -99",
+      "treeIndex": 10
+    },
+    {
+      "uid": "r-010",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 11,
+      "parentUid": "r-009",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Calculate difference in days between today and date of the next ACQ: $today calculate date difference in days and always true $dateOfNextACQ → $currentDifferenceInDaysBetweenTodayAndNextDateOfACQ",
+      "treeIndex": 11
+    },
+    {
+      "uid": "r-011",
+      "section": "DAILY BASIS",
+      "depth": 4,
+      "order": 12,
+      "parentUid": "r-010",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Check whether date for next ACQ lies in the future or in the past: $currentDifferenceInDaysBetweenTodayAndNextDateOfACQ calculated value is smaller than 0",
+      "treeIndex": 12
+    },
+    {
+      "uid": "r-012",
+      "section": "DAILY BASIS",
+      "depth": 5,
+      "order": 13,
+      "parentUid": "r-011",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Calculate date of the next ACQ based on date of previous ACQ: $dateOfNextACQ calculate new date by adding y days and always true $hyperparameterNumberOfDaysBetweenACQs → $dateOfNextACQ",
+      "treeIndex": 13
+    },
+    {
+      "uid": "r-013",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 14,
+      "parentUid": "r-002",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "With the onboarding completed, calculate date of the next display of educational contents: $dateOfFirstDisplayOfEducationalContents text value not equals -99",
+      "treeIndex": 14
+    },
+    {
+      "uid": "r-014",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 15,
+      "parentUid": "r-013",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Calculate difference in days between today and date of the next display of educational contents: $today calculate date difference in days and always true $dateOfNextDisplayOfEducationalContents → $currentDifferenceInDaysBetweenTodayAndNextDisplayOfEducationalContents",
+      "treeIndex": 15
+    },
+    {
+      "uid": "r-015",
+      "section": "DAILY BASIS",
+      "depth": 4,
+      "order": 16,
+      "parentUid": "r-014",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Check whether date for next display of educational contents lies in the future or in the past: $currentDifferenceInDaysBetweenTodayAndNextDisplayOfEducationalContents calculated value is smaller than 0",
+      "treeIndex": 16
+    },
+    {
+      "uid": "r-016",
+      "section": "DAILY BASIS",
+      "depth": 5,
+      "order": 17,
+      "parentUid": "r-015",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Calculate date of the next display of educational contents based on date of previous display: $dateOfNextDisplayOfEducationalContents calculate new date by adding y days and always true $hyperparameterNumberOfDaysBetweenEducationalContentDisplay → $dateOfNextDisplayOfEducationalContents",
+      "treeIndex": 17
+    },
+    {
+      "uid": "r-017",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 18,
+      "parentUid": "r-002",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset variables: calculate value but result is always true",
+      "treeIndex": 18
+    },
+    {
+      "uid": "r-018",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 19,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $readinessForSpirometry = -99: -99 calculate value but result is always true → $readinessForSpirometry",
+      "treeIndex": 19
+    },
+    {
+      "uid": "r-019",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 20,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $spiroMesDone = 0 : 0 calculate value but result is always true → $spiroMesDone",
+      "treeIndex": 20
+    },
+    {
+      "uid": "r-020",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 21,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $spiroRegularReminderSent = 0 : 0 calculate value but result is always true → $spiroRegularReminderSent",
+      "treeIndex": 21
+    },
+    {
+      "uid": "r-021",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 22,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $spiroMesTimeDelay = -99: -99 calculate value but result is always true → $spiroMesTimeDelay",
+      "treeIndex": 22
+    },
+    {
+      "uid": "r-022",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 23,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $spiroMesDelayedReminderSent = 0: 0 calculate value but result is always true → $spiroMesDelayedReminderSent",
+      "treeIndex": 23
+    },
+    {
+      "uid": "r-023",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 24,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $spiroMesDelayedReminderActive = 0: 0 calculate value but result is always true → $spiroMesDelayedReminderActive",
+      "treeIndex": 24
+    },
+    {
+      "uid": "r-024",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 25,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $spiroMesNumberOfDelayedRemindersIssued = 0: 0 calculate value but result is always true → $spiroMesNumberOfDelayedRemindersIssued",
+      "treeIndex": 25
+    },
+    {
+      "uid": "r-025",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 26,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $lastMinuteSpirometry = 0 : 0 calculate value but result is always true → $lastMinuteSpirometry",
+      "treeIndex": 26
+    },
+    {
+      "uid": "r-026",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 27,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $morningGreetingDisplayed to 0: 0 calculate value but result is always true → $morningGreetingDisplayed",
+      "treeIndex": 27
+    },
+    {
+      "uid": "r-027",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 28,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $spiroMesTime to value set by user: $userSetDesiredSpirometryTime create text but result is always true → $spiroMesTime",
+      "treeIndex": 28
+    },
+    {
+      "uid": "r-028",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 29,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $maxNumberOfDailySpirometryPostponements to value set by user: $userSetMaxNumberOfDailySpirometryPostponements calculate value but result is always true → $maxNumberOfDailySpirometryPostponements",
+      "treeIndex": 29
+    },
+    {
+      "uid": "r-029",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 30,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $medicationNumberOfRegularRemindersIssued to 0: 0 calculate value but result is always true → $medicationNumberOfRegularRemindersIssued",
+      "treeIndex": 30
+    },
+    {
+      "uid": "r-030",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 31,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Execute only on Mondays: $systemDayInWeek calculated value equals 1",
+      "treeIndex": 31
+    },
+    {
+      "uid": "r-031",
+      "section": "DAILY BASIS",
+      "depth": 4,
+      "order": 32,
+      "parentUid": "r-030",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset spirometryCountInWeek to 0: 0 calculate value but result is always true → $spirometryCountInWeek",
+      "treeIndex": 32
+    },
+    {
+      "uid": "r-032",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 33,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $readinessForNighttimeAsthmaMonitoring = (0,0,0): 0,0,0 create text but result is always true → $readinessForNighttimeAsthmaMonitoring",
+      "treeIndex": 33
+    },
+    {
+      "uid": "r-033",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 34,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $newTimeForInteractingWithEducationalMaterial to -99: -99 calculate value but result is always true → $newTimeForInteractingWithEducationalMaterial",
+      "treeIndex": 34
+    },
+    {
+      "uid": "r-034",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 35,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $userRequestedNewTimeForEducationalContents to 0: 0 calculate value but result is always true → $userRequestedNewTimeForEducationalContents",
+      "treeIndex": 35
+    },
+    {
+      "uid": "r-035",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 36,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $readinessForACQ = -99: -99 calculate value but result is always true → $readinessForACQ",
+      "treeIndex": 36
+    },
+    {
+      "uid": "r-036",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 37,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $userRequestedNewTimeForACQ to 0: 0 calculate value but result is always true → $userRequestedNewTimeForACQ",
+      "treeIndex": 37
+    },
+    {
+      "uid": "r-037",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 38,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $newTimeForACQ to -99: -99 calculate value but result is always true → $newTimeForACQ",
+      "treeIndex": 38
+    },
+    {
+      "uid": "r-038",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 39,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $acq_score to -99: -99 calculate value but result is always true → $acq_score",
+      "treeIndex": 39
+    },
+    {
+      "uid": "r-039",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 40,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $medicationNumberOfRegularRemindersIssued to 0: 0 calculate value but result is always true → $medicationNumberOfRegularRemindersIssued",
+      "treeIndex": 40
+    },
+    {
+      "uid": "r-040",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 41,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $myMedication_NumberOfInhalationsOfTheDayCompleted to 0: 0 calculate value but result is always true → $myMedication_NumberOfInhalationsOfTheDayCompleted",
+      "treeIndex": 41
+    },
+    {
+      "uid": "r-041",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 42,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $myFirstMedication_userRequestedNewTime to 0: 0 calculate value but result is always true → $myFirstMedication_userRequestedNewTime",
+      "treeIndex": 42
+    },
+    {
+      "uid": "r-042",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 43,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $mySecondMedication_userRequestedNewTime to 0: 0 calculate value but result is always true → $mySecondMedication_userRequestedNewTime",
+      "treeIndex": 43
+    },
+    {
+      "uid": "r-043",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 44,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $myThirdMedication_userRequestedNewTime to 0: 0 calculate value but result is always true → $myThirdMedication_userRequestedNewTime",
+      "treeIndex": 44
+    },
+    {
+      "uid": "r-044",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 45,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $spiroMesNumberOfDelayedRemindersIssued to 0: 0 calculate value but result is always true → $spiroMesNumberOfDelayedRemindersIssued",
+      "treeIndex": 45
+    },
+    {
+      "uid": "r-045",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 46,
+      "parentUid": "r-017",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🔄 Reset $mySpiro_userRequestedNewTimeForSpirometry to 0: 0 calculate value but result is always true → $mySpiro_userRequestedNewTimeForSpirometry",
+      "treeIndex": 46
+    },
+    {
+      "uid": "r-046",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 47,
+      "parentUid": "r-002",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Update the number of days of the present week on which spirometry was succesfully conducted: //+ moment import moment from 'moment' const debug = false /* * Check how many spirometry timestamps are in current week */ // Load variables const spirometryTimestamps = debug ? [ 1746018932000 ] : JSON.parse('$spirometryTimestamps') // Calculate start and end of week timestamps const now = moment() const startOfWeek = now.startOf('week').valueOf() const endOfWeek = now.endOf('week').valueOf() // Count spirometry timestamps in week let spirometryCountInWeek = 0 for (const spirometryTimestamp of spirometryTimestamps) { if (spirometryTimestamp >= startOfWeek && spirometryTimestamp <= endOfWeek) { spirometryCountInWeek++ } } // Write variables const o = { spirometryCountInWeek } o execute javascript in x and store values but result is always true ---",
+      "treeIndex": 47
+    },
+    {
+      "uid": "r-047",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 48,
+      "parentUid": "r-002",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "🧐💬 If required, send feedback on poor compliance with lung function monitoring scheme: $totalNumberOfConsecutiveDaysWithoutSpirometry calculated value is bigger than $hyperparameterToleranceForNumberOfConsecutiveDaysWithoutSpirometry",
+      "treeIndex": 48
+    },
+    {
+      "uid": "r-048",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 49,
+      "parentUid": "r-002",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "💰 Introduce weekly incentive: $systemDayInWeek calculated value equals 1",
+      "treeIndex": 49
+    },
+    {
+      "uid": "r-049",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 50,
+      "parentUid": "r-002",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "📡 Check for new sensor data - Currently disabled as it has been implemented elsewhere: calculate value but result is always true",
+      "treeIndex": 50
+    },
+    {
+      "uid": "r-050",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 51,
+      "parentUid": "r-002",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "🌬️ Send regular pushed reminder for spirometry measurement (temp. disabled and probably not needed): calculate value but result is always false",
+      "treeIndex": 51
+    },
+    {
+      "uid": "r-051",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 52,
+      "parentUid": "r-002",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "🌬️ Send regular reminder for spirometry measurement: calculate value but result is always true",
+      "treeIndex": 52
+    },
+    {
+      "uid": "r-052",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 53,
+      "parentUid": "r-002",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "▶️ Start dialogue regarding preparations for sleep monitoring: calculate value but result is always true",
+      "treeIndex": 53
+    },
+    {
+      "uid": "r-053",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 54,
+      "parentUid": "r-052",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Calculate 10 minutes before bed time: $userSetBedtime-0.17 calculate value but result is always true → $timeToSendSleepMonitoringDialog",
+      "treeIndex": 54
+    },
+    {
+      "uid": "r-054",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 55,
+      "parentUid": "r-052",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "Send sleep quality dialog: calculate value but result is always true",
+      "treeIndex": 55
+    },
+    {
+      "uid": "r-055",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 56,
+      "parentUid": "r-002",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "💊 Send regular reminder for first of the day controller medication inhalation: $userSetDesiredFirstDoseOfControllerMedicationInhalationTime text value not equals -99",
+      "treeIndex": 56
+    },
+    {
+      "uid": "r-056",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 57,
+      "parentUid": "r-002",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Check whether patient has been enrolled for at least one day: $participantParticipationInDays calculated value is bigger than 0",
+      "treeIndex": 57
+    },
+    {
+      "uid": "r-057",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 58,
+      "parentUid": "r-002",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "👩‍🏫📚 Prompt user to interact with educational material: $today text value equals $dateOfNextDisplayOfEducationalContents",
+      "treeIndex": 58
+    },
+    {
+      "uid": "r-058",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 59,
+      "parentUid": "r-002",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "💊 Send regular reminder for third of the day controller medication inhalation: $userSetDesiredThirdDoseOfControllerMedicationInhalationTime text value not equals -99",
+      "treeIndex": 59
+    },
+    {
+      "uid": "r-059",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "order": 60,
+      "parentUid": "r-058",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "💊 Send regular reminder for second of the day controller medication inhalation: $userSetDesiredSecondDoseOfControllerMedicationInhalationTime text value not equals -99",
+      "treeIndex": 60
+    },
+    {
+      "uid": "r-060",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 61,
+      "parentUid": "r-002",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "📋✏️ Prompt user to fill out ACQ: $today text value equals $dateOfNextACQ",
+      "treeIndex": 61
+    },
+    {
+      "uid": "r-061",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 62,
+      "parentUid": "r-002",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "🐞 Test sensor data retrieval: $userSetTimeOfTheDayForFeedbackIfRequired text value not equals -99",
+      "treeIndex": 62
+    },
+    {
+      "uid": "r-062",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 63,
+      "parentUid": "r-002",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "🐞 Test time line of scheduled periodic events: $userSetTimeOfTheDayForFeedbackIfRequired text value not equals -99",
+      "treeIndex": 63
+    },
+    {
+      "uid": "r-063",
+      "section": "DAILY BASIS",
+      "depth": 1,
+      "order": 64,
+      "parentUid": null,
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "✏️ Remember that the rules on \"Daily Basis\" were already performed today: $participantParticipationInDays+1 calculate value but result is always true → $dailyTasksPerformedToday",
+      "treeIndex": 64
+    },
+    {
+      "uid": "r-064",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "order": 65,
+      "parentUid": "r-063",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "🐞 Send test dialog if debug mode is activated: $debugMode calculated value equals 1",
+      "treeIndex": 65
+    },
+    {
+      "uid": "r-065",
+      "section": "PERIODIC BASIS",
+      "depth": 1,
+      "order": 66,
+      "parentUid": null,
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🕖 Delayed day start at 3 AM: $systemHourOfDay calculated value is bigger than 3",
+      "treeIndex": 67
+    },
+    {
+      "uid": "r-066",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 67,
+      "parentUid": "r-065",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🚀 Only perform if daily rules have NOT been already performed: $participantParticipationInDays calculated value not equals $dailyTasksPerformedToday",
+      "treeIndex": 68
+    },
+    {
+      "uid": "r-067",
+      "section": "PERIODIC BASIS",
+      "depth": 1,
+      "order": 68,
+      "parentUid": null,
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+      "treeIndex": 69
+    },
+    {
+      "uid": "r-068",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 69,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🌡️ Check whether maximum number of daily spirometry postponements has been reached: $spiroMesNumberOfDelayedRemindersIssued calculated value is smaller or equal than $userSetMaxNumberOfDailySpirometryPostponements",
+      "treeIndex": 70
+    },
+    {
+      "uid": "r-069",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 70,
+      "parentUid": "r-068",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🚦 Check whether user has agreed to be reminded about spirometry on same day again: $spiroMesDelayedReminderActive calculated value equals 1",
+      "treeIndex": 71
+    },
+    {
+      "uid": "r-070",
+      "section": "PERIODIC BASIS",
+      "depth": 4,
+      "order": 71,
+      "parentUid": "r-069",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "⏰ Check whether it may already be too late in the day for spirometry: $spiroMesTime calculated value is smaller than $bedtime",
+      "treeIndex": 72
+    },
+    {
+      "uid": "r-071",
+      "section": "PERIODIC BASIS",
+      "depth": 5,
+      "order": 72,
+      "parentUid": "r-070",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "🌬️ If still in time, send repeated reminder for spirometry measurement : $spiroMesTime calculated value is smaller than $bedtime",
+      "treeIndex": 73
+    },
+    {
+      "uid": "r-072",
+      "section": "PERIODIC BASIS",
+      "depth": 6,
+      "order": 73,
+      "parentUid": "r-071",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Set $spiroMesDelayedReminderActive back to 0: 0 calculate value but result is always true → $spiroMesDelayedReminderActive",
+      "treeIndex": 74
+    },
+    {
+      "uid": "r-073",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 74,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Save current time in decimal format: $systemHourOfDay+$systemDecimalMinuteOfHour calculate value but result is always true → $timeDecimal",
+      "treeIndex": 75
+    },
+    {
+      "uid": "r-074",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 75,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "✏️ Check if rules on \"Daily Basis\" were already performed today: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+      "treeIndex": 76
+    },
+    {
+      "uid": "r-075",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 76,
+      "parentUid": "r-074",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "⚠️ BEISPIELE (immer inaktiv): 1 calculated value equals 0",
+      "treeIndex": 77
+    },
+    {
+      "uid": "r-076",
+      "section": "PERIODIC BASIS",
+      "depth": 4,
+      "order": 77,
+      "parentUid": "r-075",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "BEISPIEL: $gender calculated value equals 1",
+      "treeIndex": 78
+    },
+    {
+      "uid": "r-077",
+      "section": "PERIODIC BASIS",
+      "depth": 5,
+      "order": 78,
+      "parentUid": "r-076",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "--- calculated value equals ---",
+      "treeIndex": 79
+    },
+    {
+      "uid": "r-078",
+      "section": "PERIODIC BASIS",
+      "depth": 6,
+      "order": 79,
+      "parentUid": "r-077",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "0 calculate value but result is always true → $gender",
+      "treeIndex": 80
+    },
+    {
+      "uid": "r-079",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 80,
+      "parentUid": "r-074",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "⚠️ Attic (always disabled): 1 calculated value equals 0",
+      "treeIndex": 81
+    },
+    {
+      "uid": "r-080",
+      "section": "PERIODIC BASIS",
+      "depth": 4,
+      "order": 81,
+      "parentUid": "r-079",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🌬️⏱️ Send delayed reminder for spirometer measurement: $spiroMesDelayedReminderSent calculated value is smaller than $spiroMesDelayedReminderActive",
+      "treeIndex": 82
+    },
+    {
+      "uid": "r-081",
+      "section": "PERIODIC BASIS",
+      "depth": 5,
+      "order": 82,
+      "parentUid": "r-080",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "Check if reminder for delayed spiro measurement time is due: calculate value but result is always true",
+      "treeIndex": 83
+    },
+    {
+      "uid": "r-082",
+      "section": "PERIODIC BASIS",
+      "depth": 6,
+      "order": 83,
+      "parentUid": "r-081",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "1+$spiroMesDelayedReminderSent calculate value but result is always true → $spiroMesDelayedReminderSent",
+      "treeIndex": 84
+    },
+    {
+      "uid": "r-083",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 84,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "📡 Check for new sensor data (every minute): $systemMinuteOfHour calculated value not equals $claidLastSensorDataMinute → $claidLastSensorDataMinute",
+      "treeIndex": 85
+    },
+    {
+      "uid": "r-084",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 85,
+      "parentUid": "r-083",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "JavaScript snippet to check for CLAID app crash ($environmentalDataOutdated): //+ moment import moment from 'moment' const debug = false // VARIABLES let sensorData = { $$SENSOR_DATA$$: \"claid\", types: [\"aqi\"], startRelativeInclusive: \"4h 1m\", endRelativeExclusive: \"0m\" }; if (debug) { sensorData = [ { timestamp: 1772949600000, type: 'aqi', data: '{\"h\":87,\"no2\":14.2,\"o3\":1,\"p\":\"1023\",\"pm10\":52,\"pm25\":91,\"so2\":0.3,\"t\":5,\"w\":0.2,\"wg\":1,\"time\":\"2026-03-08T07:00:00+01:00\"}' }, { timestamp: 1772949600000, type: 'aqi', data: '{\"h\":87,\"no2\":14.2,\"o3\":1,\"p\":\"1023\",\"pm10\":52,\"pm25\":91,\"so2\":0.3,\"t\":5,\"w\":0.2,\"wg\":1,\"time\":\"1772949600000\"}' } ] } // LOGIC let outdated = false if (!sensorData || sensorData.length == 0) { outdated = true } const resultObject = { environmentalDataOutdated: outdated ? 1 : 0 } resultObject execute javascript in x and store values but result is always true ---",
+      "treeIndex": 86
+    },
+    {
+      "uid": "r-085",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 86,
+      "parentUid": "r-083",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "JavaScript snippet for sensor data surveillance: //+ moment import moment from 'moment' // ─────────────────────────────────────────────────────────── // INPUT: sensorData + existingData (bereits gespeicherte Daten) // ─────────────────────────────────────────────────────────── // sensorData kommt roh rein let sensorData = { $$SENSOR_DATA$$: 'claid', types: [ 'spirometer', 'cough', 'coughCount', 'smartInhaler', 'aqi', 'aqiLevel', 'sleep' ], startRelativeInclusive: '30d', endRelativeExclusive: '0m' } /* sensorData = [ { timestamp: 1746560999000, type: 'spirometer', data: '{\"Fvc\":2.869999999855,\"Pef\":207.60002,\"fev1FvcRatio\":0.89547,\"Fev1\":2.569999933,\"testCounter\":1,\"testValid\":1}' }, { timestamp: 1746567199000, type: 'smartInhaler', data: '{\"frequency\":2}' }, { timestamp: 1746568199000, type: 'smartInhaler', data: '{\"frequency\":2}' }, { timestamp: 1746660999000, type: 'spirometer', data: '{\"Fvc\":2.869999999855,\"Pef\":207.60002,\"fev1FvcRatio\":0.89547,\"Fev1\":2.569999933,\"testCounter\":1,\"testValid\":1}' }, { timestamp: 1772928257021, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772928257021\"}]}' }, { timestamp: 1772929474912, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772929474912\"},{\"unix_timestamp_in_ms\":\"1772929474912\"}]}' }, { timestamp: 1772929486946, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772929486946\"}]}' }, { timestamp: 1772929528928, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772929528928\"}]}' }, { timestamp: 1772929558828, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772929558828\"}]}' }, { timestamp: 1772929811172, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772929811172\"}]}' }, { timestamp: 1772933830654, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772933830654\"}]}' }, { timestamp: 1772934875330, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772934875330\"}]}' }, { timestamp: 1772935174850, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772935174850\"}]}' }, { timestamp: 1772938066739, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772938066739\"}]}' }, { timestamp: 1772938073549, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772938073549\"},{\"unix_timestamp_in_ms\":\"1772938073549\"},{\"unix_timestamp_in_ms\":\"1772938073549\"}]}' }, { timestamp: 1772938649048, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772938649048\"},{\"unix_timestamp_in_ms\":\"1772938649048\"}]}' }, { timestamp: 1772938654823, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1772938654823\"}]}' }, { timestamp: 1772949600000, type: 'aqi', data: '{\"h\":87,\"no2\":14.2,\"o3\":1,\"p\":\"1023\",\"pm10\":52,\"pm25\":91,\"so2\":0.3,\"t\":5,\"w\":0.2,\"wg\":1,\"time\":\"2026-03-08T07:00:00+01:00\"}' }, { timestamp: 1772949600000, type: 'coughCount', data: '{\"cough_count\":20,\"window_end_unix_ms\":1772949600000,\"window_start_unix_ms\":1772920800000}' }, { timestamp: 1772949600000, type: 'aqiLevel', data: '{\"aqi_color\":\"Yellow\",\"aqi_label\":\"Moderate\",\"aqi_value\":91,\"time\":\"1772949600000\"}' }, { timestamp: 1772949600000, type: 'aqi', data: '{\"h\":87,\"no2\":14.2,\"o3\":1,\"p\":\"1023\",\"pm10\":52,\"pm25\":91,\"so2\":0.3,\"t\":5,\"w\":0.2,\"wg\":1,\"time\":\"1772949600000\"}' }, { timestamp: 1772953204000, type: 'aqiLevel', data: '{\"aqi_color\":\"Yellow\",\"aqi_label\":\"Moderate\",\"aqi_value\":91}' }, { timestamp: 1772957100000, type: 'smartInhaler', data: '{\"mac_address\":\"AA:BB:CC:DD:EE:01\",\"type\":4,\"event\":\"08.03.26 09:05\"}' }, { timestamp: 1772960400000, type: 'spirometer', data: '{\"testCounter\":0,\"testActive\":0,\"Pef\":447.509940022692,\"Fvc\":4.890946192648,\"fev1FvcRatio\":0.937632187975503,\"testValid\":1,\"Fev1\":4.585908579883,\"acceptablityTrial\":1,\"timestamp\":1772960400000}' }, { timestamp: 1772960430000, type: 'spirometer', data: '{\"testCounter\":1,\"testActive\":0,\"Pef\":497.80001573554,\"Fvc\":4.754605030514,\"fev1FvcRatio\":0.9904939625619936,\"testValid\":1,\"Fev1\":4.709407577091,\"acceptablityTrial\":1,\"timestamp\":1772960430000}' }, { timestamp: 1772960465000, type: 'spirometer', data: '{\"testCounter\":2,\"testActive\":0,\"Pef\":478.354674008401,\"Fvc\":4.960577573716,\"fev1FvcRatio\":0.945580214503172,\"testValid\":1,\"Fev1\":4.690624006214,\"acceptablityTrial\":1,\"timestamp\":1772960465000}' }, { timestamp: 1772964000000, type: 'aqi', data: '{\"h\":78,\"no2\":6.5,\"o3\":15.7,\"p\":\"1023\",\"pm10\":60,\"pm25\":100,\"so2\":0.4,\"t\":10.2,\"w\":0.5,\"wg\":4.5,\"time\":\"2026-03-08T11:00:00+01:00\"}' }, { timestamp: 1772964000000, type: 'aqiLevel', data: '{\"aqi_color\":\"Yellow\",\"aqi_label\":\"Moderate\",\"aqi_value\":100,\"time\":\"1772964000000\"}' }, { timestamp: 1772964000000, type: 'aqi', data: '{\"h\":78,\"no2\":6.5,\"o3\":15.7,\"p\":\"1023\",\"pm10\":60,\"pm25\":100,\"so2\":0.4,\"t\":10.2,\"w\":0.5,\"wg\":4.5,\"time\":\"1772964000000\"}' }, { timestamp: 1772967603000, type: 'aqiLevel', data: '{\"aqi_color\":\"Yellow\",\"aqi_label\":\"Moderate\",\"aqi_value\":100}' }, { timestamp: 1772978400000, type: 'aqi', data: '{\"h\":52,\"no2\":3.9,\"o3\":36,\"p\":\"1021\",\"pm10\":60,\"pm25\":96,\"so2\":0.5,\"t\":17.2,\"w\":1,\"wg\":3,\"time\":\"2026-03-08T15:00:00+01:00\"}' }, { timestamp: 1772978400000, type: 'aqi', data: '{\"h\":52,\"no2\":3.9,\"o3\":36,\"p\":\"1021\",\"pm10\":60,\"pm25\":96,\"so2\":0.5,\"t\":17.2,\"w\":1,\"wg\":3,\"time\":\"1772978400000\"}' }, { timestamp: 1772978400000, type: 'aqiLevel', data: '{\"aqi_color\":\"Yellow\",\"aqi_label\":\"Moderate\",\"aqi_value\":96,\"time\":\"1772978400000\"}' }, { timestamp: 1772982001000, type: 'aqiLevel', data: '{\"aqi_color\":\"Yellow\",\"aqi_label\":\"Moderate\",\"aqi_value\":96}' }, { timestamp: 1772989500000, type: 'smartInhaler', data: '{\"mac_address\":\"AA:BB:CC:DD:EE:01\",\"type\":4,\"event\":\"08.03.26 18:05\"}' }, { timestamp: 1772992800000, type: 'aqi', data: '{\"h\":59,\"no2\":12.3,\"o3\":29.3,\"p\":\"1021\",\"pm10\":63,\"pm25\":94,\"so2\":0.4,\"t\":14.1,\"w\":0.5,\"wg\":2,\"time\":\"2026-03-08T19:00:00+01:00\"}' }, { timestamp: 1772992800000, type: 'spirometer', data: '{\"testCounter\":0,\"testActive\":0,\"Pef\":470.159456308559,\"Fvc\":4.830162399184,\"fev1FvcRatio\":0.9869352217762573,\"testValid\":1,\"Fev1\":4.767057398654,\"acceptablityTrial\":1,\"timestamp\":1772992800000}' }, { timestamp: 1772992800000, type: 'aqi', data: '{\"h\":59,\"no2\":12.3,\"o3\":29.3,\"p\":\"1021\",\"pm10\":63,\"pm25\":94,\"so2\":0.4,\"t\":14.1,\"w\":0.5,\"wg\":2,\"time\":\"1772992800000\"}' }, { timestamp: 1772992800000, type: 'aqiLevel', data: '{\"aqi_value\":94,\"aqi_color\":\"Yellow\",\"aqi_label\":\"Moderate\",\"time\":\"1772992800000\"}' }, { timestamp: 1772992826000, type: 'spirometer', data: '{\"testCounter\":1,\"testActive\":0,\"Pef\":501.459485020036,\"Fvc\":5.017304699817,\"fev1FvcRatio\":0.9385371687373805,\"testValid\":1,\"Fev1\":4.708926947659,\"acceptablityTrial\":1,\"timestamp\":1772992826000}' }, { timestamp: 1772992862000, type: 'spirometer', data: '{\"testCounter\":2,\"testActive\":0,\"Pef\":466.983645866616,\"Fvc\":4.722898747073,\"fev1FvcRatio\":0.9965056090177187,\"testValid\":1,\"Fev1\":4.706395092281,\"acceptablityTrial\":1,\"timestamp\":1772992862000}' }, { timestamp: 1772996403000, type: 'aqiLevel', data: '{\"aqi_value\":94,\"aqi_color\":\"Yellow\",\"aqi_label\":\"Moderate\"}' }, { timestamp: 1773007616822, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1773007616822\"}]}' }, { timestamp: 1773008396610, type: 'cough', data: '{\"cough_samples\":[{\"unix_timestamp_in_ms\":\"1773008396610\"}]}' }, { timestamp: 1773054000000, type: 'sleep', data: '{\"window_date\":\"2026-03-08\",\"window_start_unix_ms\":1772967600000,\"window_end_unix_ms\":1773054000000,\"window_strategy\":\"noon_to_noon_local\",\"record_count\":1,\"selected_record_duration_ms\":23160000,\"last_fetched_at_unix_ms\":1773057600038,\"fetch_attempt_count\":2,\"stable_fetch_count\":1,\"complete\":true,\"is_empty\":false,\"data_signature\":\"1773019800000|1773042960000|46\",\"sleep_data\":{\"beginOfSleepDataIntervalUnixTimestampMs\":\"1773019800000\",\"endOfSleepDataIntervalUnixTimestampMs\":\"1773042960000\",\"stages\":[{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773019800000\",\"endTimeUnixTimestamp\":\"1773020760000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773020760000\",\"endTimeUnixTimestamp\":\"1773020880000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773020880000\",\"endTimeUnixTimestamp\":\"1773021240000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773021240000\",\"endTimeUnixTimestamp\":\"1773022140000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773022140000\",\"endTimeUnixTimestamp\":\"1773022170000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773022170000\",\"endTimeUnixTimestamp\":\"1773022200000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773022200000\",\"endTimeUnixTimestamp\":\"1773022830000\"},{\"sleepStageType\":\"STAGE_TYPE_DEEP_SLEEP\",\"startTimeUnixTimestamp\":\"1773022830000\",\"endTimeUnixTimestamp\":\"1773022860000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773022860000\",\"endTimeUnixTimestamp\":\"1773022890000\"},{\"sleepStageType\":\"STAGE_TYPE_DEEP_SLEEP\",\"startTimeUnixTimestamp\":\"1773022890000\",\"endTimeUnixTimestamp\":\"1773023880000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773023880000\",\"endTimeUnixTimestamp\":\"1773024270000\"},{\"sleepStageType\":\"STAGE_TYPE_DEEP_SLEEP\",\"startTimeUnixTimestamp\":\"1773024270000\",\"endTimeUnixTimestamp\":\"1773024300000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773024300000\",\"endTimeUnixTimestamp\":\"1773024330000\"},{\"sleepStageType\":\"STAGE_TYPE_DEEP_SLEEP\",\"startTimeUnixTimestamp\":\"1773024330000\",\"endTimeUnixTimestamp\":\"1773026070000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773026070000\",\"endTimeUnixTimestamp\":\"1773026460000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773026460000\",\"endTimeUnixTimestamp\":\"1773026970000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773026970000\",\"endTimeUnixTimestamp\":\"1773027000000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773027000000\",\"endTimeUnixTimestamp\":\"1773027150000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773027150000\",\"endTimeUnixTimestamp\":\"1773027180000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773027180000\",\"endTimeUnixTimestamp\":\"1773027210000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773027210000\",\"endTimeUnixTimestamp\":\"1773027270000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773027270000\",\"endTimeUnixTimestamp\":\"1773028560000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773028560000\",\"endTimeUnixTimestamp\":\"1773028590000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773028590000\",\"endTimeUnixTimestamp\":\"1773029790000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773029790000\",\"endTimeUnixTimestamp\":\"1773029820000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773029820000\",\"endTimeUnixTimestamp\":\"1773030330000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773030330000\",\"endTimeUnixTimestamp\":\"1773030360000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773030360000\",\"endTimeUnixTimestamp\":\"1773030510000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773030510000\",\"endTimeUnixTimestamp\":\"1773030930000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773030930000\",\"endTimeUnixTimestamp\":\"1773030960000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773030960000\",\"endTimeUnixTimestamp\":\"1773032310000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773032310000\",\"endTimeUnixTimestamp\":\"1773036960000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773036960000\",\"endTimeUnixTimestamp\":\"1773037620000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773037620000\",\"endTimeUnixTimestamp\":\"1773037650000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773037650000\",\"endTimeUnixTimestamp\":\"1773037980000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773037980000\",\"endTimeUnixTimestamp\":\"1773038220000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773038220000\",\"endTimeUnixTimestamp\":\"1773038790000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773038790000\",\"endTimeUnixTimestamp\":\"1773041250000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773041250000\",\"endTimeUnixTimestamp\":\"1773041490000\"},{\"sleepStageType\":\"STAGE_TYPE_LIGHT_SLEEP\",\"startTimeUnixTimestamp\":\"1773041490000\",\"endTimeUnixTimestamp\":\"1773041790000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773041790000\",\"endTimeUnixTimestamp\":\"1773042180000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773042180000\",\"endTimeUnixTimestamp\":\"1773042210000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773042210000\",\"endTimeUnixTimestamp\":\"1773042690000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773042690000\",\"endTimeUnixTimestamp\":\"1773042720000\"},{\"sleepStageType\":\"STAGE_TYPE_REM_SLEEP\",\"startTimeUnixTimestamp\":\"1773042720000\",\"endTimeUnixTimestamp\":\"1773042840000\"},{\"sleepStageType\":\"STAGE_TYPE_AWAKE\",\"startTimeUnixTimestamp\":\"1773042840000\",\"endTimeUnixTimestamp\":\"1773042960000\"}]}}' }, { timestamp: 1782284931236, type: 'spirometer', data: '{\"acceptablityTrial\":1,\"testActive\":0,\"fev1FvcRatio\":0.9908675888566425,\"predictedPef\":597.9189023208619,\"predictedFvc\":5.6619716162621545,\"predictedFev1FvcRatio\":0.8327060602059152,\"Fvc\":4.380000114440918,\"Pef\":496.2000274658203,\"Fev1\":4.340000152587891,\"testValid\":1,\"testCounter\":1,\"predictedFev1\":4.6852849601992,\"timestamp\":1782284931236}' } ] */ // bereits vorhandene Daten const existingData = { spirometer: JSON.parse('$spirometerData') || [], cough: JSON.parse('$coughData') || [], smartInhaler: JSON.parse('$smartInhalerData') || [], aqi: JSON.parse('$aqiData') || [], aqiLevel: JSON.parse('$aqiLevelData') || [], sleep: JSON.parse('$sleepData') || [] } // ─────────────────────────────────────────────────────────── // HELPERS // ─────────────────────────────────────────────────────────── const byType = (type) => sensorData.filter((s) => s.type === type) const parse = (s) => JSON.parse(s.data) const toMinutes = (ms) => Math.round(ms / 60000) const dedupeByKey = (arr, key) => { const map = new Map() arr.forEach((e) => map.set(e[key], e)) return [...map.values()] } // ─────────────────────────────────────────────────────────── // NORMALIZATION (Snippet 1) // ─────────────────────────────────────────────────────────── // ── SPIROMETER ── const spirometer = byType('spirometer').map((s) => { const d = parse(s) return { Fvc: d.Fvc != null ? String(d.Fvc) : null, Fev1: d.Fev1 != null ? String(d.Fev1) : null, Pef: d.Pef != null ? String(d.Pef) : null, fev1FvcRatio: d.fev1FvcRatio != null ? String(d.fev1FvcRatio) : null, testValid: d.testValid != null ? String(d.testValid) : null, timestamp: Number(s.timestamp) } }) // ── COUGH ── const coughCountEntries = byType('coughCount') .map((s) => { const d = parse(s) return { cough_count: String(d.cough_count), window_start_unix_ms: Number(d.window_start_unix_ms), window_end_unix_ms: Number(d.window_end_unix_ms) } }) .filter( (d) => d.cough_count !== 'undefined' && d.cough_count !== 'null' && Number.isFinite(Number(d.cough_count)) && Number.isFinite(d.window_start_unix_ms) && Number.isFinite(d.window_end_unix_ms) ) const cough = coughCountEntries // ── SMART INHALER ── const smartInhaler = byType('smartInhaler') .filter((s) => !!parse(s).event) .map((s) => { const d = parse(s) return { event: d.event, mac_address: d.mac_address ?? null, type: d.type != null ? String(d.type) : null, timestamp: Number(s.timestamp) } }) // ── AQI ── const aqi = dedupeByKey( byType('aqi').map((s) => { const d = parse(s) return { pm25: d.pm25 != null ? String(d.pm25) : null, pm10: d.pm10 != null ? String(d.pm10) : null, o3: d.o3 != null ? String(d.o3) : null, no2: d.no2 != null ? String(d.no2) : null, so2: d.so2 != null ? String(d.so2) : null, t: d.t != null ? String(d.t) : null, h: d.h != null ? String(d.h) : null, timestamp: Number(s.timestamp) } }), 'timestamp' ) const aqiLevel = dedupeByKey( byType('aqiLevel').map((s) => { const d = parse(s) return { aqi_value: d.aqi_value != null ? String(d.aqi_value) : null, aqi_label: d.aqi_label ?? null, aqi_color: d.aqi_color ?? null, timestamp: Number(s.timestamp) } }), 'timestamp' ) // ── SLEEP ── const sleep = byType('sleep').map((s) => { const d = parse(s) const stages = d.sleep_data?.stages ?? [] const calcMs = (type) => stages .filter((st) => st.sleepStageType === type) .reduce( (sum, st) => sum + (Number(st.endTimeUnixTimestamp) - Number(st.startTimeUnixTimestamp)), 0 ) const totalMs = Number(d.sleep_data?.endOfSleepDataIntervalUnixTimestampMs) - Number(d.sleep_data?.beginOfSleepDataIntervalUnixTimestampMs) return { window_date: d.window_date, totalMinutes: String(toMinutes(totalMs)), deepMinutes: String(toMinutes(calcMs('STAGE_TYPE_DEEP_SLEEP'))), remMinutes: String(toMinutes(calcMs('STAGE_TYPE_REM_SLEEP'))), lightMinutes: String(toMinutes(calcMs('STAGE_TYPE_LIGHT_SLEEP'))), awakeMinutes: String(toMinutes(calcMs('STAGE_TYPE_AWAKE'))) } }) const newSensorOutput = { spirometer, cough, smartInhaler, aqi, aqiLevel, sleep } // ─────────────────────────────────────────────────────────── // MERGE (Snippet 2) // ─────────────────────────────────────────────────────────── const mergeConfig = { spirometer: { key: ['timestamp'], strategy: 'append' }, cough: { key: ['window_start_unix_ms', 'window_end_unix_ms'], strategy: 'append' }, smartInhaler: { key: ['timestamp'], strategy: 'append' }, aqi: { key: ['timestamp'], strategy: 'latest' }, aqiLevel: { key: ['timestamp'], strategy: 'latest' }, sleep: { key: ['window_date'], strategy: 'append' } } const mergeType = (existing, incoming, keyFields, strategy) => { if (strategy === 'latest') { const all = [...existing, ...incoming] if (!all.length) return { data: [], addedEntries: [], hasNewData: false } const newest = all.reduce((a, b) => Number(a[keyFields[0]]) >= Number(b[keyFields[0]]) ? a : b ) const alreadyStored = existing.length === 1 && String(existing[0][keyFields[0]]) === String(newest[keyFields[0]]) return { data: [newest], addedEntries: alreadyStored ? [] : [newest], hasNewData: !alreadyStored } } const isMatch = (a, b) => keyFields.every((k) => String(a[k]) === String(b[k])) const data = [...existing] const addedEntries = [] incoming.forEach((entry) => { if (!existing.some((e) => isMatch(e, entry))) { data.push(entry) addedEntries.push(entry) } }) data.sort((a, b) => Number(a[keyFields[0]]) < Number(b[keyFields[0]]) ? -1 : 1 ) return { data, addedEntries, hasNewData: addedEntries.length > 0 } } // ── APPLY MERGE ── const merged = {} Object.keys(mergeConfig).forEach((type) => { const { key, strategy } = mergeConfig[type] merged[type] = mergeType( existingData[type] ?? [], newSensorOutput[type] ?? [], key, strategy ) }) // ─────────────────────────────────────────────────────────── // RESULT // ─────────────────────────────────────────────────────────── const summary = Object.fromEntries( Object.entries(merged).map(([type, result]) => [ type, { totalEntries: result.data.length, newEntries: result.addedEntries.length, hasNewData: result.hasNewData } ]) ) const resultObject = { triggerSensorDataUpdate: merged.spirometer.addedEntries.length + merged.cough.addedEntries.length + merged.smartInhaler.addedEntries.length + merged.aqi.addedEntries.length + merged.aqiLevel.addedEntries.length + merged.sleep.addedEntries.length, mergedAt: moment().format('DD.MM.YYYY HH:mm:ss'), hasNewData: Object.values(merged).some((m) => m.hasNewData), summary, spirometerData: merged.spirometer.data, spirometerAddedEntries: merged.spirometer.addedEntries, coughData: merged.cough.data, coughAddedEntries: merged.cough.addedEntries, smartInhalerData: merged.smartInhaler.data, smartInhalerAddedEntries: merged.smartInhaler.addedEntries, aqiData: merged.aqi.data, aqiAddedEntries: merged.aqi.addedEntries, aqiLevelData: merged.aqiLevel.data, aqiLevelAddedEntries: merged.aqiLevel.addedEntries, sleepData: merged.sleep.data, sleepAddedEntries: merged.sleep.addedEntries } resultObject execute javascript in x and store values but result is always true ---",
+      "treeIndex": 87
+    },
+    {
+      "uid": "r-086",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 87,
+      "parentUid": "r-083",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "Trigger sensor data updates: $triggerSensorDataUpdate calculated value is bigger than 0",
+      "treeIndex": 88
+    },
+    {
+      "uid": "r-087",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 88,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🆕 Update $claidSpirometryCompleted variable by querying CLAID's spirometry data collection app: --- calculated value equals ---",
+      "treeIndex": 89
+    },
+    {
+      "uid": "r-088",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 89,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "🆕 Update $claidNumberOfInhalationsCompleted variable by querying CLAID's spirometry data collection app: --- calculated value equals ---",
+      "treeIndex": 90
+    },
+    {
+      "uid": "r-089",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 90,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Check whether $userRequestedNewTimeForEducationalContents=1: $userRequestedNewTimeForEducationalContents calculated value equals 1 → $dummyVar",
+      "treeIndex": 91
+    },
+    {
+      "uid": "r-090",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 91,
+      "parentUid": "r-089",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "↩️ Reset $userRequestedNewTimeForEducationalContents=0: 0 calculate value but result is always true → $userRequestedNewTimeForEducationalContents",
+      "treeIndex": 92
+    },
+    {
+      "uid": "r-091",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 92,
+      "parentUid": "r-089",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "👩‍🏫📚 Rescheduled prompting of user to interact with educational material: calculate value but result is always true",
+      "treeIndex": 93
+    },
+    {
+      "uid": "r-092",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 93,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Check whether $userRequestedNewTimeForACQ=1: $userRequestedNewTimeForACQ calculated value equals 1 → $dummyVar",
+      "treeIndex": 94
+    },
+    {
+      "uid": "r-093",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 94,
+      "parentUid": "r-092",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "↩️ Reset $userRequestedNewTimeForACQ to 0: 0 calculate value but result is always true → $userRequestedNewTimeForACQ",
+      "treeIndex": 95
+    },
+    {
+      "uid": "r-094",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 95,
+      "parentUid": "r-092",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "📋✏️ Rescheduled prompting of user to fill out ACQ: calculate value but result is always true",
+      "treeIndex": 96
+    },
+    {
+      "uid": "r-095",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 96,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Check whether $myFirstMedication_userRequestedNewTime=1: $myFirstMedication_userRequestedNewTime calculated value equals 1 → $dummyVar",
+      "treeIndex": 97
+    },
+    {
+      "uid": "r-096",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 97,
+      "parentUid": "r-095",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "↩️ Reset $myFirstMedication_userRequestedNewTime to 0: 0 calculate value but result is always true → $myFirstMedication_userRequestedNewTime",
+      "treeIndex": 98
+    },
+    {
+      "uid": "r-097",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 98,
+      "parentUid": "r-095",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "💊 Rescheduled reminder to inhale first medication dose: calculate value but result is always true",
+      "treeIndex": 99
+    },
+    {
+      "uid": "r-098",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 99,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Check whether $mySecondMedication_userRequestedNewTime=1: $mySecondMedication_userRequestedNewTime calculated value equals 1 → $dummyVar",
+      "treeIndex": 100
+    },
+    {
+      "uid": "r-099",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 100,
+      "parentUid": "r-098",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "↩️ Reset $mySecondMedication_userRequestedNewTime to 0: 0 calculate value but result is always true → $mySecondMedication_userRequestedNewTime",
+      "treeIndex": 101
+    },
+    {
+      "uid": "r-100",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 101,
+      "parentUid": "r-098",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "💊 Rescheduled reminder to inhale second medication dose: calculate value but result is always true",
+      "treeIndex": 102
+    },
+    {
+      "uid": "r-101",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 102,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Check whether $myThirdMedication_userRequestedNewTime=1: $myThirdMedication_userRequestedNewTime calculated value equals 1 → $dummyVar",
+      "treeIndex": 103
+    },
+    {
+      "uid": "r-102",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 103,
+      "parentUid": "r-101",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "↩️ Reset $myThirdMedication_userRequestedNewTime to 0: 0 calculate value but result is always true → $myThirdMedication_userRequestedNewTime",
+      "treeIndex": 104
+    },
+    {
+      "uid": "r-103",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 104,
+      "parentUid": "r-101",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "💊 Rescheduled reminder to inhale third medication dose: calculate value but result is always true",
+      "treeIndex": 105
+    },
+    {
+      "uid": "r-104",
+      "section": "PERIODIC BASIS",
+      "depth": 2,
+      "order": 105,
+      "parentUid": "r-067",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Check whether $mySpiro_userRequestedNewTimeForSpirometry=1: $mySpiro_userRequestedNewTimeForSpirometry calculated value equals 1 → $dummyVar",
+      "treeIndex": 106
+    },
+    {
+      "uid": "r-105",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 106,
+      "parentUid": "r-104",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "↩️ Reset $mySpiro_userRequestedNewTimeForSpirometry to 0: 0 calculate value but result is always true → $mySpiro_userRequestedNewTimeForSpirometry",
+      "treeIndex": 107
+    },
+    {
+      "uid": "r-106",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "order": 107,
+      "parentUid": "r-104",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "🌬️ Rescheduled reminder to perform spirometry: calculate value but result is always true",
+      "treeIndex": 108
+    },
+    {
+      "uid": "r-107",
+      "section": "USER INTENTION",
+      "depth": 1,
+      "order": 108,
+      "parentUid": null,
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "$participantIntention text value equals go",
+      "treeIndex": 111
+    },
+    {
+      "uid": "r-108",
+      "section": "USER INTENTION",
+      "depth": 2,
+      "order": 109,
+      "parentUid": "r-107",
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "$phaseGoPerformed calculated value equals 0",
+      "treeIndex": 112
+    },
+    {
+      "uid": "r-109",
+      "section": "USER INTENTION",
+      "depth": 3,
+      "order": 110,
+      "parentUid": "r-108",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "1 calculate value but result is always true → $phaseGoPerformed",
+      "treeIndex": 113
+    },
+    {
+      "uid": "r-110",
+      "section": "USER INTENTION",
+      "depth": 1,
+      "order": 111,
+      "parentUid": null,
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "$participantIntention text value equals coach",
+      "treeIndex": 114
+    },
+    {
+      "uid": "r-111",
+      "section": "USER INTENTION",
+      "depth": 2,
+      "order": 112,
+      "parentUid": "r-110",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "$participantIntentionContent create text but result is always true → $coach",
+      "treeIndex": 115
+    },
+    {
+      "uid": "r-112",
+      "section": "USER INTENTION",
+      "depth": 1,
+      "order": 113,
+      "parentUid": null,
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "$participantIntention text value equals language",
+      "treeIndex": 116
+    },
+    {
+      "uid": "r-113",
+      "section": "USER INTENTION",
+      "depth": 2,
+      "order": 114,
+      "parentUid": "r-112",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "$participantIntentionContent create text but result is always true → $participantLanguage",
+      "treeIndex": 117
+    },
+    {
+      "uid": "r-114",
+      "section": "USER INTENTION",
+      "depth": 2,
+      "order": 115,
+      "parentUid": "r-112",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "$participantLanguage text value equals ro-RO",
+      "treeIndex": 118
+    },
+    {
+      "uid": "r-115",
+      "section": "USER INTENTION",
+      "depth": 3,
+      "order": 116,
+      "parentUid": "r-114",
+      "kind": "condition",
+      "icon": "rule-icon-small.png",
+      "caption": "Europe/Bucharest create text but result is always true → $participantTimeZone",
+      "treeIndex": 119
+    },
+    {
+      "uid": "r-116",
+      "section": "USER INTENTION",
+      "depth": 1,
+      "order": 117,
+      "parentUid": null,
+      "kind": "sender",
+      "icon": "message-icon-small.png",
+      "caption": "✏️ Personal data edited: $participantIntention text value equals personal-data-edited",
+      "treeIndex": 120
+    }
+  ],
+  "sendingRules": [
+    {
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
       ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$userSetTimeOfTheDayForFeedbackIfRequired",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "primaryAction": "start_micro_dialog",
       "microDialogToStart": "Prompt patient to conduct daily spirometry > Feedback on compliance regarding daily spirometry > Poor Compliance > Several missed sessions",
+      "microDialogPath": [
+        "Prompt patient to conduct daily spirometry",
+        "Feedback on compliance regarding daily spirometry",
+        "Poor Compliance",
+        "Several missed sessions"
+      ],
       "messageGroup": null,
-      "storeResultVar": null,
+      "sendHourVariable": "$userSetTimeOfTheDayForFeedbackIfRequired",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
       "doesAnswerRules": [],
       "doesNotAnswerRules": [],
-      "ruleExpr": null
-    },
-    {
-      "rule": "💰 Introduce weekly incentive: $systemDayInWeek calculated value equals 1",
+      "modalCaption": "Edit rule:",
+      "uid": "r-047",
+      "caption": "🧐💬 If required, send feedback on poor compliance with lung function monitoring scheme: $totalNumberOfConsecutiveDaysWithoutSpirometry calculated value is bigger than $hyperparameterToleranceForNumberOfConsecutiveDaysWithoutSpirometry",
       "section": "DAILY BASIS",
-      "depth": 2,
       "parentChain": [
         "Execution on DAILY BASIS",
         "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ]
+    },
+    {
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
       ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$userSetTimeOfTheDayForWeeklyIncentiveAnnouncement",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "primaryAction": "start_micro_dialog",
       "microDialogToStart": "Introduction of weekly incentive",
+      "microDialogPath": [
+        "Introduction of weekly incentive"
+      ],
       "messageGroup": null,
-      "storeResultVar": null,
+      "sendHourVariable": "$userSetTimeOfTheDayForWeeklyIncentiveAnnouncement",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
       "doesAnswerRules": [],
       "doesNotAnswerRules": [],
-      "ruleExpr": null
-    },
-    {
-      "rule": "🌬️ Send regular pushed reminder for spirometry measurement (temp. disabled and probably not needed): calculate value but result is always false",
+      "modalCaption": "Edit rule:",
+      "uid": "r-048",
+      "caption": "💰 Introduce weekly incentive: $systemDayInWeek calculated value equals 1",
       "section": "DAILY BASIS",
-      "depth": 2,
       "parentChain": [
         "Execution on DAILY BASIS",
         "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ]
+    },
+    {
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "send_message"
       ],
-      "action": "Send message",
-      "actionCheckboxes": {
-        "Send message": "true",
-        "Start micro dialog": "false",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$userSetDesiredSpirometryTime",
-      "notAnsweredTimeout": "0 days, 0 hours, 19 minutes",
+      "primaryAction": "send_message",
       "microDialogToStart": null,
+      "microDialogPath": [
+        ""
+      ],
       "messageGroup": "Test (expects NO answer)",
-      "storeResultVar": null,
+      "sendHourVariable": "$userSetDesiredSpirometryTime",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 19,
+      "notAnsweredTimeoutText": "0 days, 0 hours, 19 minutes",
+      "storeResultVariable": "Test (expects NO answer)",
       "doesAnswerRules": [
         "Go to spirometry micro-dialog: calculate value but result is always true"
       ],
       "doesNotAnswerRules": [
         "Go to spirometry micro-dialog: calculate value but result is always true"
       ],
-      "ruleExpr": null
-    },
-    {
-      "rule": "🌬️ Send regular reminder for spirometry measurement: calculate value but result is always true",
+      "modalCaption": "Edit rule:",
+      "uid": "r-050",
+      "caption": "🌬️ Send regular pushed reminder for spirometry measurement (temp. disabled and probably not needed): calculate value but result is always false",
       "section": "DAILY BASIS",
-      "depth": 2,
       "parentChain": [
         "Execution on DAILY BASIS",
         "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$userSetDesiredSpirometryTime",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to conduct daily spirometry",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "Send sleep quality dialog: calculate value but result is always true",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to conduct daily spirometry",
+      "microDialogPath": [
+        "Prompt patient to conduct daily spirometry"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$userSetDesiredSpirometryTime",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-051",
+      "caption": "🌬️ Send regular reminder for spirometry measurement: calculate value but result is always true",
       "section": "DAILY BASIS",
-      "depth": 3,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ]
+    },
+    {
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to prepare for nighttime monitoring",
+      "microDialogPath": [
+        "Prompt patient to prepare for nighttime monitoring"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$timeToSendSleepMonitoringDialog",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-054",
+      "caption": "Send sleep quality dialog: calculate value but result is always true",
+      "section": "DAILY BASIS",
       "parentChain": [
         "Execution on DAILY BASIS",
         "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1",
         "▶️ Start dialogue regarding preparations for sleep monitoring: calculate value but result is always true"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$timeToSendSleepMonitoringDialog",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to prepare for nighttime monitoring",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "💊 Send regular reminder for first of the day controller medication inhalation: $userSetDesiredFirstDoseOfControllerMedicationInhalationTime text value not equals -99",
-      "section": "DAILY BASIS",
-      "depth": 2,
-      "parentChain": [
-        "Execution on DAILY BASIS",
-        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
       ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$userSetDesiredFirstDoseOfControllerMedicationInhalationTime",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "primaryAction": "start_micro_dialog",
       "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take first dose of controller medication",
+      "microDialogPath": [
+        "Prompt patient to take controller medication",
+        "Prompt patient to take first dose of controller medication"
+      ],
       "messageGroup": null,
-      "storeResultVar": null,
+      "sendHourVariable": "$userSetDesiredFirstDoseOfControllerMedicationInhalationTime",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
       "doesAnswerRules": [],
       "doesNotAnswerRules": [],
-      "ruleExpr": null
-    },
-    {
-      "rule": "👩‍🏫📚 Prompt user to interact with educational material: $today text value equals $dateOfNextDisplayOfEducationalContents",
+      "modalCaption": "Edit rule:",
+      "uid": "r-055",
+      "caption": "💊 Send regular reminder for first of the day controller medication inhalation: $userSetDesiredFirstDoseOfControllerMedicationInhalationTime text value not equals -99",
       "section": "DAILY BASIS",
-      "depth": 2,
       "parentChain": [
         "Execution on DAILY BASIS",
         "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ]
+    },
+    {
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
       ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$userSetTimeOfTheDayForWeeklyFeedback",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "primaryAction": "start_micro_dialog",
       "microDialogToStart": "Prompt patient to watch/read/listen educational material > Interaction with educational content and rescheduling",
+      "microDialogPath": [
+        "Prompt patient to watch/read/listen educational material",
+        "Interaction with educational content and rescheduling"
+      ],
       "messageGroup": null,
-      "storeResultVar": null,
+      "sendHourVariable": "$userSetTimeOfTheDayForWeeklyFeedback",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
       "doesAnswerRules": [],
       "doesNotAnswerRules": [],
-      "ruleExpr": null
-    },
-    {
-      "rule": "💊 Send regular reminder for third of the day controller medication inhalation: $userSetDesiredThirdDoseOfControllerMedicationInhalationTime text value not equals -99",
+      "modalCaption": "Edit rule:",
+      "uid": "r-057",
+      "caption": "👩‍🏫📚 Prompt user to interact with educational material: $today text value equals $dateOfNextDisplayOfEducationalContents",
       "section": "DAILY BASIS",
-      "depth": 2,
       "parentChain": [
         "Execution on DAILY BASIS",
         "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$userSetDesiredThirdDoseOfControllerMedicationInhalationTime",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take third dose of controller medication",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "💊 Send regular reminder for second of the day controller medication inhalation: $userSetDesiredSecondDoseOfControllerMedicationInhalationTime text value not equals -99",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take third dose of controller medication",
+      "microDialogPath": [
+        "Prompt patient to take controller medication",
+        "Prompt patient to take third dose of controller medication"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$userSetDesiredThirdDoseOfControllerMedicationInhalationTime",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-058",
+      "caption": "💊 Send regular reminder for third of the day controller medication inhalation: $userSetDesiredThirdDoseOfControllerMedicationInhalationTime text value not equals -99",
       "section": "DAILY BASIS",
-      "depth": 3,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ]
+    },
+    {
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take second dose of controller medication",
+      "microDialogPath": [
+        "Prompt patient to take controller medication",
+        "Prompt patient to take second dose of controller medication"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$userSetDesiredSecondDoseOfControllerMedicationInhalationTime",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-059",
+      "caption": "💊 Send regular reminder for second of the day controller medication inhalation: $userSetDesiredSecondDoseOfControllerMedicationInhalationTime text value not equals -99",
+      "section": "DAILY BASIS",
       "parentChain": [
         "Execution on DAILY BASIS",
         "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1",
         "💊 Send regular reminder for third of the day controller medication inhalation: $userSetDesiredThirdDoseOfControllerMedicationInhalationTime text value not equals -99"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$userSetDesiredSecondDoseOfControllerMedicationInhalationTime",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take second dose of controller medication",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "📋✏️ Prompt user to fill out ACQ: $today text value equals $dateOfNextACQ",
-      "section": "DAILY BASIS",
-      "depth": 2,
-      "parentChain": [
-        "Execution on DAILY BASIS",
-        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
       ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$userSetTimeOfTheDayForACQ",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "primaryAction": "start_micro_dialog",
       "microDialogToStart": "Prompt patient to answer questions of the ACQ",
+      "microDialogPath": [
+        "Prompt patient to answer questions of the ACQ"
+      ],
       "messageGroup": null,
-      "storeResultVar": null,
+      "sendHourVariable": "$userSetTimeOfTheDayForACQ",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
       "doesAnswerRules": [],
       "doesNotAnswerRules": [],
-      "ruleExpr": null
-    },
-    {
-      "rule": "🐞 Test sensor data retrieval: $userSetTimeOfTheDayForFeedbackIfRequired text value not equals -99",
+      "modalCaption": "Edit rule:",
+      "uid": "r-060",
+      "caption": "📋✏️ Prompt user to fill out ACQ: $today text value equals $dateOfNextACQ",
       "section": "DAILY BASIS",
-      "depth": 2,
       "parentChain": [
         "Execution on DAILY BASIS",
         "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ]
+    },
+    {
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
       ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$userSetTimeOfTheDayForFeedbackIfRequired",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "primaryAction": "start_micro_dialog",
       "microDialogToStart": "🐞 Testing sensor data retrieval",
+      "microDialogPath": [
+        "🐞 Testing sensor data retrieval"
+      ],
       "messageGroup": null,
-      "storeResultVar": null,
+      "sendHourVariable": "$userSetTimeOfTheDayForFeedbackIfRequired",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
       "doesAnswerRules": [],
       "doesNotAnswerRules": [],
-      "ruleExpr": null
-    },
-    {
-      "rule": "🐞 Test time line of scheduled periodic events: $userSetTimeOfTheDayForFeedbackIfRequired text value not equals -99",
+      "modalCaption": "Edit rule:",
+      "uid": "r-061",
+      "caption": "🐞 Test sensor data retrieval: $userSetTimeOfTheDayForFeedbackIfRequired text value not equals -99",
       "section": "DAILY BASIS",
-      "depth": 2,
       "parentChain": [
         "Execution on DAILY BASIS",
         "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$userSetTimeOfTheDayForFeedbackIfRequired",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "🐞 Testing time line of scheduled periodic events",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "🐞 Send test dialog if debug mode is activated: $debugMode calculated value equals 1",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "🐞 Testing time line of scheduled periodic events",
+      "microDialogPath": [
+        "🐞 Testing time line of scheduled periodic events"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$userSetTimeOfTheDayForFeedbackIfRequired",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-062",
+      "caption": "🐞 Test time line of scheduled periodic events: $userSetTimeOfTheDayForFeedbackIfRequired text value not equals -99",
       "section": "DAILY BASIS",
-      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ]
+    },
+    {
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Attic > Test dialog for debugging",
+      "microDialogPath": [
+        "Attic",
+        "Test dialog for debugging"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": null,
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-064",
+      "caption": "🐞 Send test dialog if debug mode is activated: $debugMode calculated value equals 1",
+      "section": "DAILY BASIS",
       "parentChain": [
         "Execution on DAILY BASIS",
         "✏️ Remember that the rules on \"Daily Basis\" were already performed today: $participantParticipationInDays+1 calculate value but result is always true → $dailyTasksPerformedToday"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": null,
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Attic > Test dialog for debugging",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "🌬️ If still in time, send repeated reminder for spirometry measurement : $spiroMesTime calculated value is smaller than $bedtime",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to conduct daily spirometry",
+      "microDialogPath": [
+        "Prompt patient to conduct daily spirometry"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$spiroMesTime",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-071",
+      "caption": "🌬️ If still in time, send repeated reminder for spirometry measurement : $spiroMesTime calculated value is smaller than $bedtime",
       "section": "PERIODIC BASIS",
-      "depth": 5,
       "parentChain": [
         "Execution on PERIODIC BASIS (approx. every 0 min.)",
         "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "🌡️ Check whether maximum number of daily spirometry postponements has been reached: $spiroMesNumberOfDelayedRemindersIssued calculated value is smaller or equal than $userSetMaxNumberOfDailySpirometryPostponements",
         "🚦 Check whether user has agreed to be reminded about spirometry on same day again: $spiroMesDelayedReminderActive calculated value equals 1",
         "⏰ Check whether it may already be too late in the day for spirometry: $spiroMesTime calculated value is smaller than $bedtime"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$spiroMesTime",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to conduct daily spirometry",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "--- calculated value equals ---",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "START",
+      "microDialogPath": [
+        "START"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": null,
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-077",
+      "caption": "--- calculated value equals ---",
       "section": "PERIODIC BASIS",
-      "depth": 5,
       "parentChain": [
         "Execution on PERIODIC BASIS (approx. every 0 min.)",
         "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "✏️ Check if rules on \"Daily Basis\" were already performed today: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "⚠️ BEISPIELE (immer inaktiv): 1 calculated value equals 0",
         "BEISPIEL: $gender calculated value equals 1"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": null,
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "START",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "Check if reminder for delayed spiro measurement time is due: calculate value but result is always true",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to conduct daily spirometry",
+      "microDialogPath": [
+        "Prompt patient to conduct daily spirometry"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$spiroMesTimeDelay",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-081",
+      "caption": "Check if reminder for delayed spiro measurement time is due: calculate value but result is always true",
       "section": "PERIODIC BASIS",
-      "depth": 5,
       "parentChain": [
         "Execution on PERIODIC BASIS (approx. every 0 min.)",
         "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "✏️ Check if rules on \"Daily Basis\" were already performed today: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "⚠️ Attic (always disabled): 1 calculated value equals 0",
         "🌬️⏱️ Send delayed reminder for spirometer measurement: $spiroMesDelayedReminderSent calculated value is smaller than $spiroMesDelayedReminderActive"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$spiroMesTimeDelay",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to conduct daily spirometry",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "Trigger sensor data updates: $triggerSensorDataUpdate calculated value is bigger than 0",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Sensor data updates",
+      "microDialogPath": [
+        "Sensor data updates"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": null,
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-086",
+      "caption": "Trigger sensor data updates: $triggerSensorDataUpdate calculated value is bigger than 0",
       "section": "PERIODIC BASIS",
-      "depth": 3,
       "parentChain": [
         "Execution on PERIODIC BASIS (approx. every 0 min.)",
         "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "📡 Check for new sensor data (every minute): $systemMinuteOfHour calculated value not equals $claidLastSensorDataMinute → $claidLastSensorDataMinute"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": null,
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Sensor data updates",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "👩‍🏫📚 Rescheduled prompting of user to interact with educational material: calculate value but result is always true",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to watch/read/listen educational material > Interaction with educational content and rescheduling",
+      "microDialogPath": [
+        "Prompt patient to watch/read/listen educational material",
+        "Interaction with educational content and rescheduling"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$newTimeForInteractingWithEducationalMaterial",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-091",
+      "caption": "👩‍🏫📚 Rescheduled prompting of user to interact with educational material: calculate value but result is always true",
       "section": "PERIODIC BASIS",
-      "depth": 3,
       "parentChain": [
         "Execution on PERIODIC BASIS (approx. every 0 min.)",
         "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "Check whether $userRequestedNewTimeForEducationalContents=1: $userRequestedNewTimeForEducationalContents calculated value equals 1 → $dummyVar"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$newTimeForInteractingWithEducationalMaterial",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to watch/read/listen educational material > Interaction with educational content and rescheduling",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "📋✏️ Rescheduled prompting of user to fill out ACQ: calculate value but result is always true",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to answer questions of the ACQ",
+      "microDialogPath": [
+        "Prompt patient to answer questions of the ACQ"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$newTimeForACQ",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-094",
+      "caption": "📋✏️ Rescheduled prompting of user to fill out ACQ: calculate value but result is always true",
       "section": "PERIODIC BASIS",
-      "depth": 3,
       "parentChain": [
         "Execution on PERIODIC BASIS (approx. every 0 min.)",
         "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "Check whether $userRequestedNewTimeForACQ=1: $userRequestedNewTimeForACQ calculated value equals 1 → $dummyVar"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$newTimeForACQ",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to answer questions of the ACQ",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "💊 Rescheduled reminder to inhale first medication dose: calculate value but result is always true",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take first dose of controller medication",
+      "microDialogPath": [
+        "Prompt patient to take controller medication",
+        "Prompt patient to take first dose of controller medication"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$myFirstMedication_newTimeForFirstMedication",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-097",
+      "caption": "💊 Rescheduled reminder to inhale first medication dose: calculate value but result is always true",
       "section": "PERIODIC BASIS",
-      "depth": 3,
       "parentChain": [
         "Execution on PERIODIC BASIS (approx. every 0 min.)",
         "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "Check whether $myFirstMedication_userRequestedNewTime=1: $myFirstMedication_userRequestedNewTime calculated value equals 1 → $dummyVar"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$myFirstMedication_newTimeForFirstMedication",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take first dose of controller medication",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "💊 Rescheduled reminder to inhale second medication dose: calculate value but result is always true",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take second dose of controller medication",
+      "microDialogPath": [
+        "Prompt patient to take controller medication",
+        "Prompt patient to take second dose of controller medication"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$mySecondMedication_newTimeForSecondMedication",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-100",
+      "caption": "💊 Rescheduled reminder to inhale second medication dose: calculate value but result is always true",
       "section": "PERIODIC BASIS",
-      "depth": 3,
       "parentChain": [
         "Execution on PERIODIC BASIS (approx. every 0 min.)",
         "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "Check whether $mySecondMedication_userRequestedNewTime=1: $mySecondMedication_userRequestedNewTime calculated value equals 1 → $dummyVar"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$mySecondMedication_newTimeForSecondMedication",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take second dose of controller medication",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "💊 Rescheduled reminder to inhale third medication dose: calculate value but result is always true",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take third dose of controller medication",
+      "microDialogPath": [
+        "Prompt patient to take controller medication",
+        "Prompt patient to take third dose of controller medication"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$myThirdMedication_newTimeForThirdMedication",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-103",
+      "caption": "💊 Rescheduled reminder to inhale third medication dose: calculate value but result is always true",
       "section": "PERIODIC BASIS",
-      "depth": 3,
       "parentChain": [
         "Execution on PERIODIC BASIS (approx. every 0 min.)",
         "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "Check whether $myThirdMedication_userRequestedNewTime=1: $myThirdMedication_userRequestedNewTime calculated value equals 1 → $dummyVar"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$myThirdMedication_newTimeForThirdMedication",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take third dose of controller medication",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "🌬️ Rescheduled reminder to perform spirometry: calculate value but result is always true",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "Prompt patient to conduct daily spirometry",
+      "microDialogPath": [
+        "Prompt patient to conduct daily spirometry"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": "$mySpiro_newTimeForSpirometry",
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-106",
+      "caption": "🌬️ Rescheduled reminder to perform spirometry: calculate value but result is always true",
       "section": "PERIODIC BASIS",
-      "depth": 3,
       "parentChain": [
         "Execution on PERIODIC BASIS (approx. every 0 min.)",
         "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
         "Check whether $mySpiro_userRequestedNewTimeForSpirometry=1: $mySpiro_userRequestedNewTimeForSpirometry calculated value equals 1 → $dummyVar"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": "$mySpiro_newTimeForSpirometry",
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "Prompt patient to conduct daily spirometry",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "$phaseGoPerformed calculated value equals 0",
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
+      ],
+      "primaryAction": "start_micro_dialog",
+      "microDialogToStart": "START",
+      "microDialogPath": [
+        "START"
+      ],
+      "messageGroup": null,
+      "sendHourVariable": null,
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "modalCaption": "Edit rule:",
+      "uid": "r-108",
+      "caption": "$phaseGoPerformed calculated value equals 0",
       "section": "USER INTENTION",
-      "depth": 2,
       "parentChain": [
         "Execution on USER INTENTION",
         "$participantIntention text value equals go"
-      ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": null,
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
-      "microDialogToStart": "START",
-      "messageGroup": null,
-      "storeResultVar": null,
-      "doesAnswerRules": [],
-      "doesNotAnswerRules": [],
-      "ruleExpr": null
+      ]
     },
     {
-      "rule": "✏️ Personal data edited: $participantIntention text value equals personal-data-edited",
-      "section": "USER INTENTION",
-      "depth": 1,
-      "parentChain": [
-        "Execution on USER INTENTION"
+      "comment": null,
+      "ruleExpr": null,
+      "actions": [
+        "start_micro_dialog"
       ],
-      "action": "Start micro dialog",
-      "actionCheckboxes": {
-        "Send message": "false",
-        "Start micro dialog": "true",
-        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
-        "Stop current rule execution run and finish coaching for this participant": "false"
-      },
-      "sendHour": null,
-      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "primaryAction": "start_micro_dialog",
       "microDialogToStart": "⚙️ Controls > 📄 dataEdited",
+      "microDialogPath": [
+        "⚙️ Controls",
+        "📄 dataEdited"
+      ],
       "messageGroup": null,
-      "storeResultVar": null,
+      "sendHourVariable": null,
+      "sendHourLiteral": null,
+      "sendHourClock": "00:00",
+      "notAnsweredTimeoutMinutes": 240,
+      "notAnsweredTimeoutText": "0 days, 4 hours, 0 minutes",
+      "storeResultVariable": null,
       "doesAnswerRules": [],
       "doesNotAnswerRules": [],
-      "ruleExpr": null
+      "modalCaption": "Edit rule:",
+      "uid": "r-116",
+      "caption": "✏️ Personal data edited: $participantIntention text value equals personal-data-edited",
+      "section": "USER INTENTION",
+      "parentChain": [
+        "Execution on USER INTENTION"
+      ]
     }
   ]
 }

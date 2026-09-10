@@ -77,10 +77,16 @@ workstreams" section — this file is the checklist, that's the writeup.
       export script) and handle decision-point-internal quick-reply routing.
 - [x] Run the export once.
       Rules-tree Stage-3 sweep run against ALEX v01 (122 tree nodes, all
-      25 message-sending rules). `probe_node_editor.py` groundwork extended
-      into the full `probe_rules_tree.py` tree-walker + modal reader.
-      Still to do: a non-probe `export_rules.py` that emits straight into
-      the bundle rather than the `spike/` dumps.
+      25 message-sending rules, ~40 no-op re-saves logged). Production
+      exporter `export_rules.py` built (shares `_rules_nav.py` with
+      `probe_rules_tree.py`): emits `coaching.rules.json` and, with
+      `--merge`, `coaching.bundle.v3.json` (v2 bundle + a `rules` key with
+      `sections` / `ruleTree` / `sendingRules`). The committed reference
+      output `tools/coaching-bundle-export/rules_stage3_ALEX_v01.json` was
+      re-derived offline through that same code path from the sweep dumps;
+      a fresh `export_rules.py --merge` run reproduces it. Next: a live
+      `--merge` run to actually produce `coaching.bundle.v3.json`, then
+      Stage 4 (`parse_bundle` in the analyzer).
 
 ## Simulate chat (depends on structure of export)
 

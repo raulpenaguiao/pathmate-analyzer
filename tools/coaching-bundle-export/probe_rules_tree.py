@@ -52,6 +52,15 @@ from pathlib import Path
 
 from playwright.async_api import async_playwright
 
+# The tree JS, the Vaadin-tree nav recipe, the "Edit rule:" modal JS and the
+# field parser all live in _rules_nav.py (shared with export_rules.py) so
+# there is one source of truth. This file is the discovery wrapper around it.
+import _rules_nav as R
+from _rules_nav import (  # noqa: F401
+    TREE_DUMP_JS, RULE_MODAL_JS, expand_all, rule_edit_button, close_windows,
+    parent_chain as _parent_chain,
+)
+
 HERE = Path(__file__).resolve().parent
 OUT = Path(os.environ.get("PMCP_OUT", HERE / "spike"))
 OUT.mkdir(parents=True, exist_ok=True)
@@ -60,162 +69,9 @@ WIDE = int(os.environ.get("PMCP_WIDE", "3000"))
 RULE_ICONS = [s.strip() for s in os.environ.get("PMCP_RULE_ICONS", "message").split(",") if s.strip()]
 SAMPLE_LIMIT = int(os.environ.get("PMCP_RULE_SAMPLE", "40"))
 
-# ---------------------------------------------------------------------------
-# Tree structure dump
-# ---------------------------------------------------------------------------
-
-#   Vaadin 7 tree facts confirmed live (2026-09-10):
-#   - state is `aria-expanded="true|false"` on the .v-tree-node[role=treeitem];
-#     absent means either a leaf OR a parent never yet touched this session.
-#   - `.v-tree-node-children` is PRE-RENDERED even while collapsed, so a
-#     non-empty child container == "this node has children" regardless of
-#     expand state. Collapsed children have a zero-size caption rect.
-#   - the gesture that expands: click the caption, then press ArrowRight.
-#   - `.v-tree-node` node COUNT never changes on expand — do not use it as a
-#     progress signal; use caption visibility.
-TREE_DUMP_JS = r"""
-() => {
-  const trees = [...document.querySelectorAll('.v-tree')];
-  const dump = (tree) => {
-    const nodes = [...tree.querySelectorAll('.v-tree-node[role=treeitem]')];
-    return nodes.map((n, i) => {
-      const capEl = n.querySelector(':scope > .v-tree-node-caption');
-      const cap = capEl ? capEl.textContent.replace(/\s+/g, ' ').trim() : '';
-      const iconEl = capEl ? capEl.querySelector('img.v-icon, .v-icon') : null;
-      const icon = (iconEl ? (iconEl.getAttribute('src') || iconEl.className) : '').split('/').pop();
-      const kids = n.querySelector(':scope > .v-tree-node-children');
-      const r = capEl ? capEl.getBoundingClientRect() : {width: 0, height: 0, top: 0};
-      const aria = n.getAttribute('aria-expanded');
-      return {
-        i,
-        depth: parseInt(n.getAttribute('aria-level') || '1', 10) - 1,
-        caption: cap, classes: n.className, icon,
-        ariaExpanded: aria,                       // 'true' | 'false' | null
-        hasChildEls: !!kids && kids.childElementCount > 0,
-        visible: r.width > 0 && r.height > 0,
-        expanded: aria === 'true',
-        leaf: aria === null && !(kids && kids.childElementCount > 0),
-        rectTop: Math.round(r.top),
-      };
-    });
-  };
-  return trees.map((t, ti) => ({
-    treeIndex: ti, classes: t.className,
-    nodeCount: t.querySelectorAll('.v-tree-node[role=treeitem]').length,
-    nodes: dump(t),
-    outerHTMLHead: t.outerHTML.slice(0, 3000),
-  }));
-}
-"""
-
-# ---------------------------------------------------------------------------
-# "Edit rule:" modal — targeted extraction keyed on the known label strings
-# ---------------------------------------------------------------------------
-
-RULE_MODAL_JS = r"""
-() => {
-  const w = [...document.querySelectorAll('.v-window')].pop();
-  if (!w) return { error: 'no .v-window' };
-  const norm = s => (s || '').replace(/\s+/g, ' ').trim();
-
-  // ordered stream of form items in document order
-  const ITEM_SEL = '.v-label, .v-checkbox, .v-filterselect, .v-slider, .v-caption, .v-textfield';
-  const items = [...w.querySelectorAll(ITEM_SEL)].map(el => {
-    const cl = el.className;
-    let kind = 'label';
-    if (cl.includes('v-checkbox')) kind = 'checkbox';
-    else if (cl.includes('v-filterselect')) kind = 'select';
-    else if (cl.includes('v-slider')) kind = 'slider';
-    else if (cl.includes('v-caption')) kind = 'caption';
-    else if (cl.includes('v-textfield') && el.tagName === 'INPUT') kind = 'textfield';
-    let value = '';
-    if (kind === 'checkbox') {
-      const inp = el.querySelector('input[type=checkbox]');
-      value = inp ? String(inp.checked) : '';
-    } else if (kind === 'select') {
-      const inp = el.querySelector('.v-filterselect-input');
-      value = inp ? norm(inp.value) : '';
-      if (el.className.includes('v-disabled')) value += '  [disabled]';
-    } else if (kind === 'slider') {
-      const h = el.querySelector('.v-slider-handle');
-      value = h ? (h.style.marginLeft || '') : '';
-      if (el.className.includes('v-disabled')) value += '  [disabled]';
-    } else if (kind === 'textfield') {
-      value = norm(el.value);
-    }
-    const r = el.getBoundingClientRect();
-    return { kind, text: norm(el.textContent).slice(0, 160), value,
-             top: Math.round(r.top), left: Math.round(r.left) };
-  });
-
-  // for a known label, the value = a control on the SAME visual row, to its
-  // right. When several sit on the row (e.g. "Hour to send message" has BOTH
-  // a $variable <select> and an unset "00:00" clock caption), prefer by kind:
-  // select > textfield > slider > caption. Fall back to the next control in
-  // document order.
-  const PREF = ['select', 'textfield', 'slider', 'caption'];
-  const valueFor = (labelText) => {
-    const li = items.findIndex(it => it.kind === 'label' && it.text.startsWith(labelText));
-    if (li < 0) return null;
-    const lab = items[li];
-    const row = items.filter((it, j) => j !== li && PREF.includes(it.kind)
-      && it.left >= lab.left - 5 && Math.abs(it.top - lab.top) <= 20);
-    row.sort((a, b) => PREF.indexOf(a.kind) - PREF.indexOf(b.kind)
-                    || Math.abs(a.top - lab.top) - Math.abs(b.top - lab.top));
-    let best = row[0];
-    if (!best) for (let j = li + 1; j < items.length; j++)
-      if (PREF.includes(items[j].kind)) { best = items[j]; break; }
-    return best ? { via: best.kind, value: best.value, text: best.text } : null;
-  };
-
-  const checkboxes = items.filter(it => it.kind === 'checkbox')
-    .map(it => ({ label: it.text, checked: it.value }));
-
-  const dumpInnerTrees = () => [...w.querySelectorAll('.v-tree')].map(t => ({
-    nodeCount: t.querySelectorAll('.v-tree-node').length,
-    nodes: [...t.querySelectorAll('.v-tree-node')].map(n => norm(
-      (n.querySelector(':scope > .v-tree-node-caption') || {}).textContent).slice(0, 140))
-      .filter(Boolean),
-  }));
-
-  const L = {
-    comment: 'Comment:',
-    ruleX: 'Rule [x]',
-    termY: 'Comparison term [y]',
-    storeResultVar: 'Store rule result to variable',
-    messageGroup: 'Message group to send messages from',
-    microDialogToStart: 'Micro dialog to start',
-    hourToSendMessage: 'Hour to send message',
-    notAnsweredTimeout: 'Minutes after sending until message is handled as not answered',
-    innerVarStore: 'Variable to store calculation result of selected rule',
-    innerSendMessage: 'Send message after execution of selected rule',
-  };
-  const out = { fields: {} };
-  for (const [k, lbl] of Object.entries(L)) out.fields[k] = valueFor(lbl);
-
-  // the two timing widgets render their live value as a .v-caption, not on
-  // the labelled control: HH:MM for the send-hour clock, and
-  // "N days, N hours, N minutes" for the not-answered timeout.
-  const caps = items.filter(it => it.kind === 'caption').map(it => it.text);
-  const sendHourClock = caps.find(c => /^\d{1,2}:\d{2}$/.test(c)) || null;
-  const notAnsweredText = caps.find(c => /\d+\s*days?,\s*\d+\s*hours?,\s*\d+\s*minutes?/i.test(c)) || null;
-
-  return {
-    caption: norm((w.querySelector('.v-window-header') || {}).textContent),
-    windowClasses: w.className,
-    buttons: [...w.querySelectorAll('.v-button-caption')].map(e => norm(e.textContent)).filter(Boolean),
-    tabs: [...w.querySelectorAll('.v-tabsheet-tabitemcell')].map(e => norm(e.textContent)).filter(Boolean),
-    activeTab: norm((w.querySelector('.v-tabsheet-tabitem-selected') || {}).textContent),
-    checkboxes,
-    fields: out.fields,
-    sendHourClock, notAnsweredText,
-    allCaptions: caps,
-    innerTrees: dumpInnerTrees(),
-    itemStream: items,
-    html: w.outerHTML,
-  };
-}
-"""
+_select_node = R.select_node
+_click_expander = R.click_expander
+_liveness_ok = R.liveness_ok
 
 
 async def dump_tree(page, tag: str) -> list[dict]:
@@ -229,140 +85,6 @@ async def dump_tree(page, tag: str) -> list[dict]:
             print(f"    {'  ' * n['depth']}{mark} {n['caption'][:66]!r}"
                   f"  {n['icon'][:22]!r} leaf={n['leaf']} exp={n['expanded']}")
     return trees
-
-
-async def _aria_of(page, ti: int, i: int) -> str | None:
-    trees = await page.evaluate(TREE_DUMP_JS)
-    return next((n["ariaExpanded"] for n in trees[ti]["nodes"] if n["i"] == i), None)
-
-
-async def _select_node(page, ti: int, i: int) -> None:
-    """Click a tree node's caption to select it. Click at x=20 (on the icon/
-    text), NOT the box centre — a short caption leaves the box's centre in
-    dead space past the text, where Vaadin ignores the click (verified live
-    2026-09-10: centre click -> aria-selected stays false)."""
-    cap = (page.locator(".v-tree").nth(ti)
-           .locator(".v-tree-node[role=treeitem]").nth(i)
-           .locator(":scope > .v-tree-node-caption"))
-    await cap.click(position={"x": 20, "y": 8}, timeout=4000)
-
-
-async def _click_expander(page, ti: int, i: int) -> bool:
-    """Expand the i-th treeitem of tree ti; report whether it is now
-    aria-expanded=true. Recipe verified live: select the caption (x=20 click),
-    wait ~600ms for the selection round-trip, THEN ArrowRight."""
-    for _ in range(2):
-        try:
-            await _select_node(page, ti, i)
-            await page.wait_for_timeout(600)
-            await page.keyboard.press("ArrowRight")
-            await page.wait_for_timeout(500)
-        except Exception as e:  # noqa: BLE001
-            print(f"    expand {ti}/{i}: {e!r}")
-            return False
-        if await _aria_of(page, ti, i) == "true":
-            return True
-    return False
-
-
-async def _liveness_ok(page) -> bool:
-    """Expand the first visible not-yet-expanded node. Catches an expired PMCP
-    session (tree DOM stays put, expand RPCs are silently dropped). If the
-    tree is already fully expanded (e.g. left that way by a previous run),
-    there's nothing to test — treat a rendered tree as live."""
-    trees = await page.evaluate(TREE_DUMP_JS)
-    collapsed = [n for n in trees[0]["nodes"]
-                 if n["visible"] and n["ariaExpanded"] != "true"]
-    if not collapsed:
-        print("  (tree already fully expanded)")
-        return True
-    for n in collapsed:
-        if await _click_expander(page, 0, n["i"]):
-            return True
-    return False
-
-
-async def expand_all(page, max_nodes: int = 400) -> dict:
-    """Fully expand tree 0. ONE expansion per iteration, re-dumping every time:
-    opening a node can lazy-load new children, which shifts every later index,
-    so a batch built from a stale dump would click the wrong rows. Pick the
-    next node by (depth, caption) identity, expand it at its CURRENT index,
-    repeat. A node that never reaches aria-expanded=true is a leaf."""
-    tried: set[tuple] = set()
-    leaves = expanded = 0
-    for _ in range(max_nodes):
-        trees = await page.evaluate(TREE_DUMP_JS)
-        nxt = next(((n["i"], (n["depth"], n["caption"]))
-                    for n in trees[0]["nodes"]
-                    if n["visible"] and n["ariaExpanded"] != "true" and n["caption"]
-                    and (n["depth"], n["caption"]) not in tried), None)
-        if nxt is None:
-            print(f"  settled: {expanded} expanded, {leaves} leaves, "
-                  f"{trees[0]['nodeCount']} nodes")
-            break
-        i, key = nxt
-        tried.add(key)
-        if await _click_expander(page, 0, i):
-            expanded += 1
-        else:
-            leaves += 1
-        if (expanded + leaves) % 15 == 0:
-            print(f"  ... {expanded} expanded / {leaves} leaves")
-    trees = await page.evaluate(TREE_DUMP_JS)
-    empty_roots = [n["caption"] for n in trees[0]["nodes"]
-                   if n["depth"] == 0 and n["ariaExpanded"] != "true"]
-    if empty_roots:
-        print(f"  roots that never expanded (truly empty): {empty_roots}")
-    return {"emptyRoots": empty_roots,
-            "expandedNodes": sum(1 for n in trees[0]["nodes"]
-                                 if n["ariaExpanded"] == "true")}
-
-
-async def rule_edit_button(page):
-    handles = await page.evaluate_handle(
-        """() => [...document.querySelectorAll('.v-button')].filter(bt => {
-        const cap = (bt.querySelector('.v-button-caption')||{}).textContent||'';
-        return cap.trim() === 'Edit';
-      })""")
-    props = await handles.get_properties()
-    for _, h in props.items():
-        el = h.as_element()
-        if el and await el.is_visible():
-            return el
-    return None
-
-
-async def close_windows(page) -> int:
-    committed = 0
-    for _ in range(6):
-        if not await page.locator(".v-window").count():
-            return committed
-        clicked = False
-        for label in ("Cancel", "Close", "Exit", "OK"):
-            btn = page.locator(".v-window .v-button-caption", has_text=label)
-            if await btn.count():
-                await btn.last.click()
-                if label in ("Close", "OK"):
-                    committed += 1
-                clicked = True
-                break
-        if not clicked:
-            await page.keyboard.press("Escape")
-        await page.wait_for_timeout(450)
-    return committed
-
-
-def _parent_chain(nodes: list[dict], idx: int) -> list[str]:
-    """Caption chain from the section root down to (not incl.) node idx."""
-    chain: list[str] = []
-    want = nodes[idx]["depth"] - 1
-    for j in range(idx - 1, -1, -1):
-        if nodes[j]["depth"] == want:
-            chain.insert(0, nodes[j]["caption"])
-            want -= 1
-            if want < 0:
-                break
-    return chain
 
 
 async def sample_rule_modals(page, trees: list[dict]) -> list[dict]:

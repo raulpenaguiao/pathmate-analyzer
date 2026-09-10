@@ -181,12 +181,36 @@ below was a wrong guess. What actually exists:
 
 ## Analyzer import (Stage 4 — not started)
 
+Input is now **`coaching.bundle.v3.json`** = the v2 bundle + a `rules` key
+(`export_rules.py --merge`):
+
+```jsonc
+"rules": {
+  "sections": ["DAILY BASIS", "PERIODIC BASIS", "USER INTENTION"],
+  "ruleTree": [ { "uid": "r-000", "section", "depth", "order", "parentUid",
+                  "kind": "condition|sender", "icon", "caption" } ],
+  "sendingRules": [ { "uid", "section", "parentChain": [],
+    "primaryAction": "start_micro_dialog|send_message", "actions": [],
+    "microDialogToStart", "microDialogPath": [], "messageGroup",
+    "sendHourVariable", "sendHourLiteral",
+    "notAnsweredTimeoutMinutes", "notAnsweredTimeoutText",
+    "storeResultVariable", "doesAnswerRules": [], "doesNotAnswerRules": [] } ]
+}
+```
+
 `app/coaching_model.py` gains `parse_bundle(json)` → existing
 `CoachingModel`/`MicroDialog`/`Node` dataclasses, extended with `uid`,
-`randomisation_group`, `order`, and **rule-level** `send_hour`/`not_answered_timeout_minutes`
-(sourced from the Rules tree, not the message). `app/coaching_sim.py` gains:
-collapse a run of same-`r_group` siblings into one random pick; follow
-scraped branch routes; honour rule delays/timeouts; and — since there's no
-PMCP-native priority field — implement interruption purely as "rule order +
-timeout", matching what the live Rules tab actually does, rather than a
-tier system.
+`randomisation_group`, `order`; plus a `Rule` list carrying `section`,
+`parent_uid`, `kind`, and — for senders — `micro_dialog_path`,
+`send_hour_variable`, `not_answered_timeout_minutes`. `app/coaching_sim.py`
+gains: collapse a run of same-`r_group` siblings into one random pick; follow
+scraped branch routes; walk the `ruleTree` top-to-bottom honouring each
+sender's timeout; and — since there's no PMCP-native priority field —
+implement interruption purely as "rule order + timeout", matching what the
+live Rules tab actually does, rather than a tier system.
+
+The `sendHourVariable` binds the fire time to a `$variable`; the *whether*
+(does this rule fire today) is in the condition chain above the sender, which
+`ruleTree` captions carry verbatim and the Report-HTML rules parser
+(`app/coaching_model.py::_parse_rules`) already turns into expressions — the
+Stage-4 join is `ruleTree.caption` ⇄ Report-HTML rule by `(section, order)`.
