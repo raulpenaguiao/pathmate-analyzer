@@ -13,19 +13,41 @@ workstreams" section — this file is the checklist, that's the writeup.
       `tools/rgroups-table/rgroups_table.csv` (per-message detail, both
       languages).
 - [ ] Augment these instances with a tool using an LLM API key.
-      Tool built (`tools/rgroups-table/expand_rgroups.py`) and dry-run
-      tested (110 pools, 882-variant skeleton), but never run for real — no
-      `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` set in this environment yet.
-      `render_review_report.py` turns its output into a per-pool markdown
-      report with checkboxes, for double-checking before anything is used.
-      **Needs:** an API key (e.g. in `.env`, gitignored) to actually run it.
+      Tool works (`tools/rgroups-table/expand_rgroups.py`; one-command chain
+      `rebuild_all.sh`). ro-RO output constrained: informal *tu*, house-style
+      gender agreement, native (non-calque) phrasing, no English loanwords.
+      **Sample run done** (PR #1): `--limit 10` → 70 variants for 10 pools in
+      `tools/rgroups-table/rgroups_review.md`; human review of those 70 done.
+      The other ~100 thin pools are still `TO_GENERATE` — full run pending a
+      fresh `coaching.json` (see below).
 - [ ] Using Playwright, add these instances to the coaching (write-back tool).
-      Not started. Deliberately deferred until there's a real
-      human-approved batch from the step above to design against, and until
-      a read-only discovery pass on the node/message *creation* flow (not
-      just editing) has been done. This writes to a live coaching, so it
-      must default to a human clicking the actual save action — see the
-      modal-safety notes in README.md's hurdles section.
+      Built and **verified on the sandbox** (PR #1):
+      `tools/rgroups-table/apply_approved.py` reads the ticked proposals in
+      `rgroups_review.md` and, per variant: Duplicate an existing group
+      message → edit the copy's en-GB + ro-RO → Move Up until it is adjacent
+      to the pool (groups only fire when consecutive). Dry-run by default;
+      `--apply` / `--limit` / `--pool` / `--dedup` / `--debug`. Idempotent.
+      PMCP-editor automation gotchas written up in
+      `tools/rgroups-table/README.md` ("PMCP editor automation — pitfalls").
+      Not yet run at scale or against the production coaching.
+
+### After `coaching.json` is regenerated (unblocks the rest)
+
+- [ ] Regenerate `data/rgroups/coaching.json` with the current export
+      (`tools/coaching-bundle-export/export_coaching.py`, via `start_pmcp.sh`).
+      The `rgroups_table.csv` in the repo predates the export consolidation.
+- [ ] Full expansion run: `BUNDLE=data/rgroups/coaching.json
+      tools/rgroups-table/rebuild_all.sh` (no `--limit`) → ~800 more variants
+      for the ~100 `TO_GENERATE` pools, refreshing `rgroups_review.md`.
+- [ ] Human review of that full batch (the 10-pool sample is already ticked;
+      this is the remaining ~100 pools).
+- [ ] Run `apply_approved.py --apply` against the **production** ALEX v01
+      coaching (only the sandbox has been written to so far). Start with
+      `--limit` / `--pool`; watch the Move Up / adjacency result each time.
+- [ ] Remove the 2 mechanism-test variants left in the "ALEX v01 zum
+      Ausprobieren" sandbox (a greeting in *Timeless Greetings*, a spirometry
+      prompt in *Prompt patient to conduct daily spirometry*). `--dedup` does
+      not catch them (unique text) — delete by hand.
 
 ## Pile-up problem
 
