@@ -64,35 +64,44 @@ SAMPLE_LIMIT = int(os.environ.get("PMCP_RULE_SAMPLE", "40"))
 # Tree structure dump
 # ---------------------------------------------------------------------------
 
+#   Vaadin 7 tree facts confirmed live (2026-09-10):
+#   - state is `aria-expanded="true|false"` on the .v-tree-node[role=treeitem];
+#     absent means either a leaf OR a parent never yet touched this session.
+#   - `.v-tree-node-children` is PRE-RENDERED even while collapsed, so a
+#     non-empty child container == "this node has children" regardless of
+#     expand state. Collapsed children have a zero-size caption rect.
+#   - the gesture that expands: click the caption, then press ArrowRight.
+#   - `.v-tree-node` node COUNT never changes on expand — do not use it as a
+#     progress signal; use caption visibility.
 TREE_DUMP_JS = r"""
 () => {
   const trees = [...document.querySelectorAll('.v-tree')];
   const dump = (tree) => {
-    const nodes = [...tree.querySelectorAll('.v-tree-node')];
+    const nodes = [...tree.querySelectorAll('.v-tree-node[role=treeitem]')];
     return nodes.map((n, i) => {
-      let depth = 0, p = n.parentElement;
-      while (p && p !== tree) {
-        if (p.classList.contains('v-tree-node-children')) depth++;
-        p = p.parentElement;
-      }
       const capEl = n.querySelector(':scope > .v-tree-node-caption');
       const cap = capEl ? capEl.textContent.replace(/\s+/g, ' ').trim() : '';
       const iconEl = capEl ? capEl.querySelector('img.v-icon, .v-icon') : null;
-      const icon = iconEl ? (iconEl.getAttribute('src') || iconEl.className) : '';
+      const icon = (iconEl ? (iconEl.getAttribute('src') || iconEl.className) : '').split('/').pop();
       const kids = n.querySelector(':scope > .v-tree-node-children');
+      const r = capEl ? capEl.getBoundingClientRect() : {width: 0, height: 0, top: 0};
+      const aria = n.getAttribute('aria-expanded');
       return {
-        i, depth, caption: cap, classes: n.className,
-        icon: icon.split('/').pop(),
-        leaf: n.classList.contains('v-tree-node-leaf'),
-        expanded: n.classList.contains('v-tree-node-expanded'),
-        childDivEmpty: !kids || kids.childElementCount === 0,
-        rectTop: capEl ? Math.round(capEl.getBoundingClientRect().top) : null,
+        i,
+        depth: parseInt(n.getAttribute('aria-level') || '1', 10) - 1,
+        caption: cap, classes: n.className, icon,
+        ariaExpanded: aria,                       // 'true' | 'false' | null
+        hasChildEls: !!kids && kids.childElementCount > 0,
+        visible: r.width > 0 && r.height > 0,
+        expanded: aria === 'true',
+        leaf: aria === null && !(kids && kids.childElementCount > 0),
+        rectTop: Math.round(r.top),
       };
     });
   };
   return trees.map((t, ti) => ({
     treeIndex: ti, classes: t.className,
-    nodeCount: t.querySelectorAll('.v-tree-node').length,
+    nodeCount: t.querySelectorAll('.v-tree-node[role=treeitem]').length,
     nodes: dump(t),
     outerHTMLHead: t.outerHTML.slice(0, 3000),
   }));
@@ -212,78 +221,85 @@ async def dump_tree(page, tag: str) -> list[dict]:
     return trees
 
 
-async def _tree_node_count(page) -> int:
-    return await page.evaluate(
-        "[...document.querySelectorAll('.v-tree .v-tree-node')].length")
+async def _aria_of(page, ti: int, i: int) -> str | None:
+    trees = await page.evaluate(TREE_DUMP_JS)
+    return next((n["ariaExpanded"] for n in trees[ti]["nodes"] if n["i"] == i), None)
 
 
-async def _click_expander(page, ti: int, i: int) -> None:
-    """Expand the i-th .v-tree-node (DOM order) of tree ti: select its caption,
-    then ArrowRight — the method that worked in run 1. `.nth(i)` positional,
-    NOT has_text (a parent node's text contains its children's)."""
+async def _select_node(page, ti: int, i: int) -> None:
+    """Click a tree node's caption to select it. Click at x=20 (on the icon/
+    text), NOT the box centre — a short caption leaves the box's centre in
+    dead space past the text, where Vaadin ignores the click (verified live
+    2026-09-10: centre click -> aria-selected stays false)."""
     cap = (page.locator(".v-tree").nth(ti)
-           .locator(".v-tree-node").nth(i)
-           .locator(".v-tree-node-caption").first)
-    try:
-        await cap.click(timeout=3000)
-        await page.wait_for_timeout(120)
-        await page.keyboard.press("ArrowRight")
-        await page.wait_for_timeout(200)
-    except Exception:  # noqa: BLE001
+           .locator(".v-tree-node[role=treeitem]").nth(i)
+           .locator(":scope > .v-tree-node-caption"))
+    await cap.click(position={"x": 20, "y": 8}, timeout=4000)
+
+
+async def _click_expander(page, ti: int, i: int) -> bool:
+    """Expand the i-th treeitem of tree ti; report whether it is now
+    aria-expanded=true. Recipe verified live: select the caption (x=20 click),
+    wait ~600ms for the selection round-trip, THEN ArrowRight."""
+    for _ in range(2):
         try:
-            await cap.dblclick(timeout=3000)
-            await page.wait_for_timeout(200)
+            await _select_node(page, ti, i)
+            await page.wait_for_timeout(600)
+            await page.keyboard.press("ArrowRight")
+            await page.wait_for_timeout(500)
         except Exception as e:  # noqa: BLE001
-            print(f"    expand node {ti}/{i}: {e!r}")
+            print(f"    expand {ti}/{i}: {e!r}")
+            return False
+        if await _aria_of(page, ti, i) == "true":
+            return True
+    return False
 
 
 async def _liveness_ok(page) -> bool:
-    """Expand the first non-leaf collapsed root; True if the tree grew. Catches
-    an expired PMCP session (tree DOM stays, expand RPCs are dropped) before
-    any modal is opened."""
+    """Expand the first visible not-yet-expanded node. Catches an expired PMCP
+    session (tree DOM stays put, expand RPCs are silently dropped)."""
     trees = await page.evaluate(TREE_DUMP_JS)
-    before = await _tree_node_count(page)
     for n in trees[0]["nodes"]:
-        if n["depth"] == 0 and not n["leaf"] and not n["expanded"]:
-            await _click_expander(page, 0, n["i"])
-            if await _tree_node_count(page) > before:
+        if n["visible"] and n["ariaExpanded"] != "true":
+            if await _click_expander(page, 0, n["i"]):
                 return True
     return False
 
 
-async def expand_all(page, rounds: int = 30) -> dict:
-    """Expand every collapsible node. Each round re-dumps the tree (indices
-    shift as nodes appear) and clicks every still-collapsed node by position.
-    Stops when a round adds nothing. Nodes that never expand are reported as
-    `stuckRoots` (empty sections)."""
-    tried: dict[str, int] = {}
-    for r in range(rounds):
+async def expand_all(page, max_nodes: int = 400) -> dict:
+    """Fully expand tree 0. ONE expansion per iteration, re-dumping every time:
+    opening a node can lazy-load new children, which shifts every later index,
+    so a batch built from a stale dump would click the wrong rows. Pick the
+    next node by (depth, caption) identity, expand it at its CURRENT index,
+    repeat. A node that never reaches aria-expanded=true is a leaf."""
+    tried: set[tuple] = set()
+    leaves = expanded = 0
+    for _ in range(max_nodes):
         trees = await page.evaluate(TREE_DUMP_JS)
-        total = sum(t["nodeCount"] for t in trees)
-        collapsed = [(ti, n["i"], n["caption"]) for ti, t in enumerate(trees)
-                     for n in t["nodes"]
-                     if not n["leaf"] and not n["expanded"] and n["caption"]
-                     and tried.get(n["caption"], 0) < 2]
-        if not collapsed:
-            print(f"  settled after {r} round(s), {total} nodes")
+        nxt = next(((n["i"], (n["depth"], n["caption"]))
+                    for n in trees[0]["nodes"]
+                    if n["visible"] and n["ariaExpanded"] != "true" and n["caption"]
+                    and (n["depth"], n["caption"]) not in tried), None)
+        if nxt is None:
+            print(f"  settled: {expanded} expanded, {leaves} leaves, "
+                  f"{trees[0]['nodeCount']} nodes")
             break
-        print(f"  round {r}: {total} nodes, {len(collapsed)} still collapsed")
-        grew = False
-        for ti, i, cap in collapsed:
-            tried[cap] = tried.get(cap, 0) + 1
-            await _click_expander(page, ti, i)
-        if await _tree_node_count(page) > total:
-            grew = True
-        if not grew:
-            # nothing this round expanded; the rest are empty — one more pass
-            for _, _, cap in collapsed:
-                tried[cap] = 2
+        i, key = nxt
+        tried.add(key)
+        if await _click_expander(page, 0, i):
+            expanded += 1
+        else:
+            leaves += 1
+        if (expanded + leaves) % 15 == 0:
+            print(f"  ... {expanded} expanded / {leaves} leaves")
     trees = await page.evaluate(TREE_DUMP_JS)
-    stuck = [n["caption"] for t in trees for n in t["nodes"]
-             if not n["leaf"] and not n["expanded"] and n["caption"]]
-    if stuck:
-        print(f"  never expanded (likely empty sections): {stuck}")
-    return {"stuckRoots": stuck}
+    empty_roots = [n["caption"] for n in trees[0]["nodes"]
+                   if n["depth"] == 0 and n["ariaExpanded"] != "true"]
+    if empty_roots:
+        print(f"  roots that never expanded (truly empty): {empty_roots}")
+    return {"emptyRoots": empty_roots,
+            "expandedNodes": sum(1 for n in trees[0]["nodes"]
+                                 if n["ariaExpanded"] == "true")}
 
 
 async def rule_edit_button(page):
@@ -346,12 +362,9 @@ async def sample_rule_modals(page, trees: list[dict]) -> list[dict]:
         cap = n["caption"]
         chain = _parent_chain(nodes, j)
         print(f"[{k + 1}/{len(picks)}] d{n['depth']} {n['icon']}  {cap[:64]!r}")
-        node_cap = (page.locator(".v-tree").nth(ti)
-                    .locator(".v-tree-node").nth(j)
-                    .locator(".v-tree-node-caption").first)
         try:
-            await node_cap.click(timeout=4000)
-            await page.wait_for_timeout(350)
+            await _select_node(page, ti, j)
+            await page.wait_for_timeout(400)
             btn = await rule_edit_button(page)
             if not btn:
                 print("    no Edit button — skipping")
