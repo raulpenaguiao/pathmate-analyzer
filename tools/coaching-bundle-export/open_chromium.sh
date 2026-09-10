@@ -51,20 +51,24 @@ setsid nohup "$CHROME_BIN" \
   "${URL}" >/tmp/pmcp-chrome-${PORT}.log 2>&1 &
 disown || true
 
-for _ in $(seq 1 20); do
+# cold profile + slow GL init can take ~10-20s to bring the debug port up
+for _ in $(seq 1 60); do
   if curl -sf "http://127.0.0.1:${PORT}/json/version" >/dev/null 2>&1; then
     echo
     echo "Ready. CDP is live on http://127.0.0.1:${PORT}"
     echo
-    echo "Next (by hand, in the browser window):"
-    echo "  1. Log in (user + password + TOTP)."
-    echo "  2. Coachings -> <your coaching> -> select the row -> Edit."
-    echo "  3. Basic Settings and Modules -> Monitoring: click to DEACTIVATE."
-    echo "  4. Then run:  ./export_coaching.sh <output-name>.json"
+    echo "Next (by hand, in the browser window): open your coaching -> Edit"
+    echo "  -> Basic Settings and Modules -> Monitoring: click to DEACTIVATE."
+    echo "Login is handled by export_coaching.sh from .env; then run:"
+    echo "  ./export_coaching.sh <output-name>.json"
     exit 0
   fi
   sleep 0.5
 done
 
-echo "Browser started but :${PORT} never came up — see /tmp/pmcp-chrome-${PORT}.log" >&2
+echo "Browser started but :${PORT} never came up after 30s." >&2
+echo "--- tail of /tmp/pmcp-chrome-${PORT}.log ---" >&2
+tail -15 "/tmp/pmcp-chrome-${PORT}.log" >&2 || true
+echo "If you see 'DevTools listening on ws://127.0.0.1:${PORT}' above, it's" >&2
+echo "just slow — wait a few seconds and re-run the export directly." >&2
 exit 1
