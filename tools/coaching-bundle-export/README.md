@@ -18,8 +18,7 @@ need Claude, an API key, or an internet AI service to run it.
 | File | Role |
 | --- | --- |
 | `WORKFLOW.md` | the end-to-end recipe (start here) |
-| `../start_pmcp.sh` | launch a CDP Chromium and log it into PMCP from `.env` (shared across tools) |
-| `../pmcp_login.py` | the login step of `start_pmcp.sh`; idempotent, run standalone too |
+| `../start_pmcp.sh` | launch a CDP Chromium and log it into PMCP from `.env` (browser + login in one; shared across tools) |
 | `export_coaching.sh` | check login, pause once for Monitoring, run both sweeps, write one named JSON |
 | `export_bundle.py` | Micro Dialogs sweep: the `.v-menubar` → `coaching.bundle.json` (node content + randomisation groups) |
 | `enrich_bundle.py` | joins the Report-HTML export for full text + branches → `coaching.bundle.v2.json` (also runs standalone) |
