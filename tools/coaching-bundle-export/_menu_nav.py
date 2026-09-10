@@ -270,6 +270,29 @@ async def wait_round_trip(page):
     await page.wait_for_timeout(400)
 
 
+async def ensure_micro_dialogs(page) -> bool:
+    """True once the Micro Dialogs menubar (`.v-menubar.md-menu`) is on screen.
+    If it isn't, click the in-app "Micro Dialogs" section tab (same idea as
+    `_rules_nav.ensure_rules_tree`) and wait. Returns False if it still isn't
+    there — the caller should then ask the operator to open that view and
+    check that Monitoring is deactivated (the menubar's popups need it off).
+    Never touches the Monitoring toggle itself."""
+    if await page.locator(".v-menubar.md-menu").count():
+        return True
+    for cand in (
+        page.get_by_text(re.compile(r"^\s*micro[\s-]?dialog", re.I)),
+        page.locator(".v-captiontext", has_text=re.compile("micro", re.I)),
+    ):
+        try:
+            if await cand.count():
+                await cand.first.click(timeout=4000)
+                await wait_round_trip(page)
+                break
+        except Exception:  # noqa: BLE001
+            continue
+    return bool(await page.locator(".v-menubar.md-menu").count())
+
+
 async def main() -> None:
     RAW_JSONL.unlink(missing_ok=True)
     for f in (GO_FILE, ABORT_FILE):

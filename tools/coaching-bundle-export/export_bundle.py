@@ -161,6 +161,12 @@ async def main() -> None:
             "left": 0, "top": 0, "width": WIDE, "height": 1400, "windowState": "normal"}})
         await page.wait_for_timeout(1500)
         try:
+            if not await S.ensure_micro_dialogs(page):
+                await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": orig})
+                sys.exit("Micro Dialogs menu not on screen. In the browser: open "
+                         "this coaching's Edit view, deactivate Monitoring, then "
+                         "click 'Micro Dialogs' — and rerun. (Monitoring must be "
+                         "off or the menu's popups silently fail.)")
             print("--- discovery ---")
             targets = await all_targets(page)
             print(f"{len(targets)} targets "

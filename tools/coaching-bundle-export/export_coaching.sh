@@ -12,10 +12,18 @@
 #                     groups). No Rules sweep, no live writes.
 #   --rules-only      only the Rules sweep (rule tree + per-rule timing).
 #   --no-rules        alias for --dialogs-only.
+#   --env FILE        .env with PMCP_USERNAME / PMCP_PASSWORD / PMCP_TOTP_SECRET
+#                     for auto-login (default: <repo>/.env).
+#   --no-login        skip auto-login (you logged in by hand).
 #   --cdp URL         CDP endpoint (default http://127.0.0.1:9222).
 #   --workdir DIR     scratch dir for intermediate bundles
 #                     (default: <repo>/data/rgroups).
-#   --yes             don't pause for the "switch the browser view" prompts.
+#   --yes             don't pause at the one manual step (Monitoring).
+#
+# Manual steps: (1) auto-login uses .env; if it can't, log in by hand.
+# (2) pick the coaching, click Edit, and DEACTIVATE MONITORING - the script
+# pauses for this and never touches that toggle. Switching between the Micro
+# Dialogs and Rules views is automatic.
 #
 # The Rules sweep opens every sending rule's "Edit rule:" modal; closing each
 # one fires a no-op "The rule has been updated." toast. Use it on sandbox
@@ -29,9 +37,11 @@ PY="$REPO/.venv/bin/python"
 
 CDP="http://127.0.0.1:9222"
 WORKDIR="$REPO/data/rgroups"
+ENV_FILE="$REPO/.env"
 REPORT=""
 DO_DIALOGS=1
 DO_RULES=1
+DO_LOGIN=1
 ASSUME_YES=0
 OUT=""
 
@@ -40,10 +50,12 @@ while [ $# -gt 0 ]; do
     --report)        REPORT="$2"; shift 2 ;;
     --dialogs-only|--no-rules) DO_RULES=0; shift ;;
     --rules-only)     DO_DIALOGS=0; shift ;;
+    --env)           ENV_FILE="$2"; shift 2 ;;
+    --no-login)      DO_LOGIN=0; shift ;;
     --cdp)           CDP="$2"; shift 2 ;;
     --workdir)       WORKDIR="$2"; shift 2 ;;
     --yes|-y)        ASSUME_YES=1; shift ;;
-    -h|--help)       sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)       sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*)              echo "unknown option: $1" >&2; exit 2 ;;
     *)               OUT="$1"; shift ;;
   esac
@@ -66,17 +78,29 @@ export PMCP_OUT="$WORKDIR"
 
 pause() {
   [ "$ASSUME_YES" -eq 1 ] && return 0
-  printf '\n>>> %s\n    Press Enter when ready (Ctrl-C to abort)... ' "$1"
+  printf '\n>>> %s\n    Press Enter when done (Ctrl-C to abort)... ' "$1"
   read -r _
 }
 
 echo "workdir : $WORKDIR"
 echo "output  : $OUT"
 echo "cdp     : $CDP"
+echo "env     : $ENV_FILE"
 echo
 
+# --- auto-login from .env (idempotent; no-op if already logged in) ----------
+if [ "$DO_LOGIN" -eq 1 ]; then
+  echo "--- login (pmcp_login.py) ---"
+  if ! PMCP_CDP="$CDP" "$PY" "$HERE/pmcp_login.py" --env "$ENV_FILE" ; then
+    echo "    auto-login did not complete — finish it by hand in the browser." >&2
+    pause "Log in to PMCP by hand if the browser is still on the login screen."
+  fi
+fi
+
+# --- the one manual step --------------------------------------------------
+pause "In the browser: open your coaching -> click Edit -> DEACTIVATE MONITORING. (The script never touches that toggle. Switching between Micro Dialogs and Rules after this is automatic.)"
+
 if [ "$DO_DIALOGS" -eq 1 ]; then
-  pause "Put the browser on this coaching's MICRO DIALOGS view (Edit -> Micro Dialogs, Monitoring inactive, one dialog's table visible)."
   echo "--- Micro Dialogs sweep (export_bundle.py) ---"
   if [ -n "$REPORT" ]; then
     "$PY" "$HERE/export_bundle.py" --enrich "$REPORT"
@@ -86,7 +110,6 @@ if [ "$DO_DIALOGS" -eq 1 ]; then
 fi
 
 if [ "$DO_RULES" -eq 1 ]; then
-  pause "Now put the browser on this coaching's RULES tab (Edit -> Rules, the tree with the four 'Execution on ...' rows visible)."
   echo "--- Rules sweep (export_rules.py --merge) ---"
   "$PY" "$HERE/export_rules.py" --merge
 fi

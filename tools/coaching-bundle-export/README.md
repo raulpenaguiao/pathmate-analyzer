@@ -16,9 +16,10 @@ need Claude, an API key, or an internet AI service to run it.
 
 | File | Role |
 | --- | --- |
-| `WORKFLOW.md` | the 3-step end-to-end recipe (start here) |
-| `open_chromium.sh` | step 1: launch a Chromium with a CDP debug port |
-| `export_coaching.sh` | step 3: drive the browser through both sweeps and write one named JSON |
+| `WORKFLOW.md` | the end-to-end recipe (start here) |
+| `open_chromium.sh` | launch a Chromium with a CDP debug port |
+| `pmcp_login.py` | log the browser in from `.env` (`PMCP_USERNAME` / `PMCP_PASSWORD` / `PMCP_TOTP_SECRET`); idempotent |
+| `export_coaching.sh` | auto-login, pause once for Monitoring, run both sweeps, write one named JSON |
 | `export_bundle.py` | Micro Dialogs sweep: the `.v-menubar` → `coaching.bundle.json` (node content + randomisation groups) |
 | `enrich_bundle.py` | joins the Report-HTML export for full text + branches → `coaching.bundle.v2.json` (also runs standalone) |
 | `export_rules.py` | **Rules-tab sweep**: the `.v-tree` + every sending rule's "Edit rule:" modal → `coaching.rules.json`; `--merge` also writes `coaching.bundle.v3.json` (v2 + a `rules` key). Opens ~25 read-only modals whose dismiss commits a no-op re-save — sandbox coachings only; `--no-modals` for the tree skeleton with zero writes. |
