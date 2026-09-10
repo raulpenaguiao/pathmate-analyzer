@@ -68,30 +68,63 @@ LOGGED_IN_JS = r"""
 """
 
 
-async def _fill_first(page, selectors: list[str], value: str) -> bool:
-    for sel in selectors:
+FORM_JS = r"""
+() => {
+  const vis = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const ins = [...document.querySelectorAll('input')].filter(vis)
+    .map(el => ({ id: el.id, type: (el.getAttribute('type') || 'text').toLowerCase(),
+                  value: el.value }));
+  const pwIdx = ins.findIndex(i => i.type === 'password');
+  if (pwIdx < 0) return { hasPassword: false };
+  // username = last text-ish field before the password; otp = first after it
+  let userIdx = -1;
+  for (let k = pwIdx - 1; k >= 0; k--) if (ins[k].type !== 'password') { userIdx = k; break; }
+  let otpIdx = -1;
+  for (let k = pwIdx + 1; k < ins.length; k++) if (ins[k].type !== 'password') { otpIdx = k; break; }
+  const notif = [...document.querySelectorAll('.v-Notification-caption, .v-Notification-description, .v-Notification')]
+    .map(e => e.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  return {
+    hasPassword: true,
+    userId:  userIdx >= 0 ? ins[userIdx].id : null,
+    passId:  ins[pwIdx].id,
+    otpId:   otpIdx >= 0 ? ins[otpIdx].id : null,
+    otpValue: otpIdx >= 0 ? ins[otpIdx].value : null,
+    notif,
+  };
+}
+"""
+
+
+async def _vfill(page, el_id: str, value: str) -> None:
+    """Fill a Vaadin .v-textfield and blur it — VTextField only pushes its
+    value to the server on blur / the value-change timer, so a fill without a
+    blur submits an empty string."""
+    loc = page.locator(f"#{el_id}")
+    await loc.fill(value)
+    await loc.blur()
+    await page.wait_for_timeout(150)
+
+
+async def _click_login(page) -> None:
+    # dismiss a stale error notification first — it intercepts pointer events
+    for _ in range(3):
+        n = page.locator(".v-Notification")
+        if not await n.count():
+            break
+        try:
+            await n.first.click(timeout=1000)
+        except Exception:  # noqa: BLE001
+            await page.keyboard.press("Escape")
+        await page.wait_for_timeout(300)
+    for sel in ('.v-button:has-text("Login")', '.v-button:has-text("Log in")',
+                'button[type=submit]', 'input[type=submit]'):
         loc = page.locator(sel)
-        for i in range(await loc.count()):
-            el = loc.nth(i)
+        if await loc.count():
             try:
-                if await el.is_visible():
-                    await el.fill(value)
-                    return True
+                await loc.first.click(timeout=5000)
+                return
             except Exception:  # noqa: BLE001
                 continue
-    return False
-
-
-async def _click_submit(page) -> None:
-    for sel in ('button[type=submit]', 'input[type=submit]',
-                'button:has-text("Log in")', 'button:has-text("Login")',
-                'button:has-text("Sign in")', 'button:has-text("Anmelden")',
-                'button:has-text("Continue")', 'button:has-text("Verify")',
-                '.v-button:has-text("Log in")', '.v-button:has-text("Login")'):
-        loc = page.locator(sel)
-        if await loc.count() and await loc.first.is_visible():
-            await loc.first.click()
-            return
     await page.keyboard.press("Enter")
 
 
@@ -130,68 +163,58 @@ async def main() -> int:
             print("PMCP_USERNAME / PMCP_PASSWORD not set in .env — log in by "
                   "hand in the browser, then rerun the export.", file=sys.stderr)
             return 2
-        if not secret:
-            print("PMCP_TOTP_SECRET not set — will fill username + password, "
-                  "then wait for you to type the 2FA code in the browser.")
-
-        otp_sels = [
-            "input[autocomplete='one-time-code']:visible",
-            "input[name*='otp' i]:visible",
-            "input[name*='totp' i]:visible",
-            "input[name*='code' i]:visible",
-            "input[name*='token' i]:visible",
-            "input[inputmode='numeric']:visible",
-            "input[type='tel']:visible",
-        ]
-        pw_submitted = otp_submitted = False
-        waiting_msg_shown = False
-        deadline = time.time() + 150  # allow time for a manual 2FA code
-
-        while time.time() < deadline:
+        # wait for the login form to render
+        form = {}
+        for _ in range(12):
+            form = await page.evaluate(FORM_JS)
+            if form.get("hasPassword"):
+                break
+            await page.wait_for_timeout(1000)
+        if not form.get("hasPassword"):
             if await page.evaluate(LOGGED_IN_JS):
                 print("logged in")
                 return 0
+            print("no login form found — finish login by hand, then rerun.",
+                  file=sys.stderr)
+            return 2
 
-            if await page.locator("input[type=password]:visible").count():
-                await _fill_first(page, [
-                    "input[type=email]:visible",
-                    "input[name*='user' i]:visible",
-                    "input[name*='login' i]:visible",
-                    "input[name*='email' i]:visible",
-                    "input[type=text]:visible",
-                ], user)
-                await _fill_first(page, ["input[type=password]:visible"], pw)
-                await _click_submit(page)
-                print("  submitted username + password")
-                pw_submitted = True
-                await page.wait_for_timeout(2500)
-                continue
+        if form.get("userId"):
+            await _vfill(page, form["userId"], user)
+        await _vfill(page, form["passId"], pw)
+        print("  filled username + password")
 
-            has_otp = any(await page.locator(s).count() for s in otp_sels)
-            if has_otp and secret and not otp_submitted:
-                code = totp(secret)
-                if await _fill_first(page, otp_sels, code):
-                    await _click_submit(page)
-                    print(f"  submitted TOTP {code}")
-                    otp_submitted = True
-                    await page.wait_for_timeout(2500)
-                    continue
-
-            if has_otp and not secret:
-                if not waiting_msg_shown:
-                    print("  >>> type your 6-digit 2FA code in the browser "
-                          "(waiting up to ~2 min)...")
-                    waiting_msg_shown = True
+        otp_id = form.get("otpId")
+        if otp_id and secret:
+            code = totp(secret)
+            await _vfill(page, otp_id, code)
+            print(f"  filled 2FA code {code}")
+        elif otp_id and not secret:
+            print("  >>> PMCP_TOTP_SECRET not set — type your 6-digit 2FA code "
+                  "in the browser now (waiting up to ~2 min).")
+            deadline = time.time() + 130
+            while time.time() < deadline:
                 await page.wait_for_timeout(2000)
-                continue
+                if await page.evaluate(LOGGED_IN_JS):
+                    print("logged in")
+                    return 0
+                f = await page.evaluate(FORM_JS)
+                if f.get("hasPassword") and (f.get("otpValue") or "").strip():
+                    break  # code typed — submit it below
+            else:
+                print("timed out waiting for the 2FA code.", file=sys.stderr)
+                return 2
 
-            # nothing to do yet — page still loading, or an unknown step
-            await page.wait_for_timeout(1500)
+        await _click_login(page)
 
-        if await page.evaluate(LOGGED_IN_JS):
-            print("logged in")
-            return 0
-        _ = pw_submitted  # (filled but login not confirmed)
+        for _ in range(15):
+            await page.wait_for_timeout(1000)
+            if await page.evaluate(LOGGED_IN_JS):
+                print("logged in")
+                return 0
+            f = await page.evaluate(FORM_JS)
+            if f.get("notif"):
+                print(f"  login rejected: {' | '.join(f['notif'])}", file=sys.stderr)
+                return 2
         print("could not confirm login — finish it by hand in the browser, "
               "then rerun the export.", file=sys.stderr)
         return 2
