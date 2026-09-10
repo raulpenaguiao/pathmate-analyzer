@@ -88,6 +88,17 @@ workstreams" section — this file is the checklist, that's the writeup.
       phases 1–4 pass on live data (the offline reference
       `rules_stage3_ALEX_v01.json` was re-derived, not freshly swept).
 
+- [ ] **Later: auto-fetch the Report HTML inside `export_coaching`.**
+      The script is already driving the browser at the coaching — it can
+      navigate to Coaching → Report and grab the HTML itself, then use it
+      for the phase-2 enrich and phase-4 coherence check. Right now the user
+      has to save the Report page by hand and pass `--report FILE`. Goal:
+      one run produces **both** `coaching.json` and the `Report.html`
+      alongside it, no manual save. (Note: the coherence check is an *input*
+      to the same run — sweep vs HTML compared as the JSON is built — not a
+      later/standalone pass; a standalone re-check against a saved pair is a
+      possible bonus but not required.)
+
 ## Simulate chat — Stage 4 (depends on `coaching.json`)
 
 **Full cold-start brief: `docs/stage4_chat_engine_plan.md`** — architecture,
