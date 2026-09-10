@@ -65,46 +65,66 @@ workstreams" section — this file is the checklist, that's the writeup.
       → "Not yet captured (Stage 3)".
 - [x] Get from Claude all the information an export has, and how it should
       include everything needed to generate a chat interaction.
-      Stage 3 captured live 2026-09-10: `tools/coaching-bundle-export/
-      probe_rules_tree.py` walks the Rules `.v-tree` and reads every
-      sending rule's "Edit rule:" modal. All the 2026-09-09 open schema
+      Stage 3 captured live 2026-09-10. All the 2026-09-09 open schema
       questions are answered (both action paths; send-hour is a `$variable`;
       4h default timeout; identical field set across sections; the 4
       TRUE-result action checkboxes; DOES/DOES-NOT routing). Data:
       `tools/coaching-bundle-export/rules_stage3_ALEX_v01.json`, writeup
       `docs/rules_stage3_ALEX_v01.md`, DESIGN.md "Stage 3 … CAPTURED".
-      Remaining: fold this into `coaching.bundle` (a Stage-3 pass of the
-      export script) and handle decision-point-internal quick-reply routing.
+      Remaining for a fully machine-readable export: parse the `ruleTree`
+      captions into structured expressions in the exporter (Stage-4 phase
+      0), and handle decision-point-internal quick-reply routing.
 - [x] Run the export once.
-      Rules-tree Stage-3 sweep run against ALEX v01 (122 tree nodes, all
-      25 message-sending rules, ~40 no-op re-saves logged). Production
-      exporter `export_rules.py` built (shares `_rules_nav.py` with
-      `probe_rules_tree.py`): emits `coaching.rules.json` and, with
-      `--merge`, `coaching.bundle.v3.json` (v2 bundle + a `rules` key with
-      `sections` / `ruleTree` / `sendingRules`). The committed reference
-      output `tools/coaching-bundle-export/rules_stage3_ALEX_v01.json` was
-      re-derived offline through that same code path from the sweep dumps;
-      a fresh `export_rules.py --merge` run reproduces it. Next: a live
-      `--merge` run to actually produce `coaching.bundle.v3.json`, then
-      Stage 4 (`parse_bundle` in the analyzer).
+      Tooling built and consolidated (2026-09-10, on `main`). **One script**
+      `tools/coaching-bundle-export/export_coaching.py` → **one file**
+      `coaching.json` (`coaching` / `microDialogs` / `nodes` / `rules{
+      sections, ruleTree, sendingRules}` / `validation`). `export_bundle.py`
+      + `export_rules.py` + `--enrich` + `--merge` + `coaching.bundle*.json`
+      / `coaching.rules.json` are all gone. Phase 4 of the script is a
+      **coherence check** (sweep vs Report HTML vs `coherence_baseline.json`)
+      that exits non-zero on drift — the canary for a PMCP UI change.
+      **Still to do:** one live `tools/coaching-bundle-export/export_coaching.sh
+      --report … coaching.json` run to produce the real file and confirm
+      phases 1–4 pass on live data (the offline reference
+      `rules_stage3_ALEX_v01.json` was re-derived, not freshly swept).
 
-## Simulate chat (depends on structure of export)
+## Simulate chat — Stage 4 (depends on `coaching.json`)
 
-- [ ] Use the export to simulate a chat with the user in the
-      pathmate-analyzer web platform, in a specific tab.
-      Not started (Stage 4). A Chat tab and tick-based `Simulator` already
-      exist, but run off the old Report-HTML parse, not the bundle.
+**Full cold-start brief: `docs/stage4_chat_engine_plan.md`** — architecture,
+current-code inventory, the blocker + synthetic-json workaround, phases 0–F
+with acceptance checks, open questions. Read that first. Summary:
+
+Design (agreed 2026-09-10 with the user): a **pure-function, stateless**
+engine driven **only** by `coaching.json` (HTML is a side double-check, never
+drives the chat). `advance(coaching, state, to_time)` and
+`answer(coaching, state, value)` each return `(state', events[])`. `state` =
+`{vars, clock, pending (0 or 1 open question), seed}` — fully serializable,
+"recreate the chat from a variable dump + a clock". Upload menu stays
+HTML-only; a `.json` is *added* to a coaching to unlock the Chat tab. Rule
+expressions are parsed in the **exporter** (phase 0). One dialog / one open
+question; a sender firing while a question is pending is **skipped**.
+
+- [ ] **To start:** need one real `coaching.json` from a live
+      `export_coaching.sh` run (the blocker). Phases 0–C can begin now against
+      a synthetic json stitched from `coaching.bundle.v2.json` +
+      `rules_stage3_ALEX_v01.json` (recipe in the plan doc §3).
+- [ ] **Phase 0** — exporter parses `ruleTree` captions → structured exprs.
+- [ ] **Phase A** — `parse_bundle()` in `app/coaching_model.py` + additive
+      dataclass fields; `load_model()` dispatches on `.json` vs `.html`.
+- [ ] **Phase B** — r_-group collapsing in the dialog walker (seeded).
+- [ ] **Phase C** — sender rule → auto-launch its `microDialogPath`;
+      not-answered timeout → run `doesNotAnswerRules`.
+- [ ] **Phase D** — interruption (skip a sender while `pending` is set).
+- [ ] **Phase E** — Chat tab wired to `parse_bundle`; gate on `.json`
+      present; surface rule→dialog, timeout countdown, not-answered events.
+- [ ] **Phase F (design only)** — `PatientModel.respond()` seam for
+      workstream 5.
+
 - [ ] Allow tracking and changing variables on the go, and advancing the
-      clock.
-      Already works in the *existing* (pre-bundle) simulator. Needs
-      porting/extending once Stage 4 switches it to bundle-driven content.
-- [ ] Interface the chat simulation with patient models using Markov chains,
-      and log every Playwright-driven change or exploratory session to a
-      folder called `autochanges/`, as markdown files.
-      Not started (patient/Markov modeling — design exists in
-      `ALEX_v02_simulator_scope.md` §4–7, reframed in README.md's roadmap).
-      The `autochanges/` folder itself is set up as of this session — see
-      `autochanges/README.md` for the log format, and
-      `autochanges/2026-09-09-live-exploration.md` for the first entry
-      (today's live PMCP exploration, including the accidental-but-harmless
-      rule re-save).
+      clock. — Already works in the current simulator (`set_var` / `tick` /
+      `advance-to-slot` actions); carries over once the engine is
+      bundle-driven.
+- [ ] Interface the chat simulation with patient models using Markov chains
+      (workstream 5). Design in `ALEX_v02_simulator_scope.md` §4–7. Needs
+      Stage 4's engine + the phase-F hook as its substrate. `autochanges/` is
+      set up (`autochanges/README.md` for the format).
