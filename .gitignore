@@ -227,3 +227,6 @@ __marimo__/
 # Generated per-checkout at deploy/run time (see deploy/generate_deploy_info.sh)
 /DEPLOY.md
 
+
+# PMCP coaching Report-HTML exports dropped at repo root for --report
+/Coaching_*.html
