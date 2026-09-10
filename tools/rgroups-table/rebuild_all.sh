@@ -81,18 +81,22 @@ else
   [ -f "$BUNDLE" ] || { echo "export finished but $BUNDLE was not produced" >&2; exit 1; }
 fi
 
-# --- step 2: bundle -> tables ----------------------------------------------
-step "2/4 build_table.py"
+# --- step 2: bundle -> tables + r_ groups report -------------------------
+step "2/5 build_table.py"
 TARGET="${TARGET:-10}" "$PYTHON" "$HERE/build_table.py" "$BUNDLE"
 
+step "3/5 report.py  (r_ groups summary, from $BUNDLE)"
+"$PYTHON" "$HERE/report.py" "$BUNDLE"
+
 if [ "${SKIP_EXPAND:-}" = "1" ]; then
-  step "3-4/4 expand + render  (SKIPPED, SKIP_EXPAND=1)"
-  echo "tables rebuilt; stop here."
+  step "4-5/5 expand + review  (SKIPPED, SKIP_EXPAND=1)"
+  echo "tables + report rebuilt; stop here."
+  echo "report:  $HERE/rgroups_report.md"
   exit 0
 fi
 
-# --- step 3: top up thin pools with the LLM -------------------------------
-step "3/4 expand_rgroups.py $EXPAND_ARGS"
+# --- step 4: top up thin pools with the LLM -----------------------------
+step "4/5 expand_rgroups.py $EXPAND_ARGS"
 case " $EXPAND_ARGS " in
   *" --dry-run "*) : ;;
   *) [ -n "${ANTHROPIC_API_KEY:-}" ] || { echo "ANTHROPIC_API_KEY not set (put it in $REPO/.env)" >&2; exit 1; } ;;
@@ -100,9 +104,10 @@ esac
 # shellcheck disable=SC2086
 TARGET="${TARGET:-10}" "$PYTHON" "$HERE/expand_rgroups.py" $EXPAND_ARGS
 
-# --- step 4: render the human review report ------------------------------
-step "4/4 render_review_report.py"
+# --- step 5: render the human review report ---------------------------
+step "5/5 render_review_report.py"
 "$PYTHON" "$HERE/render_review_report.py"
 
 step "done"
+echo "report:  $HERE/rgroups_report.md"
 echo "review:  $HERE/rgroups_review.md"

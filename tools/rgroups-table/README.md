@@ -13,10 +13,12 @@ pools that happen to share a name.
 
 | File | Role |
 | --- | --- |
-| `rgroups_table.csv` | one row per message that carries an `r_*` group (full text, both languages, context) |
-| `rgroups_summary.csv` | one row per `r_*` group (totals, pool sizes, whether it still needs top-up) |
-| `build_table.py` | (re)generates the two CSVs from the coaching export JSON |
+| `build_table.py` | `coaching.json` → `rgroups_table.csv` (one row per `r_*` message) + `rgroups_summary.csv` (one row per group) |
+| `report.py` | `coaching.json` → `rgroups_report.md` — the one-table-per-group summary (the committed-deliverable view, see `docs/randomisation_groups_*`). Parses the JSON, no browser. |
 | `expand_rgroups.py` | asks Claude or ChatGPT for extra variants for every thin pool → `rgroups_table.expanded.csv` |
+| `render_review_report.py` | `rgroups_table.expanded.csv` → `rgroups_review.md` (per-pool review with checkboxes) |
+| `rebuild_all.sh` | the whole chain: (bundle →) build_table → report → expand → review |
+| `apply_approved.py` | write ticked `rgroups_review.md` proposals back into the live coaching (Playwright) |
 | `expand_prompts.txt` | the exact prompt sent per pool (written on every run, incl. `--dry-run`) |
 
 ## `rgroups_table.csv` columns

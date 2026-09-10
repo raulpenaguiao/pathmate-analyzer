@@ -121,6 +121,16 @@ workstreams" section — this file is the checklist, that's the writeup.
       later/standalone pass; a standalone re-check against a saved pair is a
       possible bonus but not required.)
 
+- [ ] **Later: `export_coaching.sh` should also build the r_ report/tables.**
+      A `report.py` now renders the r_ groups summary
+      (`tools/rgroups-table/rgroups_report.md`) straight from `coaching.json`
+      — no browser scrape (was: hand-assembled from a live sweep). Wire it
+      (and `build_table.py`) into `export_coaching.sh` — or a
+      `--with-rgroups` flag — so one run gives `coaching.json` *and* the
+      up-to-date CSVs + report, without the full `rebuild_all.sh` (which also
+      does the LLM expansion). `rebuild_all.sh` already chains
+      `report.py` in as its step 3.
+
 - [x] **Export polish (2026-09-10).**
       - Default output name now carries a timestamp:
         `data/rgroups/coaching_<slug>_<YYYYMMDD-HHMMSS>.json` (slug from the
