@@ -1,0 +1,631 @@
+{
+  "coaching": "ALEX v01 (\"ALEX v01 zum Ausprobieren\")",
+  "capturedAt": "2026-09-10",
+  "source": "tools/coaching-bundle-export/probe_rules_tree.py, live PMCP Rules-tab .v-tree + Edit-rule modals",
+  "note": "The 25 message/dialog-sending rules (message-icon-small.png) of the coaching. sendHour is a $variable (user preference or reschedule new-time), not a literal clock. notAnsweredTimeout default is 4h. Action checkboxes 'Mark case as solved... and stop' / 'Stop... and finish coaching' are all false on senders.",
+  "ruleTreeNodes": 122,
+  "sendingRules": 25,
+  "rules": [
+    {
+      "rule": "🧐💬 If required, send feedback on poor compliance with lung function monitoring scheme: $totalNumberOfConsecutiveDaysWithoutSpirometry calculated value is bigger than $hyperparameterToleranceForNumberOfConsecutiveDaysWithoutSpirometry",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$userSetTimeOfTheDayForFeedbackIfRequired",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to conduct daily spirometry > Feedback on compliance regarding daily spirometry > Poor Compliance > Several missed sessions",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "💰 Introduce weekly incentive: $systemDayInWeek calculated value equals 1",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$userSetTimeOfTheDayForWeeklyIncentiveAnnouncement",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Introduction of weekly incentive",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "🌬️ Send regular pushed reminder for spirometry measurement (temp. disabled and probably not needed): calculate value but result is always false",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ],
+      "action": "Send message",
+      "actionCheckboxes": {
+        "Send message": "true",
+        "Start micro dialog": "false",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$userSetDesiredSpirometryTime",
+      "notAnsweredTimeout": "0 days, 0 hours, 19 minutes",
+      "microDialogToStart": null,
+      "messageGroup": "Test (expects NO answer)",
+      "storeResultVar": null,
+      "doesAnswerRules": [
+        "Go to spirometry micro-dialog: calculate value but result is always true"
+      ],
+      "doesNotAnswerRules": [
+        "Go to spirometry micro-dialog: calculate value but result is always true"
+      ],
+      "ruleExpr": null
+    },
+    {
+      "rule": "🌬️ Send regular reminder for spirometry measurement: calculate value but result is always true",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$userSetDesiredSpirometryTime",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to conduct daily spirometry",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "Send sleep quality dialog: calculate value but result is always true",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1",
+        "▶️ Start dialogue regarding preparations for sleep monitoring: calculate value but result is always true"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$timeToSendSleepMonitoringDialog",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to prepare for nighttime monitoring",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "💊 Send regular reminder for first of the day controller medication inhalation: $userSetDesiredFirstDoseOfControllerMedicationInhalationTime text value not equals -99",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$userSetDesiredFirstDoseOfControllerMedicationInhalationTime",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take first dose of controller medication",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "👩‍🏫📚 Prompt user to interact with educational material: $today text value equals $dateOfNextDisplayOfEducationalContents",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$userSetTimeOfTheDayForWeeklyFeedback",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to watch/read/listen educational material > Interaction with educational content and rescheduling",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "💊 Send regular reminder for third of the day controller medication inhalation: $userSetDesiredThirdDoseOfControllerMedicationInhalationTime text value not equals -99",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$userSetDesiredThirdDoseOfControllerMedicationInhalationTime",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take third dose of controller medication",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "💊 Send regular reminder for second of the day controller medication inhalation: $userSetDesiredSecondDoseOfControllerMedicationInhalationTime text value not equals -99",
+      "section": "DAILY BASIS",
+      "depth": 3,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1",
+        "💊 Send regular reminder for third of the day controller medication inhalation: $userSetDesiredThirdDoseOfControllerMedicationInhalationTime text value not equals -99"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$userSetDesiredSecondDoseOfControllerMedicationInhalationTime",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take second dose of controller medication",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "📋✏️ Prompt user to fill out ACQ: $today text value equals $dateOfNextACQ",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$userSetTimeOfTheDayForACQ",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to answer questions of the ACQ",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "🐞 Test sensor data retrieval: $userSetTimeOfTheDayForFeedbackIfRequired text value not equals -99",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$userSetTimeOfTheDayForFeedbackIfRequired",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "🐞 Testing sensor data retrieval",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "🐞 Test time line of scheduled periodic events: $userSetTimeOfTheDayForFeedbackIfRequired text value not equals -99",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✅ Check whether onboarding has already been completed: $onboardingDone calculated value equals 1"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$userSetTimeOfTheDayForFeedbackIfRequired",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "🐞 Testing time line of scheduled periodic events",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "🐞 Send test dialog if debug mode is activated: $debugMode calculated value equals 1",
+      "section": "DAILY BASIS",
+      "depth": 2,
+      "parentChain": [
+        "Execution on DAILY BASIS",
+        "✏️ Remember that the rules on \"Daily Basis\" were already performed today: $participantParticipationInDays+1 calculate value but result is always true → $dailyTasksPerformedToday"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": null,
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Attic > Test dialog for debugging",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "🌬️ If still in time, send repeated reminder for spirometry measurement : $spiroMesTime calculated value is smaller than $bedtime",
+      "section": "PERIODIC BASIS",
+      "depth": 5,
+      "parentChain": [
+        "Execution on PERIODIC BASIS (approx. every 0 min.)",
+        "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "🌡️ Check whether maximum number of daily spirometry postponements has been reached: $spiroMesNumberOfDelayedRemindersIssued calculated value is smaller or equal than $userSetMaxNumberOfDailySpirometryPostponements",
+        "🚦 Check whether user has agreed to be reminded about spirometry on same day again: $spiroMesDelayedReminderActive calculated value equals 1",
+        "⏰ Check whether it may already be too late in the day for spirometry: $spiroMesTime calculated value is smaller than $bedtime"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$spiroMesTime",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to conduct daily spirometry",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "--- calculated value equals ---",
+      "section": "PERIODIC BASIS",
+      "depth": 5,
+      "parentChain": [
+        "Execution on PERIODIC BASIS (approx. every 0 min.)",
+        "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "✏️ Check if rules on \"Daily Basis\" were already performed today: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "⚠️ BEISPIELE (immer inaktiv): 1 calculated value equals 0",
+        "BEISPIEL: $gender calculated value equals 1"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": null,
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "START",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "Check if reminder for delayed spiro measurement time is due: calculate value but result is always true",
+      "section": "PERIODIC BASIS",
+      "depth": 5,
+      "parentChain": [
+        "Execution on PERIODIC BASIS (approx. every 0 min.)",
+        "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "✏️ Check if rules on \"Daily Basis\" were already performed today: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "⚠️ Attic (always disabled): 1 calculated value equals 0",
+        "🌬️⏱️ Send delayed reminder for spirometer measurement: $spiroMesDelayedReminderSent calculated value is smaller than $spiroMesDelayedReminderActive"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$spiroMesTimeDelay",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to conduct daily spirometry",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "Trigger sensor data updates: $triggerSensorDataUpdate calculated value is bigger than 0",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "parentChain": [
+        "Execution on PERIODIC BASIS (approx. every 0 min.)",
+        "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "📡 Check for new sensor data (every minute): $systemMinuteOfHour calculated value not equals $claidLastSensorDataMinute → $claidLastSensorDataMinute"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": null,
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Sensor data updates",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "👩‍🏫📚 Rescheduled prompting of user to interact with educational material: calculate value but result is always true",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "parentChain": [
+        "Execution on PERIODIC BASIS (approx. every 0 min.)",
+        "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "Check whether $userRequestedNewTimeForEducationalContents=1: $userRequestedNewTimeForEducationalContents calculated value equals 1 → $dummyVar"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$newTimeForInteractingWithEducationalMaterial",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to watch/read/listen educational material > Interaction with educational content and rescheduling",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "📋✏️ Rescheduled prompting of user to fill out ACQ: calculate value but result is always true",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "parentChain": [
+        "Execution on PERIODIC BASIS (approx. every 0 min.)",
+        "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "Check whether $userRequestedNewTimeForACQ=1: $userRequestedNewTimeForACQ calculated value equals 1 → $dummyVar"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$newTimeForACQ",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to answer questions of the ACQ",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "💊 Rescheduled reminder to inhale first medication dose: calculate value but result is always true",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "parentChain": [
+        "Execution on PERIODIC BASIS (approx. every 0 min.)",
+        "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "Check whether $myFirstMedication_userRequestedNewTime=1: $myFirstMedication_userRequestedNewTime calculated value equals 1 → $dummyVar"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$myFirstMedication_newTimeForFirstMedication",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take first dose of controller medication",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "💊 Rescheduled reminder to inhale second medication dose: calculate value but result is always true",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "parentChain": [
+        "Execution on PERIODIC BASIS (approx. every 0 min.)",
+        "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "Check whether $mySecondMedication_userRequestedNewTime=1: $mySecondMedication_userRequestedNewTime calculated value equals 1 → $dummyVar"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$mySecondMedication_newTimeForSecondMedication",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take second dose of controller medication",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "💊 Rescheduled reminder to inhale third medication dose: calculate value but result is always true",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "parentChain": [
+        "Execution on PERIODIC BASIS (approx. every 0 min.)",
+        "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "Check whether $myThirdMedication_userRequestedNewTime=1: $myThirdMedication_userRequestedNewTime calculated value equals 1 → $dummyVar"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$myThirdMedication_newTimeForThirdMedication",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to take controller medication > Prompt patient to take third dose of controller medication",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "🌬️ Rescheduled reminder to perform spirometry: calculate value but result is always true",
+      "section": "PERIODIC BASIS",
+      "depth": 3,
+      "parentChain": [
+        "Execution on PERIODIC BASIS (approx. every 0 min.)",
+        "🚀 Only perform if daily rules have been already performed: $participantParticipationInDays calculated value equals $dailyTasksPerformedToday",
+        "Check whether $mySpiro_userRequestedNewTimeForSpirometry=1: $mySpiro_userRequestedNewTimeForSpirometry calculated value equals 1 → $dummyVar"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": "$mySpiro_newTimeForSpirometry",
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "Prompt patient to conduct daily spirometry",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "$phaseGoPerformed calculated value equals 0",
+      "section": "USER INTENTION",
+      "depth": 2,
+      "parentChain": [
+        "Execution on USER INTENTION",
+        "$participantIntention text value equals go"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": null,
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "START",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    },
+    {
+      "rule": "✏️ Personal data edited: $participantIntention text value equals personal-data-edited",
+      "section": "USER INTENTION",
+      "depth": 1,
+      "parentChain": [
+        "Execution on USER INTENTION"
+      ],
+      "action": "Start micro dialog",
+      "actionCheckboxes": {
+        "Send message": "false",
+        "Start micro dialog": "true",
+        "Mark case as solved (unexpected message) and stop the current rule execution run": "false",
+        "Stop current rule execution run and finish coaching for this participant": "false"
+      },
+      "sendHour": null,
+      "notAnsweredTimeout": "0 days, 4 hours, 0 minutes",
+      "microDialogToStart": "⚙️ Controls > 📄 dataEdited",
+      "messageGroup": null,
+      "storeResultVar": null,
+      "doesAnswerRules": [],
+      "doesNotAnswerRules": [],
+      "ruleExpr": null
+    }
+  ]
+}

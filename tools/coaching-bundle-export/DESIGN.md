@@ -70,7 +70,42 @@ with < 10 distinct variants.
 }
 ```
 
-## Not yet captured (Stage 3 — needs the detail modals)
+## Stage 3 — rule-level timing & routing — CAPTURED 2026-09-10
+
+**Status: done for ALEX v01.** `probe_rules_tree.py` walked the live Rules
+`.v-tree` (122 nodes) and opened the "Edit rule:" modal for every one of the
+25 message/dialog-sending rules (`message-icon-small.png` rows). Outputs:
+`rules_stage3_ALEX_v01.json` (this dir) and `../../docs/rules_stage3_ALEX_v01.md`.
+Session log: `../../autochanges/2026-09-10-rules-tree-stage3-sweep.md`.
+
+Open questions from 2026-09-09, now answered:
+
+- **Both rule actions exist and are used.** 24/25 senders `Start micro
+  dialog`; one uses `Send message` + a **message group** (`Test (expects NO
+  answer)`). Same timing field set on both.
+- **`Hour to send message` is a `$variable`**, never a literal clock —
+  user-preference time vars or reschedule new-time vars; empty ⇒ immediate.
+  The scheduling decision itself is in the rule's *condition chain*, not
+  this field.
+- **`Minutes … not answered` default = 4h** on every dialog sender (19 min
+  on the one message sender).
+- **Field set is identical across DAILY BASIS / PERIODIC BASIS / USER
+  INTENTION.** UNEXPECTED MESSAGE is empty.
+- **The 4 TRUE-result action checkboxes** are: `Send message`,
+  `Start micro dialog`, `Mark case as solved (unexpected message) and stop
+  the current rule execution run`, `Stop current rule execution run and
+  finish coaching for this participant`. **No sender sets the two
+  stop/solve boxes** — the run-stopping behaviour is on the condition rules
+  above them.
+- **DOES / DOES-NOT-answer subtrees**: empty on 24/25.
+- **Row icons**: `rule-icon-small.png` = condition/calc rule;
+  `message-icon-small.png` = sender.
+
+Still open: quick-reply → child routing for decision points *inside* a micro
+dialog (distinct from the rule-level DOES/DOES-NOT subtree); media/survey
+refs beyond the file name.
+
+### Original notes (kept for context)
 
 **Correction from live exploration (2026-09-09, via `probe_node_editor.py`
 against the live "ALEX v01 zum Ausprobieren" sandbox coaching):** PMCP has

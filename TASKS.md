@@ -45,9 +45,11 @@ workstreams" section — this file is the checklist, that's the writeup.
             hand. Write a findings doc naming specific rules to reorder or
             re-delay. Rules are drag-to-reorder in the same tab, so a finding
             here may be directly actionable, no code required.
-      - [ ] **2b, rigorous pass.** Needs Coaching-export Stage 3 (below)
-            finished, so every reminder rule's order/timeout is pulled in
-            bulk instead of read by hand.
+      - [ ] **2b, rigorous pass.** Stage 3 bulk data now exists
+            (`tools/coaching-bundle-export/rules_stage3_ALEX_v01.json` —
+            every sending rule's target dialog, send-hour var and
+            not-answered timeout). Still to do: cross-check tree *order*
+            against timeouts to name the actual collisions.
 
 ## Coaching export
 
@@ -61,16 +63,24 @@ workstreams" section — this file is the checklist, that's the writeup.
       not-answered timeout, DOES/DOES-NOT-answer subtrees), not on the
       message itself. Full writeup: `tools/coaching-bundle-export/DESIGN.md`
       → "Not yet captured (Stage 3)".
-- [ ] Get from Claude all the information an export has, and how it should
+- [x] Get from Claude all the information an export has, and how it should
       include everything needed to generate a chat interaction.
-      Partially done — the corrected schema is written up in DESIGN.md
-      (Stage 3: per-rule send-delay/timeout/routing) and Stage 4 (how it
-      plugs into `CoachingModel`/`Simulator`), but this is a design doc,
-      not yet validated against a full bulk scrape.
-- [ ] Run the export once.
-      Not done. `probe_node_editor.py` opened individual sample modals
-      live (one message dialog, one rule) — it has not yet been extended
-      to walk the whole Rules tree and do a full Stage-3 bulk scrape.
+      Stage 3 captured live 2026-09-10: `tools/coaching-bundle-export/
+      probe_rules_tree.py` walks the Rules `.v-tree` and reads every
+      sending rule's "Edit rule:" modal. All the 2026-09-09 open schema
+      questions are answered (both action paths; send-hour is a `$variable`;
+      4h default timeout; identical field set across sections; the 4
+      TRUE-result action checkboxes; DOES/DOES-NOT routing). Data:
+      `tools/coaching-bundle-export/rules_stage3_ALEX_v01.json`, writeup
+      `docs/rules_stage3_ALEX_v01.md`, DESIGN.md "Stage 3 … CAPTURED".
+      Remaining: fold this into `coaching.bundle` (a Stage-3 pass of the
+      export script) and handle decision-point-internal quick-reply routing.
+- [x] Run the export once.
+      Rules-tree Stage-3 sweep run against ALEX v01 (122 tree nodes, all
+      25 message-sending rules). `probe_node_editor.py` groundwork extended
+      into the full `probe_rules_tree.py` tree-walker + modal reader.
+      Still to do: a non-probe `export_rules.py` that emits straight into
+      the bundle rather than the `spike/` dumps.
 
 ## Simulate chat (depends on structure of export)
 

@@ -148,21 +148,23 @@ RULE_MODAL_JS = r"""
              top: Math.round(r.top), left: Math.round(r.left) };
   });
 
-  // for a known label, the value = the nearest control on the SAME visual row
-  // (closest |top| delta), falling back to next control in document order.
-  const CONTROL = new Set(['select', 'slider', 'textfield', 'caption']);
+  // for a known label, the value = a control on the SAME visual row, to its
+  // right. When several sit on the row (e.g. "Hour to send message" has BOTH
+  // a $variable <select> and an unset "00:00" clock caption), prefer by kind:
+  // select > textfield > slider > caption. Fall back to the next control in
+  // document order.
+  const PREF = ['select', 'textfield', 'slider', 'caption'];
   const valueFor = (labelText) => {
     const li = items.findIndex(it => it.kind === 'label' && it.text.startsWith(labelText));
     if (li < 0) return null;
     const lab = items[li];
-    let best = null, bestDy = 1e9;
-    items.forEach((it, j) => {
-      if (j === li || !CONTROL.has(it.kind)) return;
-      const dy = Math.abs(it.top - lab.top);
-      if (it.left >= lab.left - 5 && dy < bestDy && dy < 22) { best = it; bestDy = dy; }
-    });
+    const row = items.filter((it, j) => j !== li && PREF.includes(it.kind)
+      && it.left >= lab.left - 5 && Math.abs(it.top - lab.top) <= 20);
+    row.sort((a, b) => PREF.indexOf(a.kind) - PREF.indexOf(b.kind)
+                    || Math.abs(a.top - lab.top) - Math.abs(b.top - lab.top));
+    let best = row[0];
     if (!best) for (let j = li + 1; j < items.length; j++)
-      if (CONTROL.has(items[j].kind)) { best = items[j]; break; }
+      if (PREF.includes(items[j].kind)) { best = items[j]; break; }
     return best ? { via: best.kind, value: best.value, text: best.text } : null;
   };
 
