@@ -40,7 +40,20 @@ SYSTEM = (
     "pool, so every variant in a pool must be interchangeable in meaning. "
     "Romanian text MUST use the informal/colloquial second person ('tu': e.g. "
     "esti, ai, te simti, al tau / a ta) - NEVER the formal 'dumneavoastra' / "
-    "'dumneata' or formal verb forms."
+    "'dumneata' or formal verb forms. For any adjective or participle that "
+    "agrees with the reader's gender, follow the existing ro-RO house style: "
+    "use the unmarked generic masculine (e.g. 'esti pregatit', 'te simti "
+    "odihnit') or, better, rephrase to avoid a gendered form (e.g. 'esti gata', "
+    "an invariable adjective, verb-only phrasing). NEVER write spelled-out "
+    "slash pairs like 'singur/singura' or 'pregatit/pregatita'. The ro-RO must "
+    "read like something a Romanian teenager would actually say or text, NOT a "
+    "word-for-word rendering of the English. When the English uses an idiom or "
+    "figure of speech (e.g. 'hope your day is treating you well', \"you're on a "
+    "roll\", 'I'm a message away', 'stay awesome', 'sending you support', 'your "
+    "lungs will thank you', 'take a moment for yourself'), replace it with "
+    "natural Romanian phrasing - never translate it literally. Do NOT use "
+    "English loanwords (write 'memento' or 'reamintire', not 'reminder'). Use "
+    "Romanian comma-below diacritics (s-comma, t-comma), never cedilla forms."
 )
 
 PROMPT = """Micro dialog: "{md}"   (randomisation group `{group}`)
@@ -59,6 +72,12 @@ Write {need} ADDITIONAL variant(s). Every new variant must:
   translation and MUST address the user with the informal/colloquial "tu"
   (e.g. "ai dormit", "cum te simti", "programul tau") - never "dumneavoastra"
   or any formal form, matching the existing ro-RO variants.
+- for ro-RO words that agree with the reader's gender, match the existing
+  variants: unmarked generic masculine ("esti pregatit") or a gender-neutral
+  rephrase ("esti gata"); never a spelled-out slash pair ("singur/singura")
+- write ro-RO that sounds native, not translated: swap English idioms for real
+  Romanian phrasing, use no English loanwords ("reminder"), and never render a
+  figure of speech word-for-word
 
 Return ONLY a JSON array of exactly {need} objects: {{"en-GB": "...", "ro-RO": "..."}}
 """

@@ -15,7 +15,7 @@ pools that happen to share a name.
 | --- | --- |
 | `rgroups_table.csv` | one row per message that carries an `r_*` group (full text, both languages, context) |
 | `rgroups_summary.csv` | one row per `r_*` group (totals, pool sizes, whether it still needs top-up) |
-| `build_table.py` | (re)generates the two CSVs from a `coaching.bundle.v2.json` |
+| `build_table.py` | (re)generates the two CSVs from the coaching export JSON |
 | `expand_rgroups.py` | asks Claude or ChatGPT for extra variants for every thin pool → `rgroups_table.expanded.csv` |
 | `expand_prompts.txt` | the exact prompt sent per pool (written on every run, incl. `--dry-run`) |
 
@@ -31,7 +31,7 @@ pools that happen to share a name.
 | `microDialog` | leaf name of the micro dialog |
 | `folderPath` | its folder path in the editor menu |
 | `order` | node position within the micro dialog |
-| `nodeUid` | stable id from `coaching.bundle.v2.json` (`md-###`#`###`) |
+| `nodeUid` | stable id from the coaching export (`md-###`#`###`) |
 | `type` | `message` / `decision` |
 | `comment` | the node's editor comment |
 | `resultVariable` | `$var` the node writes, if any |
@@ -42,17 +42,86 @@ pools that happen to share a name.
 | `triggerExprs` | conditions under which this specific variant fires (` ; ` joined) |
 | `en-GB`, `ro-RO` | the full message text |
 
+## Full pipeline (one command)
+
+`rebuild_all.sh` runs the whole chain — coaching JSON → tables → LLM top-up →
+review report — from a single entry point. **Preferred:** hand it a ready-made
+JSON and it never touches the portal:
+
+```bash
+BUNDLE=data/rgroups/coaching.json tools/rgroups-table/rebuild_all.sh
+```
+
+Any JSON meeting the [Bundle JSON contract](#bundle-json-contract) works — in
+particular the output of the project-wide coaching export
+(`../coaching-bundle-export/export_coaching.py`). Without `BUNDLE`, step 1 runs
+that export itself, which needs the browser from `tools/start_pmcp.sh` and the
+coaching's "Report" HTML export on disk:
+
+```bash
+tools/rgroups-table/rebuild_all.sh /path/to/Report_export.html
+```
+
+Steps: obtain JSON → `build_table.py` → `expand_rgroups.py` →
+`render_review_report.py`.
+
+Knobs (env vars): `BUNDLE` (ready-made JSON; skips step 1), `PMCP_CDP`
+(default `http://127.0.0.1:9222`), `TARGET` (healthy-pool size, default 10),
+`EXPAND_ARGS` (e.g. `--limit 10`, `--dry-run`, `--provider chatgpt`),
+`SKIP_EXPORT=1` (reuse the existing `data/rgroups/coaching.json`),
+`SKIP_EXPAND=1` (stop after the tables), `PYTHON` (interpreter; default
+`.venv/bin/python`). `ANTHROPIC_API_KEY` is read from a git-ignored `.env` at
+the repo root.
+
+The individual steps below can still be run on their own.
+
+## Bundle JSON contract
+
+`build_table.py` is the only step that reads the JSON, and it reads a small,
+stable subset of the coaching export (`../coaching-bundle-export/export_coaching.py`).
+Any source that provides these fields can drive the pipeline via `BUNDLE=`:
+
+```jsonc
+{
+  "microDialogs": [
+    { "uid": "md-000",          // referenced by nodes[].microDialogUid
+      "name": "Morning greetings",   // micro-dialog leaf name -> the "pool" label
+      "folderPath": ["Greetings"] }  // list<str>, joined with " / "
+  ],
+  "nodes": [
+    {
+      "randomisationGroup": "r_MorningGreetings",  // only nodes matching /^r_/ are kept
+      "microDialogUid": "md-000",
+      "order": 3,
+      "uid": "md-000#003",
+      "type": "message",
+      "comment": "",
+      "resultVariable": "",
+      "answerType": "expects NO answer",
+      "channel": "",
+      "flags": { "containsRules": 0, "commandMessage": false },
+      "triggerExprs": [],                 // list<str>, " ; " joined
+      "textByLang": { "en-GB": "Hi!", "ro-RO": "Salut!" }  // "[not set]" = untranslated
+    }
+  ]
+}
+```
+
+Nothing else in the export (`branches`, `answerOptionsByLang`, `rawType`,
+media, `rules`, `validation`) is used here. If the export ever renames these
+fields, a ~20-line adapter to this shape is enough — no scraper of our own.
+
 ## Rebuild the tables
 
 ```bash
 .venv/bin/python tools/rgroups-table/build_table.py
 # or point at a specific bundle:
-.venv/bin/python tools/rgroups-table/build_table.py path/to/coaching.bundle.v2.json
+.venv/bin/python tools/rgroups-table/build_table.py path/to/coaching.json
 # change the "healthy pool" size (default 10):
 TARGET=12 .venv/bin/python tools/rgroups-table/build_table.py
 ```
 
-Default input is `../../data/rgroups/coaching.bundle.v2.json` (produced by
+Default input is `../../data/rgroups/coaching.json` (produced by
 `../coaching-bundle-export/`).
 
 Reference run: **96 `r_` groups, 458 messages, 127 pools; 83 groups have at
@@ -91,14 +160,99 @@ Re-run to retry the failures.
 
 No third-party packages — the HTTP calls are plain `urllib`.
 
+## Write approved variants into the portal
+
+`apply_approved.py` reads the ticked (`- [x]`) proposals in `rgroups_review.md`,
+joins them to `rgroups_table.expanded.csv` for each pool's micro dialog / folder
+/ `r_` group, and adds each one to the **live PMCP editor** over CDP.
+
+Recipe per variant (this is how you add to an `r_` group by hand too — a
+randomisation group only fires when its messages are **consecutive**):
+
+1. select an existing message already in that `r_` group
+2. **Duplicate** (the node button, *not* "Duplicate Dialog") → a copy is
+   appended at the **bottom of the dialog**, keeping the group
+3. select the copy → **Edit** → the **Edit** by "text (with placeholders):" →
+   `English (GB)` tab, replace the textarea → `Romanian (RO)` tab, replace it →
+   **OK** → **Close**
+4. **Move Up** the copy until the row above it is in the same group
+
+```bash
+# needs a Chromium logged in to PMCP on the coaching's Micro Dialogs view (CDP)
+PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python tools/rgroups-table/apply_approved.py           # DRY RUN: plan only
+PMCP_CDP=... .venv/bin/python tools/rgroups-table/apply_approved.py --apply --limit 1 --pool 'r_X @ Micro Dialog'
+PMCP_CDP=... .venv/bin/python tools/rgroups-table/apply_approved.py --dedup --apply --pool 'r_X @ Micro Dialog'  # remove exact-dup rows from a failed run
+```
+
+Default is a **dry run** (navigate + print the plan, no writes). `--apply`
+writes; `--limit N` caps it; `--pool` restricts to one pool; `--debug` dumps
+per-step state; `--dedup` deletes rows whose text exactly copies an earlier
+sibling in the same group. Idempotent: a variant already in the pool is
+skipped; one present but not adjacent is only repositioned.
+
+## PMCP editor automation — pitfalls
+
+Hard-won lessons from `apply_approved.py` / the `probe_*` spikes. The PMCP
+editor is Vaadin 7; these bite anything that drives it:
+
+- **A confirm popup blocks everything behind it.** Delete (and some other
+  actions) open an "Are you sure?" `.v-window` with `Cancel` / `OK`. You **must
+  wait for it** (`page.wait_for_selector('.v-window')`) and click its
+  affirmative button before doing anything else — if you read/scroll the table
+  underneath while it is open, the click lands on the curtain, the popup stays,
+  and the action never happens (it looks like "delete did nothing").
+  `apply_approved.py`'s `confirm()` waits, then clicks any button whose caption
+  is not a known "cancel" word (locale-safe).
+- **Never let a scroll-collect loop run unbounded.** The `.v-table` body is
+  virtualized, so reading all rows means scrolling top→bottom and accumulating.
+  Always cap the `while (scrollTop + clientHeight < scrollHeight) { … }` loop
+  with a guard counter (`guard++ < 2000`) — a layout hiccup where `scrollHeight`
+  keeps growing, or a mis-read `scrollTop`, otherwise spins forever.
+- **The table is virtualized — work in *logical* row indices, never DOM order.**
+  Only on-screen `<tr>`s exist. Derive a row's index from its pixel position:
+  `round((tr.top − scroller.top + scroller.scrollTop) / rowHeight)`. The
+  `v-table-row-<n>` class is a widget id that keeps incrementing, **not** a row
+  number — keying rows by it gives hundreds of phantom rows. Get the true row
+  count from `round(scrollHeight / rowHeight)`.
+- **Grid cells truncate long text** (`en-GB: Hey $participa…`). Match rows on a
+  short prefix (~18 chars), not the full string, or you will never find your
+  own row after adding it.
+- **Clicking an already-selected row toggles the selection OFF.** After
+  Duplicate, PMCP already selects the new row — click it again and the node
+  toolbar greys out. Check the current selection before clicking.
+- **Toolbar buttons enable on a server round-trip after a row is selected.**
+  `Edit` / `Duplicate` / `Move Up` render disabled first; poll until enabled.
+- **The node toolbar sits *below* the table** (`New Message`, `New Decision
+  Point`, `New Event`, `Edit`, `Duplicate`, `Move Up/Down`, `Delete`), separate
+  from the per-row `Edit` buttons in the far-right action column and from the
+  dialog-level row (`New Dialog`, `Duplicate Dialog`, …). Distinguish by x
+  position and exact caption.
+- **The message editor is a property sheet.** "Edit micro dialog message:" shows
+  each field (Comment, text, media, message key, **Randomisation group**, answer
+  options, …) read-only with its own `Edit` button opening a nested sub-editor.
+  There is **no Save** — only `Close`; the sub-editors commit on their own `OK`.
+  The text sub-editor ("Edit text (with placeholders):") has `English (GB)` /
+  `Romanian (RO)` toggle buttons over one `textarea`, plus `Cancel` / `OK`.
+- **Session expiry is silent** (~1–2 h) — the old page still renders but clicks
+  are rejected server-side. Re-login and re-navigate.
+
 ## Has it been tested?
 
 - `build_table.py` — yes, produced the committed `rgroups_table.csv` /
   `rgroups_summary.csv` from the real bundle.
-- `expand_rgroups.py` — the `--dry-run` path is tested end-to-end (110 pools,
-  1340-row skeleton CSV, prompts written). The live API calls are standard
-  `urllib` POSTs to the documented Anthropic / OpenAI endpoints and were **not**
-  run here (no key). Do a `--dry-run` then `--limit 2` first.
+- `expand_rgroups.py` — `--dry-run` tested end-to-end (110 pools, 1340-row
+  skeleton CSV, prompts written); the live Anthropic path verified with
+  `--limit 3` and `--limit 10` (70 real variants, ro-RO informal `tu` + gender
+  house-style checks passed). A full unlimited run has not been done yet.
+- `rebuild_all.sh` — the three post-scrape steps it chains are individually
+  tested (above); the wrapper's control flow is `bash -n` clean but has not been
+  run start-to-finish against a live CDP session.
+- `apply_approved.py` — `--apply` verified on the **sandbox** ("ALEX v01 zum
+  Ausprobieren"): added a variant to a small pool (*Timeless Greetings*) and to
+  a 51-row multi-group dialog (*Prompt patient to conduct daily spirometry*,
+  Move Up climbed the new row 44 places to sit adjacent to its pool);
+  idempotent re-run skips; `--dedup` removes strays. Not yet run at scale or
+  against the production coaching.
 
 ## Known hiccups
 
