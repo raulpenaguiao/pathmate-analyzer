@@ -8,18 +8,19 @@ pulls in the full per-language message text and the decision-point branch logic.
 This is browser automation + HTML parsing. **No LLM is involved** — you do not
 need Claude, an API key, or an internet AI service to run it.
 
-> **Just want the JSON?** Follow **`WORKFLOW.md`**: `./open_chromium.sh`, log
-> in and open the coaching, `./export_coaching.sh <name>.json`. The rest of
-> this file is the reference for the individual scripts.
+> **Just want the JSON?** Follow **`WORKFLOW.md`**: `tools/start_pmcp.sh`
+> (launches Chromium + logs in), open the coaching + deactivate Monitoring,
+> `./export_coaching.sh <name>.json`. The rest of this file is the reference
+> for the individual scripts.
 
 ## Files
 
 | File | Role |
 | --- | --- |
 | `WORKFLOW.md` | the end-to-end recipe (start here) |
-| `open_chromium.sh` | launch a Chromium with a CDP debug port |
-| `pmcp_login.py` | log the browser in from `.env` (`PMCP_USERNAME` / `PMCP_PASSWORD` / `PMCP_TOTP_SECRET`); idempotent |
-| `export_coaching.sh` | auto-login, pause once for Monitoring, run both sweeps, write one named JSON |
+| `../start_pmcp.sh` | launch a CDP Chromium and log it into PMCP from `.env` (shared across tools) |
+| `../pmcp_login.py` | the login step of `start_pmcp.sh`; idempotent, run standalone too |
+| `export_coaching.sh` | check login, pause once for Monitoring, run both sweeps, write one named JSON |
 | `export_bundle.py` | Micro Dialogs sweep: the `.v-menubar` → `coaching.bundle.json` (node content + randomisation groups) |
 | `enrich_bundle.py` | joins the Report-HTML export for full text + branches → `coaching.bundle.v2.json` (also runs standalone) |
 | `export_rules.py` | **Rules-tab sweep**: the `.v-tree` + every sending rule's "Edit rule:" modal → `coaching.rules.json`; `--merge` also writes `coaching.bundle.v3.json` (v2 + a `rules` key). Opens ~25 read-only modals whose dismiss commits a no-op re-save — sandbox coachings only; `--no-modals` for the tree skeleton with zero writes. |

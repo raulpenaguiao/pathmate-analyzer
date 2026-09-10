@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Step 3 of the coaching-export workflow: drive the already-logged-in Chromium
+# Drive the running PMCP Chromium (started + logged in by tools/start_pmcp.sh)
 # and write one JSON describing the coaching. See WORKFLOW.md.
 #
 # Usage:
@@ -12,18 +12,15 @@
 #                     groups). No Rules sweep, no live writes.
 #   --rules-only      only the Rules sweep (rule tree + per-rule timing).
 #   --no-rules        alias for --dialogs-only.
-#   --env FILE        .env with PMCP_USERNAME / PMCP_PASSWORD / PMCP_TOTP_SECRET
-#                     for auto-login (default: <repo>/.env).
-#   --no-login        skip auto-login (you logged in by hand).
 #   --cdp URL         CDP endpoint (default http://127.0.0.1:9222).
 #   --workdir DIR     scratch dir for intermediate bundles
 #                     (default: <repo>/data/rgroups).
 #   --yes             don't pause at the one manual step (Monitoring).
 #
-# Manual steps: (1) auto-login uses .env; if it can't, log in by hand.
-# (2) pick the coaching, click Edit, and DEACTIVATE MONITORING - the script
-# pauses for this and never touches that toggle. Switching between the Micro
-# Dialogs and Rules views is automatic.
+# Prereq: run tools/start_pmcp.sh first (launches Chromium + logs in).
+# Manual step: pick the coaching, click Edit, and DEACTIVATE MONITORING - the
+# script pauses for this and never touches that toggle. Switching between the
+# Micro Dialogs and Rules views is automatic.
 #
 # The Rules sweep opens every sending rule's "Edit rule:" modal; closing each
 # one fires a no-op "The rule has been updated." toast. Use it on sandbox
@@ -37,11 +34,9 @@ PY="$REPO/.venv/bin/python"
 
 CDP="http://127.0.0.1:9222"
 WORKDIR="$REPO/data/rgroups"
-ENV_FILE="$REPO/.env"
 REPORT=""
 DO_DIALOGS=1
 DO_RULES=1
-DO_LOGIN=1
 ASSUME_YES=0
 OUT=""
 
@@ -50,12 +45,10 @@ while [ $# -gt 0 ]; do
     --report)        REPORT="$2"; shift 2 ;;
     --dialogs-only|--no-rules) DO_RULES=0; shift ;;
     --rules-only)     DO_DIALOGS=0; shift ;;
-    --env)           ENV_FILE="$2"; shift 2 ;;
-    --no-login)      DO_LOGIN=0; shift ;;
     --cdp)           CDP="$2"; shift 2 ;;
     --workdir)       WORKDIR="$2"; shift 2 ;;
     --yes|-y)        ASSUME_YES=1; shift ;;
-    -h|--help)       sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)       sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*)              echo "unknown option: $1" >&2; exit 2 ;;
     *)               OUT="$1"; shift ;;
   esac
@@ -66,7 +59,7 @@ case "$OUT" in *.json) ;; *) OUT="$OUT.json" ;; esac
 mkdir -p "$WORKDIR"
 
 if ! curl -sf "${CDP}/json/version" >/dev/null 2>&1; then
-  echo "No CDP browser at ${CDP}. Run ./open_chromium.sh first." >&2
+  echo "No CDP browser at ${CDP}. Run  tools/start_pmcp.sh  first." >&2
   exit 1
 fi
 if [ -n "$REPORT" ] && [ ! -f "$REPORT" ]; then
@@ -75,6 +68,26 @@ fi
 
 export PMCP_CDP="$CDP"
 export PMCP_OUT="$WORKDIR"
+
+# confirm we're actually logged in (start_pmcp.sh does this; guard anyway)
+if ! PMCP_CDP="$CDP" "$PY" - <<'PY'
+import asyncio, sys
+from playwright.async_api import async_playwright
+async def m():
+    async with async_playwright() as pw:
+        b = await pw.chromium.connect_over_cdp("http://127.0.0.1:9222")
+        pg = next((p for p in b.contexts[0].pages if "pathmate" in (p.url or "")),
+                  b.contexts[0].pages[0])
+        ok = await pg.evaluate("(()=>{if(document.querySelector('input[type=password]'))return false;"
+                               "const t=document.body?document.body.innerText:'';"
+                               "return /Coachings/.test(t)&&/Logout/.test(t);})()")
+        sys.exit(0 if ok else 1)
+asyncio.run(m())
+PY
+then
+  echo "Not logged in to PMCP. Run  tools/start_pmcp.sh  first." >&2
+  exit 1
+fi
 
 pause() {
   if [ "$ASSUME_YES" -eq 1 ]; then echo ">>> (--yes) skipping manual step: $1"; return 0; fi
@@ -90,19 +103,7 @@ pause() {
 echo "workdir : $WORKDIR"
 echo "output  : $OUT"
 echo "cdp     : $CDP"
-echo "env     : $ENV_FILE"
 echo
-
-# --- auto-login from .env (idempotent; no-op if already logged in) ----------
-if [ "$DO_LOGIN" -eq 1 ]; then
-  echo "--- login (pmcp_login.py) ---"
-  if PMCP_CDP="$CDP" "$PY" "$HERE/pmcp_login.py" --env "$ENV_FILE" ; then
-    echo "    login OK."
-  else
-    echo "    auto-login did not complete — finish it by hand in the browser." >&2
-    pause "Finish logging in to PMCP by hand (username / password / 2FA)."
-  fi
-fi
 
 # --- the one manual step --------------------------------------------------
 pause "Open your coaching -> click Edit -> in 'Basic Settings and Modules' click 'Monitoring' to DEACTIVATE it. (The script never touches that toggle; switching between the Micro Dialogs and Rules views after this is automatic.)"

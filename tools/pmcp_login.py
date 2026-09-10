@@ -31,7 +31,17 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 CDP = os.environ.get("PMCP_CDP", "http://127.0.0.1:9222")
-REPO = Path(__file__).resolve().parents[2]
+
+
+def _repo_root() -> Path:
+    here = Path(__file__).resolve()
+    for anc in (here, *here.parents):
+        if (anc / ".git").exists() or (anc / ".env.example").exists():
+            return anc
+    return here.parent.parent
+
+
+REPO = _repo_root()
 
 
 def log(msg: str) -> None:

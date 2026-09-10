@@ -33,38 +33,39 @@ without it, the script fills user + password and then waits ~2 min for you to
 type the code in the browser. Leave `PMCP_USERNAME`/`PMCP_PASSWORD` blank to
 log in fully by hand.
 
-## Step 1 — open the browser
+## Step 1 — start the browser and log in
 
 ```bash
-cd tools/coaching-bundle-export
-./open_chromium.sh
+tools/start_pmcp.sh
 ```
 
 Launches a Chromium with a debug port on `127.0.0.1:9222` and a throwaway
-profile, pointed at the PMCP admin login. Reuses one already on that port.
-The window may appear before the debug port is ready — a cold start can take
-**up to ~1 minute**; the script waits and tells you when it's up.
-(`./open_chromium.sh 9333` for a different port — pass
-`--cdp http://127.0.0.1:9333` to `export_coaching.sh` too.)
+profile, then logs into the PMCP admin using `.env`. Reuses a browser
+already on that port. A cold start can take **up to ~1 minute** to bring the
+debug port up — the script waits and prints each stage (launch, wait for
+port, login: attach → form ready → typing → clicking → admin app). It exits
+non-zero if login didn't complete.
+
+`tools/start_pmcp.sh --no-login` just launches the browser; `--port N` /
+`--url URL` / `--env FILE` to override.
 
 ## Step 2 — run the export
 
 ```bash
+cd tools/coaching-bundle-export
 ./export_coaching.sh --report /path/to/Coaching_<name>.html  my_coaching.json
 ```
 
 `my_coaching.json` is whatever name you want. `--report` is the coaching's
 **Report-HTML export** (Coaching → Report → save the page) — optional but
 strongly recommended: it's the only source of full message text and
-decision-branch conditions.
+decision-branch conditions. It first checks you're logged in (from step 1)
+and bails with a pointer to `start_pmcp.sh` if not.
 
 What it does:
 
-1. **Auto-login** from `.env` (`pmcp_login.py`) — fills username + password
-   (and the 2FA code if `PMCP_TOTP_SECRET` is set; otherwise it fills
-   user/password and waits for you to type the code). No-op if already
-   logged in. If it can't (no keys, changed login page), it says so and
-   pauses for a hand login.
+1. **Checks you're logged in** (step 1 did this). Bails to `start_pmcp.sh`
+   if not.
 2. **Pauses once** — *"open your coaching → click Edit → DEACTIVATE
    MONITORING"*. This is the only manual browser action. Monitoring must be
    off or the Micro Dialogs menu's popups silently fail. Turn it back on when
@@ -85,8 +86,6 @@ What it does:
 | `--report FILE` | enrich with full text + decision branches from the Report HTML |
 | `--dialogs-only` | Micro Dialogs sweep only — **no live writes** |
 | `--rules-only` | Rules sweep only |
-| `--env FILE` | `.env` to read credentials from (default `../../.env`) |
-| `--no-login` | skip auto-login (you logged in by hand) |
 | `--cdp URL` | CDP endpoint (default `http://127.0.0.1:9222`) |
 | `--workdir DIR` | where intermediate `coaching.bundle*.json` land (default `../../data/rgroups`) |
 | `--yes` | don't pause at the Monitoring step (you already did it) |
@@ -119,7 +118,7 @@ Full field reference: `DESIGN.md`. Reference output for ALEX v01:
 ## When something goes wrong
 
 - **`connect ECONNREFUSED 127.0.0.1:9222`** — the browser was closed. Re-run
-  `./open_chromium.sh` and the export.
+  `tools/start_pmcp.sh` and the export.
 - **"auto-login did not complete"** — keys missing/wrong in `.env`, or the
   PMCP login page changed shape. Log in by hand in the browser and press
   Enter at the pause, or re-run with `--no-login`.
