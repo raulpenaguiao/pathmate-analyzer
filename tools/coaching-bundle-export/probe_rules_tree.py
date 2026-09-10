@@ -191,6 +191,13 @@ RULE_MODAL_JS = r"""
   const out = { fields: {} };
   for (const [k, lbl] of Object.entries(L)) out.fields[k] = valueFor(lbl);
 
+  // the two timing widgets render their live value as a .v-caption, not on
+  // the labelled control: HH:MM for the send-hour clock, and
+  // "N days, N hours, N minutes" for the not-answered timeout.
+  const caps = items.filter(it => it.kind === 'caption').map(it => it.text);
+  const sendHourClock = caps.find(c => /^\d{1,2}:\d{2}$/.test(c)) || null;
+  const notAnsweredText = caps.find(c => /\d+\s*days?,\s*\d+\s*hours?,\s*\d+\s*minutes?/i.test(c)) || null;
+
   return {
     caption: norm((w.querySelector('.v-window-header') || {}).textContent),
     windowClasses: w.className,
@@ -199,7 +206,8 @@ RULE_MODAL_JS = r"""
     activeTab: norm((w.querySelector('.v-tabsheet-tabitem-selected') || {}).textContent),
     checkboxes,
     fields: out.fields,
-    allCaptions: items.filter(it => it.kind === 'caption').map(it => it.text),
+    sendHourClock, notAnsweredText,
+    allCaptions: caps,
     innerTrees: dumpInnerTrees(),
     itemStream: items,
     html: w.outerHTML,
@@ -257,12 +265,18 @@ async def _click_expander(page, ti: int, i: int) -> bool:
 
 async def _liveness_ok(page) -> bool:
     """Expand the first visible not-yet-expanded node. Catches an expired PMCP
-    session (tree DOM stays put, expand RPCs are silently dropped)."""
+    session (tree DOM stays put, expand RPCs are silently dropped). If the
+    tree is already fully expanded (e.g. left that way by a previous run),
+    there's nothing to test — treat a rendered tree as live."""
     trees = await page.evaluate(TREE_DUMP_JS)
-    for n in trees[0]["nodes"]:
-        if n["visible"] and n["ariaExpanded"] != "true":
-            if await _click_expander(page, 0, n["i"]):
-                return True
+    collapsed = [n for n in trees[0]["nodes"]
+                 if n["visible"] and n["ariaExpanded"] != "true"]
+    if not collapsed:
+        print("  (tree already fully expanded)")
+        return True
+    for n in collapsed:
+        if await _click_expander(page, 0, n["i"]):
+            return True
     return False
 
 
@@ -363,15 +377,37 @@ async def sample_rule_modals(page, trees: list[dict]) -> list[dict]:
         chain = _parent_chain(nodes, j)
         print(f"[{k + 1}/{len(picks)}] d{n['depth']} {n['icon']}  {cap[:64]!r}")
         try:
-            await _select_node(page, ti, j)
-            await page.wait_for_timeout(400)
-            btn = await rule_edit_button(page)
-            if not btn:
-                print("    no Edit button — skipping")
+            # make sure no stale modal is still up before we start
+            await close_windows(page)
+            await page.wait_for_selector(".v-window", state="detached", timeout=3000)
+        except Exception:  # noqa: BLE001
+            pass
+        d1 = {}
+        try:
+            for attempt in range(2):
+                await _select_node(page, ti, j)
+                await page.wait_for_timeout(450)
+                btn = await rule_edit_button(page)
+                if not btn:
+                    print("    no Edit button — retrying select")
+                    await page.wait_for_timeout(500)
+                    continue
+                await btn.click()
+                try:
+                    await page.wait_for_selector(".v-window .v-window-header",
+                                                 timeout=6000)
+                except Exception:  # noqa: BLE001
+                    pass
+                await page.wait_for_timeout(900)
+                d1 = await page.evaluate(RULE_MODAL_JS)
+                if d1.get("caption"):
+                    break
+                print(f"    modal didn't open (attempt {attempt + 1}) — closing, retrying")
+                await close_windows(page)
+                await page.wait_for_timeout(600)
+            if not d1.get("caption"):
+                print("    FAILED to open modal after retries")
                 continue
-            await btn.click()
-            await page.wait_for_timeout(1300)
-            d1 = await page.evaluate(RULE_MODAL_JS)
             # flip to the DOES NOT answer tab and re-dump inner trees
             does_not = None
             tab = page.locator(".v-window .v-tabsheet-tabitemcell",
@@ -396,19 +432,27 @@ async def sample_rule_modals(page, trees: list[dict]) -> list[dict]:
                                       timeout=5000)
             except Exception:  # noqa: BLE001
                 pass
-            cbs = {c["label"][:34]: c["checked"] for c in d1.get("checkboxes", [])}
-            print(f"    win={d1.get('windowClasses', '')[:40]!r} tabs={d1.get('tabs')}")
-            print(f"    checkboxes: {cbs}")
-            for fk, fv in (d1.get("fields") or {}).items():
-                if fv and fv.get("value") not in ("", None):
-                    print(f"      {fk:20} = {fv.get('value')!r:40}  (via {fv.get('via')})")
-            print(f"    captions: {d1.get('allCaptions')}")
-            print(f"    innerTrees: {[t['nodes'] for t in d1.get('innerTrees', [])]}")
+            cbs = {c["label"].split(" if ")[0]: c["checked"]
+                   for c in d1.get("checkboxes", [])}
+            action = next((lbl for lbl, v in cbs.items() if v == "true"), "(none)")
+            print(f"    action: {action}")
+            print(f"    sendHour={d1.get('sendHourClock')!r}  "
+                  f"timeout={d1.get('notAnsweredText')!r}")
+            for fk in ("microDialogToStart", "messageGroup", "hourToSendMessage",
+                       "storeResultVar"):
+                fv = (d1.get("fields") or {}).get(fk)
+                if fv and fv.get("value"):
+                    print(f"      {fk:18} = {fv['value']!r}")
+            print(f"    DOES-answer inner: {[t['nodes'] for t in d1.get('innerTrees', [])]}")
+            print(f"    DOES-NOT-answer  : {does_not}")
             dumps.append({"caption": cap, "parentChain": chain,
-                          "icon": n["icon"], "fields": d1.get("fields"),
-                          "checkboxes": d1.get("checkboxes"),
+                          "icon": n["icon"], "action": action,
+                          "checkboxes": cbs,
+                          "sendHourClock": d1.get("sendHourClock"),
+                          "notAnsweredText": d1.get("notAnsweredText"),
+                          "fields": d1.get("fields"),
                           "captions": d1.get("allCaptions"),
-                          "innerTrees": d1.get("innerTrees"),
+                          "doesAnswerInnerTrees": d1.get("innerTrees"),
                           "doesNotAnswerInnerTrees": does_not})
         except Exception as e:  # noqa: BLE001
             print(f"    ERROR {e!r}")
