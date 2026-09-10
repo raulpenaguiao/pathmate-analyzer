@@ -44,9 +44,13 @@ fi
 echo "Launching: $CHROME_BIN"
 echo "  debug port : ${PORT}"
 echo "  profile dir: ${PROFILE}  (throwaway — you log in each session)"
+# --no-sandbox: Debian 13 / Ubuntu 23.10+ restrict unprivileged user
+# namespaces (AppArmor), so Chromium's zygote sandbox fails to start
+# ("No usable sandbox!"). Fine here — throwaway profile, one known site.
 setsid nohup "$CHROME_BIN" \
   --remote-debugging-port="${PORT}" \
   --user-data-dir="${PROFILE}" \
+  --no-sandbox \
   --no-first-run --no-default-browser-check --start-maximized \
   "${URL}" >/tmp/pmcp-chrome-${PORT}.log 2>&1 &
 disown || true
