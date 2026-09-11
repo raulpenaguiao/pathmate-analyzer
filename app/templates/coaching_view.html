@@ -30,8 +30,8 @@
 		<button class="tab" data-tab="rules" role="tab">Rules <span class="chip chip-neutral">{{ model.rules | length }}</span></button>
 		<button class="tab" data-tab="dialogs" role="tab">Micro Dialogs <span class="chip chip-neutral">{{ model.micro_dialogs | length }}</span></button>
 		<button class="tab" data-tab="variables" role="tab">Variables <span class="chip chip-neutral">{{ model.variables | length }}</span></button>
-		<button class="tab" data-tab="chat" role="tab">Chat</button>
 		{% if coaching.get('bundle') %}
+		<button class="tab" data-tab="chat" role="tab">Chat</button>
 		<button class="tab" data-tab="rgroups" role="tab">Randomisation groups</button>
 		{% endif %}
 		<button class="tab" data-tab="raw" role="tab">Raw</button>
@@ -214,13 +214,13 @@
 	</section>
 
 	{# --------------------------------------------------------------------- Chat #}
+	{% if coaching.get('bundle') %}
 	<section class="tab-panel" data-tab="chat">
 		<div class="sim-banner">
 			Simplified model of this coaching's <strong>declarative</strong> rules. JS-snippet
 			rules and a few operators are skipped (shown as <em>skipped unsupported rule</em>).
 			This is not the real PMCP engine &mdash; use it to explore flow, not to certify behaviour.
-			{% if coaching.get('bundle') %}<br><span class="muted">A <code>coaching.json</code> is attached; the bundle-driven engine (Stage 4) will use it once wired in.</span>
-			{% else %}<br><span class="muted">Runs on the HTML parse. Attach a <code>coaching.json</code> (Statistics tab) for the faithful engine.</span>{% endif %}
+			<br><span class="muted">A <code>coaching.json</code> is attached; the bundle-driven engine (Stage 4) will use it once wired in.</span>
 		</div>
 		<div class="sim"
 			data-init-url="{{ url_for('main.coaching_sim_init', coaching_id=coaching.id) }}"
@@ -249,6 +249,7 @@
 			</aside>
 		</div>
 	</section>
+	{% endif %}
 
 	{# ---------------------------------------------------------- Randomisation groups #}
 	{% if coaching.get('bundle') %}

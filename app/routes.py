@@ -72,8 +72,23 @@ def coaching_upload():
         return redirect(url_for("main.coachings_list"))
 
     file_bytes = upload.read()
-    storage.save_coaching(name=name, tag=tag, filename=upload.filename, file_bytes=file_bytes)
+    meta = storage.save_coaching(name=name, tag=tag, filename=upload.filename, file_bytes=file_bytes)
     flash(f'Coaching "{name}" uploaded.', "success")
+
+    bundle_upload = request.files.get("bundle")
+    if bundle_upload and bundle_upload.filename:
+        if not bundle_upload.filename.lower().endswith(".json"):
+            flash("coaching.json not attached: expected a .json file.", "error")
+        else:
+            try:
+                bundle_meta = storage.save_coaching_bundle(meta["id"], bundle_upload.read())
+                s = bundle_meta["bundle"]["summary"]
+                flash(f"coaching.json attached — {s['microDialogs']} dialogs, "
+                      f"{s['nodes']} nodes, {s['ruleTreeNodes']} rule-tree nodes.",
+                      "success")
+            except storage.BundleError as e:
+                flash(f"coaching.json not attached: {e}", "error")
+
     return redirect(url_for("main.coachings_list"))
 
 

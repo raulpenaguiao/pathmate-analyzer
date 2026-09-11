@@ -167,12 +167,18 @@ def expand(requests, provider, limit, dry=False, progress=None, api_key=None):
         if not dry:
             try:
                 variants = call_llm(provider, prompt, api_key=api_key)
+                if not isinstance(variants, list):
+                    raise ValueError(
+                        f"expected a JSON array, got {type(variants).__name__}")
                 status = "ok"
                 time.sleep(1)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:  # noqa: BLE001 -- one bad pool must not abort the run
+                variants = []
                 status = f"failed: {e!r}"
         for j in range(need):
             v = variants[j] if j < len(variants) else {}
+            if not isinstance(v, dict):
+                v = {}
             gen_rows.append({
                 "pool": pool, "randomisationGroup": req["randomisationGroup"],
                 "microDialog": req["microDialog"], "folderPath": req["folderPath"],
