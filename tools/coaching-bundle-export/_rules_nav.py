@@ -376,6 +376,129 @@ async def open_rule_modal(page, ti: int, i: int) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
+# write helpers (Phase 1 of the ALEX v02 redesign, docs/ALEX_v02_redesign_spec.md)
+#
+# Confirmed live 2026-09-11 (autochanges/2026-09-11-alex-v02-phase1-completion.md):
+#   - Comment / Rule[x] / Term[y] / result-variable each open a simple
+#     Cancel/OK popup (type + OK = a real commit, verified via the tree
+#     caption after close_windows()).
+#   - The 4 TRUE-result action checkboxes are directly clickable in the
+#     outer "Edit rule:" form, no popup needed.
+#   - "Hour to send message" is a live $variable filterselect IF its owning
+#     action checkbox is already checked - pick a value from its dropdown
+#     directly, no popup.
+#   - The not-answered-timeout slider/quick-picks are NOT settable through
+#     any path found this session - deliberately no write function for it
+#     here. Don't add one without a fresh discovery pass.
+#   - The modal must already be open (open_rule_modal). None of these
+#     commit on their own except by calling close_windows() afterward -
+#     "Close" on an already-EXISTING rule's Edit form is a real commit
+#     (same as every read-only open); on a "Create rule:" form "Close" ALSO
+#     commits (creates the rule) - there is no separate Cancel on either.
+# ---------------------------------------------------------------------------
+
+async def _open_field_popup(page, edit_index: int):
+    """Click the edit_index-th 'Edit' button in the OUTER (first) .v-window,
+    in DOM order. Leaves the resulting popup open."""
+    handle = await page.evaluate_handle(
+        """(n) => {
+          const wins = [...document.querySelectorAll('.v-window')];
+          const w = wins[0];
+          if (!w) return null;
+          const edits = [...w.querySelectorAll('.v-button')].filter(bt =>
+            ((bt.querySelector('.v-button-caption')||{}).textContent||'').trim() === 'Edit');
+          return edits[n] || null;
+        }""",
+        edit_index,
+    )
+    el = handle.as_element() if handle else None
+    if not el:
+        return False
+    await el.click()
+    await page.wait_for_timeout(900)
+    return True
+
+
+async def _fill_and_ok(page, text: str) -> bool:
+    """The just-opened popup: fill its single textarea/input, click OK."""
+    sub = page.locator(".v-window").last
+    ta = sub.locator("textarea, input[type=text]").first
+    if not await ta.count():
+        return False
+    await ta.click()
+    await ta.fill(text)
+    ok = sub.locator(".v-button-caption", has_text="OK")
+    if not await ok.count():
+        return False
+    await ok.last.click()
+    await page.wait_for_timeout(700)
+    return True
+
+
+async def set_rule_comment(page, text: str) -> bool:
+    """Modal must already be open (open_rule_modal). Edit index 0."""
+    return await _open_field_popup(page, 0) and await _fill_and_ok(page, text)
+
+
+async def set_rule_condition_x(page, expr: str) -> bool:
+    """The 'Rule [x] (with placeholders)' condition expression. Edit index 1."""
+    return await _open_field_popup(page, 1) and await _fill_and_ok(page, expr)
+
+
+async def set_rule_condition_y(page, expr: str) -> bool:
+    """The 'Comparison term [y] (with placeholders)' expression. Edit index 2."""
+    return await _open_field_popup(page, 2) and await _fill_and_ok(page, expr)
+
+
+async def set_rule_result_variable(page, var_name: str) -> bool:
+    """'Store rule result to variable'. Edit index 3. var_name should
+    already exist (create it first via create_variables.py) - this popup's
+    'Existing variables to select' list is for convenience, typing a new
+    name directly is also possible but untested here."""
+    return await _open_field_popup(page, 3) and await _fill_and_ok(page, var_name)
+
+
+async def set_rule_checkbox(page, label_substr: str, checked: bool) -> bool:
+    """One of the 4 TRUE-result action checkboxes (or any other directly-
+    live checkbox in the outer form). Modal must already be open. No-ops if
+    already in the desired state."""
+    cb = page.locator(".v-window .v-checkbox", has_text=label_substr).first
+    if not await cb.count():
+        return False
+    inp = cb.locator("input[type=checkbox]")
+    now = await inp.is_checked()
+    if now != checked:
+        await inp.click()
+        await page.wait_for_timeout(400)
+    return True
+
+
+async def set_rule_hour_variable(page, var_name: str) -> bool:
+    """The 'Hour to send message' $variable filterselect. Only live once
+    its owning action checkbox (Send message / Start micro dialog) is
+    already checked - call set_rule_checkbox first if needed. var_name
+    without the leading '$' also works (matched as substring)."""
+    # the Hour filterselect is identified by position (4th, index 3) per
+    # the confirmed field order - see phase1-completion.md's table.
+    target = page.locator(".v-window .v-filterselect").nth(3)
+    inp = target.locator("input")
+    if not await inp.count():
+        return False
+    await inp.click()
+    await page.wait_for_timeout(700)
+    popup = page.locator(".v-filterselect-suggestpopup")
+    if not await popup.count():
+        return False
+    item = popup.locator(".gwt-MenuItem", has_text=var_name).first
+    if not await item.count():
+        await page.keyboard.press("Escape")
+        return False
+    await item.click()
+    await page.wait_for_timeout(700)
+    return True
+
+
+# ---------------------------------------------------------------------------
 # field parsing (pure)
 # ---------------------------------------------------------------------------
 

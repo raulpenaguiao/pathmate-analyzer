@@ -105,6 +105,7 @@ async def run_apply(plan, args, meta):
     sys.path.insert(0, str(HERE.parent / "coaching-bundle-export"))
     from playwright.async_api import async_playwright
     import _menu_nav as S
+    import _pmcp_safety as safety
 
     async def pick_page(ctx):
         for pg in ctx.pages:
@@ -324,6 +325,11 @@ async def run_apply(plan, args, meta):
         page = await pick_page(ctx)
         if not page:
             sys.exit("no logged-in PMCP tab found on the CDP browser")
+        try:
+            coaching = await safety.assert_expected_coaching(page)
+        except safety.WrongCoachingError as e:
+            sys.exit(f"refusing to write: {e}")
+        print(f"confirmed coaching: {coaching!r}")
         # accept native confirm() dialogs (Playwright dismisses them by default)
         page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
         cdp = await ctx.new_cdp_session(page)

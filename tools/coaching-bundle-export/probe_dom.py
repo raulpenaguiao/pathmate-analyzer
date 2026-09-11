@@ -14,6 +14,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 HERE = Path(__file__).resolve().parent
+SPIKE = HERE / "spike"
 CDP = os.environ.get("PMCP_CDP", "http://127.0.0.1:9222")
 
 PROBE_JS = r"""
@@ -57,6 +58,7 @@ PROBE_JS = r"""
 
 
 async def main() -> None:
+    SPIKE.mkdir(exist_ok=True)
     async with async_playwright() as pw:
         browser = await pw.chromium.connect_over_cdp(CDP)
         print(f"contexts: {len(browser.contexts)}")
@@ -83,13 +85,13 @@ async def main() -> None:
                 report.append(entry)
                 # screenshot the top page only
                 try:
-                    shot = HERE / f"probe_ctx{ci}_pg{pi}.png"
+                    shot = SPIKE / f"probe_ctx{ci}_pg{pi}.png"
                     await page.screenshot(path=str(shot), full_page=False)
                     entry["screenshot"] = str(shot)
                 except Exception as e:  # noqa: BLE001
                     entry["screenshot_error"] = repr(e)
 
-        out = HERE / "probe.json"
+        out = SPIKE / "probe.json"
         out.write_text(json.dumps(report, indent=2, ensure_ascii=False))
         print(f"wrote {out}")
         for e in report:

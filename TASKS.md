@@ -88,6 +88,173 @@ workstreams" section — this file is the checklist, that's the writeup.
             not-answered timeout). Still to do: cross-check tree *order*
             against timeouts to name the actual collisions.
 
+### 2c — v02 redesign implementation (2026-09-11)
+
+Goes beyond 2a/2b's reorder-in-place fixes: a full architectural redesign,
+spec'd in `docs/ALEX_v02_redesign_spec.md` (imported from personal notes
+2026-09-11). Root cause: v01 hand-rebuilds a "reactivate the interrupted
+dialog later" pattern (`$participantDeactivatedOpenQuestions` + two
+"Transition message..." dialogs) — that resumption *is* the pile-up. Fix:
+every reminder becomes a native PMCP time-out question that expires and gets
+**deleted**, never reactivated; a 5-tier priority model (P0-P4, our own
+abstraction — see the correction note at the top of the spec doc) resolves
+collisions via rule order + guard variables, not a PMCP field. Full dialog
+classification for all 107 ALEX v01 dialogs is in the spec's Appendix A.
+
+Target: the sandbox coaching "ALEX v01 zum Ausprobieren" only, same as every
+other live-portal workstream here. Every live-portal session gets an
+`autochanges/` entry per existing convention.
+
+- [x] **Phase 0 — recon (read-only).** Done 2026-09-11, see
+      `autochanges/2026-09-11-alex-v02-phase0-recon.md` and spec §6
+      (resolved). Summary: the expiry field is
+      `Minutes after sending until message is handled as unanswered`
+      (per-message, behind "Show additional settings" — distinct from the
+      per-rule timeout), "blocking" and "deactivate/recall" are separate
+      checkboxes there too, no native fallback-message-on-expiry field
+      exists, and whole-dialog delete is the dialog-level toolbar's
+      `Delete Dialog` button. One follow-up before Phase 3: confirm what the
+      "clears the dialog cascade" checkboxes actually do (untested,
+      read-only pass) — try it on one throwaway message first.
+- [x] **Phase 1 — build Rules-tab write tooling.** Done 2026-09-11 (recon:
+      `autochanges/2026-09-11-alex-v02-phase1-rule-write-recon.md`;
+      completion: `autochanges/2026-09-11-alex-v02-phase1-completion.md`).
+      - [x] `probe_rule_write.py` — read-only discovery of the 4 popups.
+      - [x] Same-value OK-commit test — confirmed on Comment (verified via
+            the tree's own caption text); the other 3 popups are
+            structurally identical, trusted by analogy.
+      - [x] Timeout quick-pick mechanism — **resolved as a real platform
+            limitation, not just an unconfirmed detail**: tested
+            exhaustively (existing Start-micro-dialog rule, existing
+            Send-message rule, a brand-new Create-rule form, after
+            checking its action checkbox for the first time, after
+            selecting a target dialog, after direct slider interaction) —
+            the not-answered-timeout slider/quick-picks stay `v-disabled`
+            in every case. `Hour to send message`, by contrast, **is**
+            directly settable (a live `$variable` filterselect, once its
+            owning action checkbox is checked). Every rule inspected
+            defaults to 4h — Phase 3 can rely on that default but cannot
+            currently set a custom timeout via automation.
+      - [x] Filterselect count reconciled — 4 confirmed identities:
+            condition operator, `Message group`, `Micro dialog to start`,
+            `Hour to send message` ($variable). `Store rule result to
+            variable` is popup-only, not a filterselect.
+      - [x] **Coaching-identity safety check** —
+            `tools/coaching-bundle-export/_pmcp_safety.py`
+            (`assert_expected_coaching()`), retrofitted into
+            `rgroup_apply.py --apply`.
+      - [x] Write helpers landed in `_rules_nav.py`: `set_rule_comment`,
+            `set_rule_condition_x`/`_y`, `set_rule_result_variable`,
+            `set_rule_checkbox`, `set_rule_hour_variable`. Live-tested
+            (`set_rule_comment`, same-value, verified via tree caption).
+            **No timeout-setting function** — deliberately, per the
+            limitation above. A `rule_apply.py` CLI wrapper (dry-run/
+            `--limit`/`--apply`, mirroring `rgroup_apply.py`) is not yet
+            built — write these Python functions directly into Phase 3
+            scripts for now rather than blocking on that wrapper.
+- [x] **Phase 2 — prune.** Done 2026-09-11, see
+      `autochanges/2026-09-11-alex-v02-phase2-prune.md`. Deleted 19 dead
+      dialogs in two waves via `tools/coaching-bundle-export/prune_dialogs.py`
+      (`--wave2` for the second): the 3 pile-up-mechanism dialogs, the 15
+      top-level P4 dev/test dialogs, and 5 more that were promoted to
+      top-level rather than cascade-deleted when `Attic`/`⚙️ Controls` were
+      removed (**correction: `Delete Dialog` on a folder promotes its
+      children, doesn't delete them** — always re-check what a folder
+      contains before assuming a delete removes it wholesale).
+      **`📄 dataEdited`** (real P3 content, was nested under `Controls`)
+      was correctly identified and left alone. 30 top-level dialogs remain.
+- [ ] **Phase 3 — spirometry redesign (proof of concept).** Spec §3: new
+      variables, rewritten DAILY/PERIODIC BASIS rules, and a ~10-item dialog
+      replacing the current 50-item one. Do this one feature fully before
+      propagating the pattern — it's the template for Phase 4.
+      - [x] **New variables created** — done 2026-09-11, see
+            `autochanges/2026-09-11-alex-v02-phase3-variables.md`. All 8
+            (day-slot infra §2.3 + spirometry §3.1) created and verified via
+            `tools/coaching-bundle-export/create_variables.py`:
+            `$currentDaySlot`=morning, `$hyperparameterMorningEndHour`=11,
+            `$hyperparameterMiddayEndHour`=17, `$hyperparameterEveningEndHour`=22,
+            `$spiroWindowEnd`=0, `$spiroReminderStage`=0,
+            `$spiroReminderEngaged`=0, `$hyperparameterSpiroGraceMinutes`=180
+            (the last is the spec's own example value; the day-slot hour
+            thresholds are reasonable chosen defaults, not spec-mandated —
+            tune later). New tool found two more Variables-tab mechanics not
+            documented before: it's virtualized *and* server-paginated (needs
+            the loading-indicator wait, not a fixed sleep), and selecting a
+            row for the toolbar needs a **cell** click, not a row click
+            (unlike every other table in this repo so far).
+      - [x] **`$currentDaySlot`-computing rule** — done 2026-09-11, see
+            `autochanges/2026-09-11-alex-v02-phase3-dayslot-rule.md`. Built
+            as 4 sibling gate rules under PERIODIC BASIS's "...already
+            performed" branch (one per bucket: evening/midday/morning/night),
+            each with one nested child doing the actual `$currentDaySlot`
+            assignment — a cascading-overwrite design (widest bucket first,
+            narrowest last, so the narrowest true match wins), not a deep
+            elif-ladder, since a single rule row can't both compare AND
+            store an unrelated literal in one step. **Important finding for
+            the remaining rule work**: the Rules tree's `New` toolbar button
+            is unreliable for nesting a child under a selected node (silently
+            creates a stray top-level section roughly half the time, no
+            error) — use `Duplicate` on an existing same-depth rule instead
+            (100% reliable this session) for new *siblings*, and always
+            verify a `New`-created node's `depth` after committing before
+            trusting it. Also: duplicating a rule carries over its "Store
+            rule result to variable" field — clear it explicitly via the
+            "Edit variable:" popup unless it's actually wanted (caught before
+            going live: all 4 gates had silently inherited `→ $timeDecimal`
+            from their duplication source).
+      - [ ] **3.1 — Test the "clears dialog cascade" checkbox** on one
+            throwaway message before relying on it in 3.4. This is the
+            delete-not-reactivate lever the whole spec's anti-pile-up
+            mechanism assumes (flagged, untested, in the Phase 0 log) — do
+            this first, it's cheap and de-risks everything downstream that
+            depends on it. No dependency on 3.2/3.3, but must land before 3.4.
+      - [ ] **3.2 — Rewrite the DAILY BASIS reset rule** for spirometry (spec
+            3.2): `$spiroMesDone`/`$spiroReminderStage`/`$spiroReminderEngaged`
+            → 0, `$spiroWindowEnd` computed using `$currentDaySlot` (now
+            available from the rule above). Depends on the day-slot rule
+            (done).
+      - [ ] **3.3 — Rewrite the PERIODIC BASIS firing rule** for spirometry
+            (spec 3.2): fires the P2 time-out question, sets `Hour to send
+            message`, accepts the 4h not-answered default per Phase 1's
+            platform-limitation finding. Depends on 3.2.
+      - [ ] **3.4 — Rebuild the spirometry micro dialog** down to ~10 items
+            (spec 3.3), replacing the current ~37-row one, wiring in
+            whatever 3.1 confirmed about the cascade-clear field. Depends on
+            3.1 and 3.3.
+      - [ ] **3.5 — Decommission the old spirometry bookkeeping**: delete the
+            reset rules for the 5 retired variables (`$spiroMesTimeDelay`,
+            `$spiroMesDelayedReminderActive`, `$spiroMesDelayedReminderSent`,
+            `$spiroMesNumberOfDelayedRemindersIssued`, `$lastMinuteSpirometry`,
+            `$mySpiro_userRequestedNewTimeForSpirometry`) so old and new logic
+            don't run side by side. Depends on 3.2.
+      - [ ] **3.6 — Sanity sweep + autochanges writeup**: confirm nothing
+            orphaned (no rule still referencing a deleted variable), tree
+            matches the design. Depends on 3.1-3.5.
+- [ ] **Phase 4 — propagate the pattern.** Spec §4-5, each mirrors 3.2-3.4's
+      pattern for a different feature:
+      - [ ] **4.1 — Medication reminders ×3 doses** (parametrized
+            variables/rules/dialog).
+      - [ ] **4.2 — Sleep-prep / nighttime monitoring.**
+      - [ ] **4.3 — ACQ administration** (P1 priority, but reminder-creating
+            — the dual-mode exception in spec 2.2a).
+      - [ ] **4.4 — Educational-content nudges** (P1, reminder-creating) —
+            its stub dialog has to be built first, it's currently empty.
+      - [ ] **4.5 — Health-literacy prompt** (P2, same treatment as
+            spirometry).
+      - [ ] **4.6 — Build-or-drop the remaining stub dialogs** (8 total per
+            spec §5) that existing rules already point at.
+- [ ] **Phase 5 — close-out / cross-cutting.**
+      - [ ] **5.1 — Decide how to handle the not-answered-timeout
+            limitation** for good: accept the 4h default everywhere, do a
+            fresh discovery pass, or have a human set custom values by hand
+            once. Still unresolved from Phase 1.
+      - [ ] **5.2 — Full sweep against spec Appendix A**: confirm every
+            dialog got the tier treatment its classification calls for,
+            nothing missed.
+      - [ ] **5.3 — Mark workstream 2c complete** in README/TASKS; note that
+            real behavioral validation still needs the separate Stage-4 chat
+            simulator workstream, which doesn't exist yet.
+
 ## Coaching export
 
 - [x] Allow Claude to navigate the browser to get an idea what else should

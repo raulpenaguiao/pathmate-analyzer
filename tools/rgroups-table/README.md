@@ -278,6 +278,11 @@ editor is Vaadin 7; these bite anything that drives it:
   Move Up climbed the new row 44 places to sit adjacent to its pool);
   idempotent re-run skips; `--dedup` removes strays. Not yet run at scale or
   against the production coaching.
+  **2026-09-11:** `--apply` now calls `_pmcp_safety.assert_expected_coaching()`
+  before writing anything — it used to trust whatever tab `pick_page()` found,
+  with no check that it was actually the sandbox. Refuses to write (exits
+  with a clear message) if the open coaching's name doesn't match
+  `ALEX v01 zum Ausprobieren`, overridable via `$PMCP_EXPECTED_COACHING`.
 
 ## Known hiccups
 

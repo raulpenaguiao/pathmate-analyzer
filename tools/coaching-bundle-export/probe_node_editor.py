@@ -120,6 +120,10 @@ async def main():
             "left": 0, "top": 0, "width": 12000, "height": 1600, "windowState": "normal"}})
         await page.wait_for_timeout(1400)
         try:
+            if not await S.ensure_micro_dialogs(page):
+                print("Micro Dialogs menubar not on screen - open that view "
+                      "(Monitoring must be inactive) and rerun.")
+                return
             for tag, labels, row_idxs in TARGETS:
                 print(f"\n=== {tag} :: {' / '.join(labels)} ===")
                 try:
