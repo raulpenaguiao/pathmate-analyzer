@@ -79,6 +79,13 @@ def save_coaching(name: str, tag: str, filename: str, file_bytes: bytes):
     return meta
 
 
+def _delete_rgroups_files(coaching_id: str) -> None:
+    """Derived rgroups-pipeline CSVs (see app/rgroups_tool.py) go stale once
+    the bundle they were built from is gone."""
+    for suffix in ("rgroups_table.csv", "rgroups_requests.csv", "rgroups_generated.csv"):
+        (Config.COACHING_FILES_DIR / f"{coaching_id}.{suffix}").unlink(missing_ok=True)
+
+
 def delete_coaching(coaching_id: str) -> bool:
     meta = get_coaching(coaching_id)
     if meta is None:
@@ -87,6 +94,7 @@ def delete_coaching(coaching_id: str) -> bool:
     file_path.unlink(missing_ok=True)
     if meta.get("bundle"):
         (Config.COACHING_FILES_DIR / meta["bundle"]["stored_filename"]).unlink(missing_ok=True)
+    _delete_rgroups_files(coaching_id)
     (Config.COACHINGS_DIR / f"{coaching_id}.json").unlink(missing_ok=True)
     return True
 
@@ -163,6 +171,7 @@ def delete_coaching_bundle(coaching_id: str) -> bool:
     (Config.COACHING_FILES_DIR / meta["bundle"]["stored_filename"]).unlink(missing_ok=True)
     meta.pop("bundle", None)
     _write_json(Config.COACHINGS_DIR / f"{coaching_id}.json", meta)
+    _delete_rgroups_files(coaching_id)
     return True
 
 

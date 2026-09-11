@@ -33,6 +33,19 @@ workstreams" section — this file is the checklist, that's the writeup.
 - [ ] `rgroup_pipeline.sh --json FILE --limit N` — wraps steps 1→4 with a
       `continue? [y/N]` checkpoint between each. Steps 1–2 tested via the
       wrapper; full chain not yet run against a live CDP session.
+- [x] Steps 1–3 in the portal ("Randomisation groups" tab, shown once a
+      coaching has a `coaching.json` attached). `app/rgroups_tool.py` imports
+      the `tools/rgroups-table` scripts directly (`sys.path`, no subprocess);
+      step 3 runs in a background thread with an in-memory, pollable job (per-
+      pool progress bar, live pool name/status). The API key is taken from a
+      form field per run and never written to disk or the environment — it's
+      passed straight into `rgroup_expand.call_llm`, which now accepts an
+      `api_key` override. Each step's CSV is downloadable once it's built.
+      Step 4 (Playwright write-back) is **not** in the portal — it needs a
+      CDP-connected browser the app process doesn't have; still CLI-only.
+      Smoke-tested end to end with Flask's test client (attach → step 1 → 2 →
+      3-with-a-bad-key → poll-to-finish → downloads → 404 guards). Not yet
+      exercised by a human in a real browser.
 
 ### After `coaching.json` is regenerated (unblocks the rest)
 

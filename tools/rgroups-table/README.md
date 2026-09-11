@@ -80,6 +80,14 @@ The four steps can each be run on their own — `.py` directly, or the matching
 thin `.sh` wrapper (`rgroup_report.sh`, `rgroup_prepare.sh`, `rgroup_expand.sh`,
 `rgroup_apply.sh`), which just resolves the venv and sources `.env`.
 
+Steps 1–3 are also available from the portal — the "Randomisation groups" tab
+on a coaching that has a `coaching.json` attached (`app/rgroups_tool.py` /
+`app/templates/_tab_rgroups.html` / `app/static/rgroups_tool.js`). It calls
+these same functions in-process (no subprocess), runs step 3 in a background
+thread with a pollable progress bar, and lets you download each step's CSV.
+The API key is a per-run form field, never persisted. Step 4 stays CLI-only —
+the portal process has no CDP-connected browser.
+
 ## Bundle JSON contract
 
 `rgroup_report.py` is the only step that reads the JSON, and it reads a small,

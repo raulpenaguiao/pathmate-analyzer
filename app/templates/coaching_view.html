@@ -31,6 +31,9 @@
 		<button class="tab" data-tab="dialogs" role="tab">Micro Dialogs <span class="chip chip-neutral">{{ model.micro_dialogs | length }}</span></button>
 		<button class="tab" data-tab="variables" role="tab">Variables <span class="chip chip-neutral">{{ model.variables | length }}</span></button>
 		<button class="tab" data-tab="chat" role="tab">Chat</button>
+		{% if coaching.get('bundle') %}
+		<button class="tab" data-tab="rgroups" role="tab">Randomisation groups</button>
+		{% endif %}
 		<button class="tab" data-tab="raw" role="tab">Raw</button>
 	</div>
 
@@ -247,6 +250,15 @@
 		</div>
 	</section>
 
+	{# ---------------------------------------------------------- Randomisation groups #}
+	{% if coaching.get('bundle') %}
+	<section class="tab-panel" data-tab="rgroups">
+		<div id="rgroups-lazy" data-url="{{ url_for('main.coaching_rgroups_tab', coaching_id=coaching.id) }}">
+			<p class="muted">Loading&hellip;</p>
+		</div>
+	</section>
+	{% endif %}
+
 	{# ---------------------------------------------------------------------- Raw #}
 	<section class="tab-panel" data-tab="raw">
 		<div class="raw-toolbar">
@@ -258,5 +270,8 @@
 
 <script src="{{ url_for('static', filename='coaching_tabs.js') }}"></script>
 <script src="{{ url_for('static', filename='coaching_sim.js') }}"></script>
+{% if coaching.get('bundle') %}
+<script src="{{ url_for('static', filename='rgroups_tool.js') }}"></script>
+{% endif %}
 {% endif %}
 {% endblock %}

@@ -1,3 +1,5 @@
+import json
+
 from flask import (
     Blueprint,
     abort,
@@ -10,7 +12,7 @@ from flask import (
     url_for,
 )
 
-from app import storage
+from app import rgroups_tool, storage
 from app.auth import login_required
 from app.coaching_model import load_model
 from app.coaching_sim import Simulator
@@ -211,6 +213,100 @@ def coaching_bundle_delete(coaching_id):
     else:
         flash("No coaching.json was attached.", "error")
     return redirect(url_for("main.coaching_view", coaching_id=coaching_id) + "#stats")
+
+
+# ---------------------------------------------------------------------------
+# Randomisation groups (r_) pipeline, steps 1-3 -- only when a coaching.json
+# is attached. Step 4 (Playwright write-back) needs a browser and stays CLI:
+# tools/rgroups-table/rgroup_apply.py
+# ---------------------------------------------------------------------------
+
+def _require_bundle(coaching_id):
+    meta = storage.get_coaching(coaching_id)
+    if meta is None:
+        abort(404)
+    bundle_path = storage.coaching_bundle_path(coaching_id)
+    if bundle_path is None:
+        abort(404)
+    return meta, bundle_path
+
+
+@bp.route("/coachings/<coaching_id>/tab/rgroups")
+@login_required
+def coaching_rgroups_tab(coaching_id):
+    meta, _ = _require_bundle(coaching_id)
+    return render_template("_tab_rgroups.html", coaching=meta)
+
+
+@bp.route("/coachings/<coaching_id>/rgroups/report", methods=["POST"])
+@login_required
+def rgroups_report(coaching_id):
+    _, bundle_path = _require_bundle(coaching_id)
+    try:
+        bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+        summary = rgroups_tool.run_report(coaching_id, bundle)
+        return jsonify(ok=True, **summary)
+    except Exception as e:  # noqa: BLE001
+        return jsonify(ok=False, error=str(e)), 400
+
+
+@bp.route("/coachings/<coaching_id>/rgroups/prepare", methods=["POST"])
+@login_required
+def rgroups_prepare(coaching_id):
+    _require_bundle(coaching_id)
+    try:
+        summary = rgroups_tool.run_prepare(coaching_id)
+        return jsonify(ok=True, **summary)
+    except Exception as e:  # noqa: BLE001
+        return jsonify(ok=False, error=str(e)), 400
+
+
+@bp.route("/coachings/<coaching_id>/rgroups/expand/start", methods=["POST"])
+@login_required
+def rgroups_expand_start(coaching_id):
+    _require_bundle(coaching_id)
+    api_key = (request.form.get("api_key") or "").strip()
+    provider = (request.form.get("provider") or "claude").strip()
+    limit_raw = (request.form.get("limit") or "").strip()
+    if not api_key:
+        return jsonify(ok=False, error="An API key is required."), 400
+    if provider not in ("claude", "chatgpt"):
+        return jsonify(ok=False, error="Unknown provider."), 400
+    try:
+        limit = int(limit_raw)
+        if limit < 1:
+            raise ValueError
+    except ValueError:
+        return jsonify(ok=False, error="Limit must be a positive integer."), 400
+    try:
+        job_id = rgroups_tool.start_expand_job(coaching_id, provider, limit, api_key)
+        return jsonify(ok=True, jobId=job_id)
+    except (FileNotFoundError, ValueError) as e:
+        return jsonify(ok=False, error=str(e)), 400
+
+
+@bp.route("/coachings/<coaching_id>/rgroups/expand/status/<job_id>")
+@login_required
+def rgroups_expand_status(coaching_id, job_id):
+    job = rgroups_tool.job_status(job_id)
+    if job is None or job.get("coachingId") != coaching_id:
+        return jsonify(ok=False, error="Unknown job."), 404
+    return jsonify(ok=True, **job)
+
+
+@bp.route("/coachings/<coaching_id>/rgroups/download/<kind>")
+@login_required
+def rgroups_download(coaching_id, kind):
+    _require_bundle(coaching_id)
+    paths = {
+        "table": rgroups_tool.table_path(coaching_id),
+        "requests": rgroups_tool.requests_path(coaching_id),
+        "generated": rgroups_tool.generated_path(coaching_id),
+    }
+    path = paths.get(kind)
+    if path is None or not path.exists():
+        abort(404)
+    return send_file(path, as_attachment=True, download_name=f"rgroups_{kind}.csv")
 
 
 # ---------------------------------------------------------------------------

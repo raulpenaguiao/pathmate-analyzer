@@ -8,6 +8,7 @@
 			p.classList.toggle("is-active", p.dataset.tab === name);
 		});
 		if (name === "dialogs") loadMicroDialogs();
+		if (name === "rgroups") loadRgroups();
 	}
 
 	var mdPromise = null;
@@ -40,6 +41,26 @@
 		if (langSel && panel) langSel.addEventListener("change", function () {
 			panel.dataset.lang = langSel.value;
 		});
+	}
+
+	var rgPromise = null;
+	function loadRgroups() {
+		var host = document.getElementById("rgroups-lazy");
+		if (!host) return Promise.resolve();
+		if (host.dataset.loaded) return Promise.resolve();
+		if (rgPromise) return rgPromise;
+		rgPromise = fetch(host.dataset.url)
+			.then(function (r) { return r.text(); })
+			.then(function (html) {
+				host.innerHTML = html;
+				host.dataset.loaded = "1";
+				if (window.wireRgroupsPanel) window.wireRgroupsPanel(host.querySelector(".rgroups-panel"));
+			})
+			.catch(function () {
+				host.innerHTML = '<p class="muted">Failed to load.</p>';
+				rgPromise = null;
+			});
+		return rgPromise;
 	}
 
 	function filterRows(q, selector, key) {

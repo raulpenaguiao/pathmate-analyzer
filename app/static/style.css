@@ -417,6 +417,33 @@ button.answer { background: var(--accent-soft); color: #274bb0; margin: 2px; }
 
 .inline-form { display: inline; }
 
+/* ---- r_ randomisation-group pipeline tab ----------------------------- */
+
+.rgroups-step {
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: var(--sp-4);
+	margin-bottom: var(--sp-4);
+}
+.rgroups-step h3 { margin-top: 0; }
+.rgroups-step .stacked-form { margin-top: var(--sp-3); }
+.rgroups-result { margin-top: var(--sp-3); font-size: 0.92rem; }
+.rgroups-progress { margin-top: var(--sp-3); }
+.rgroups-progress-bar {
+	background: var(--sunken);
+	border: 1px solid var(--border-strong);
+	border-radius: 999px;
+	height: 10px;
+	overflow: hidden;
+}
+.rgroups-progress-fill {
+	background: var(--accent);
+	height: 100%;
+	width: 0;
+	transition: width 0.3s ease;
+}
+.rgroups-progress-label { margin: var(--sp-1) 0 0; }
+
 /* ---- deploy footer -------------------------------------------------- */
 
 .deploy-footer {

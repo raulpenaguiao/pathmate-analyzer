@@ -90,9 +90,9 @@ def detect_provider() -> str:
     sys.exit("set ANTHROPIC_API_KEY or OPENAI_API_KEY (or pass --dry-run)")
 
 
-def call_llm(provider: str, prompt: str) -> list[dict]:
+def call_llm(provider: str, prompt: str, api_key: str | None = None) -> list[dict]:
     if provider == "claude":
-        key = os.environ["ANTHROPIC_API_KEY"]
+        key = api_key or os.environ["ANTHROPIC_API_KEY"]
         model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5")
         req = urllib.request.Request(
             "https://api.anthropic.com/v1/messages",
@@ -105,7 +105,7 @@ def call_llm(provider: str, prompt: str) -> list[dict]:
             data = json.loads(r.read())
         text = "".join(b.get("text", "") for b in data.get("content", []))
     elif provider == "chatgpt":
-        key = os.environ["OPENAI_API_KEY"]
+        key = api_key or os.environ["OPENAI_API_KEY"]
         model = os.environ.get("OPENAI_MODEL", "gpt-4o")
         req = urllib.request.Request(
             "https://api.openai.com/v1/chat/completions",
@@ -147,9 +147,11 @@ def build_prompt(req: dict) -> str:
                          need=req["needVariants"], existing=existing)
 
 
-def expand(requests, provider, limit, dry=False, progress=None):
+def expand(requests, provider, limit, dry=False, progress=None, api_key=None):
     """Process the first `limit` request rows. `progress(i, n, pool, status)`
     is called before and after each pool. Returns (generated_rows, prompt_log).
+    `api_key` overrides the provider's env var (used by the portal, which
+    never writes the key to disk or the environment).
     """
     reqs = list(requests)[:limit]
     n = len(reqs)
@@ -164,7 +166,7 @@ def expand(requests, provider, limit, dry=False, progress=None):
         variants, status = [], "dry-run"
         if not dry:
             try:
-                variants = call_llm(provider, prompt)
+                variants = call_llm(provider, prompt, api_key=api_key)
                 status = "ok"
                 time.sleep(1)
             except Exception as e:  # noqa: BLE001

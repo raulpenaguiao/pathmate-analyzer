@@ -1,0 +1,48 @@
+<div class="rgroups-panel"
+	data-report-url="{{ url_for('main.rgroups_report', coaching_id=coaching.id) }}"
+	data-prepare-url="{{ url_for('main.rgroups_prepare', coaching_id=coaching.id) }}"
+	data-expand-start-url="{{ url_for('main.rgroups_expand_start', coaching_id=coaching.id) }}"
+	data-expand-status-url="{{ url_for('main.rgroups_expand_status', coaching_id=coaching.id, job_id='JOBID') }}"
+	data-download-url="{{ url_for('main.rgroups_download', coaching_id=coaching.id, kind='KIND') }}">
+
+	<p class="muted">Grows the thin <code>r_*</code> randomisation pools in this coaching's attached <code>coaching.json</code>, in three steps. A fourth step writes the new variants into the live editor and needs a browser, so it stays a CLI tool: <code>tools/rgroups-table/rgroup_apply.py --limit N --apply</code>.</p>
+
+	<div class="rgroups-step">
+		<h3>1. Build the table</h3>
+		<p class="muted">One row per <code>r_*</code>-tagged message, with its pool, variant count and text.</p>
+		<button type="button" class="secondary" id="rgroups-step1-btn">Build table</button>
+		<div class="rgroups-result" id="rgroups-step1-result"></div>
+	</div>
+
+	<div class="rgroups-step">
+		<h3>2. Prepare the request manifest</h3>
+		<p class="muted">One row per thin pool (fewer than 10 distinct variants) &mdash; no prompt text yet, no API calls.</p>
+		<button type="button" class="secondary" id="rgroups-step2-btn">Prepare requests</button>
+		<div class="rgroups-result" id="rgroups-step2-result"></div>
+	</div>
+
+	<div class="rgroups-step">
+		<h3>3. Generate variants with an LLM</h3>
+		<p class="muted">Calls the provider's API once per thin pool, up to the limit below. The key is used only for this run &mdash; it is never written to disk.</p>
+		<form id="rgroups-expand-form" class="stacked-form">
+			<label>Provider
+				<select name="provider">
+					<option value="claude">Claude</option>
+					<option value="chatgpt">ChatGPT</option>
+				</select>
+			</label>
+			<label>API key
+				<input type="password" name="api_key" required autocomplete="off" placeholder="sk-...">
+			</label>
+			<label>Limit (max API calls, required)
+				<input type="number" name="limit" min="1" step="1" required>
+			</label>
+			<button type="submit" class="secondary">Generate</button>
+		</form>
+		<div class="rgroups-progress" id="rgroups-progress" hidden>
+			<div class="rgroups-progress-bar"><div class="rgroups-progress-fill" id="rgroups-progress-fill"></div></div>
+			<p class="muted" id="rgroups-progress-label"></p>
+		</div>
+		<div class="rgroups-result" id="rgroups-step3-result"></div>
+	</div>
+</div>
