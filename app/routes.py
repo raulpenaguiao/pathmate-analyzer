@@ -17,6 +17,7 @@ from app.auth import login_required
 from app.coaching_model import load_model
 from app.coaching_sim import Simulator
 from app.coaching_stats import extract_rules_tree
+from app.participant_import import ParticipantImportError
 
 bp = Blueprint("main", __name__)
 
@@ -139,6 +140,8 @@ def coaching_sim_step(coaching_id):
     payload = request.get_json(silent=True) or {}
     state = payload.get("state")
     action = payload.get("action") or {}
+    if action.get("type") == "start_from_import":
+        action = dict(action, import_data=storage.get_participant_import_data(coaching_id))
     sim = Simulator(model, lang=payload.get("lang"))
     if not isinstance(state, dict):
         state = sim.initial_state()
@@ -218,6 +221,41 @@ def coaching_bundle_upload(coaching_id):
         except storage.BundleError as e:
             flash(f"Not attached: {e}", "error")
     return redirect(url_for("main.coaching_view", coaching_id=coaching_id) + "#stats")
+
+
+@bp.route("/coachings/<coaching_id>/participant-import", methods=["POST"])
+@login_required
+def coaching_participant_import_upload(coaching_id):
+    """Attach a .pmcp participant export to this coaching — seeds the Chat
+    tab's simulator with that participant's real variable state and
+    reconstructed event history instead of a blank one."""
+    if storage.get_coaching(coaching_id) is None:
+        abort(404)
+    upload = request.files.get("participant_import")
+    if not upload or not upload.filename:
+        flash("Choose a .pmcp file.", "error")
+    elif not upload.filename.lower().endswith(".pmcp"):
+        flash("Expected a .pmcp file (a zipped participant export).", "error")
+    else:
+        try:
+            meta = storage.save_participant_import(coaching_id, upload.filename, upload.read())
+            s = meta["participant_import"]["summary"]
+            flash(f"Participant import attached — {s['variables']} variables, "
+                  f"{s['timelineEvents']} timeline events, {s['cascadesCompleted']} cascades completed.",
+                  "success")
+        except ParticipantImportError as e:
+            flash(f"Not attached: {e}", "error")
+    return redirect(url_for("main.coaching_view", coaching_id=coaching_id) + "#chat")
+
+
+@bp.route("/coachings/<coaching_id>/participant-import/delete", methods=["POST"])
+@login_required
+def coaching_participant_import_delete(coaching_id):
+    if storage.delete_participant_import(coaching_id):
+        flash("Participant import detached.", "success")
+    else:
+        flash("No participant import to detach.", "error")
+    return redirect(url_for("main.coaching_view", coaching_id=coaching_id) + "#chat")
 
 
 @bp.route("/coachings/<coaching_id>/bundle/delete", methods=["POST"])

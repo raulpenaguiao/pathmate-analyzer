@@ -396,6 +396,7 @@ code, .mono { font-family: var(--mono); font-size: 0.86em; }
 .b-user .b-t { color: rgba(255,255,255,0.8); }
 .b-system { background: transparent; color: var(--muted); font-size: 0.8rem; align-self: center; max-width: 100%; text-align: center; }
 .b-rule { background: var(--warn-soft); color: var(--warn); font-size: 0.8rem; align-self: center; max-width: 100%; }
+.b-import { background: var(--sunken); border: 1px dashed var(--border); color: var(--muted); font-size: 0.8rem; align-self: stretch; max-width: 100%; font-family: var(--mono); }
 .sim-pending { margin-top: var(--sp-3); }
 button.answer { background: var(--accent-soft); color: #274bb0; margin: 2px; }
 .sim-controls { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }

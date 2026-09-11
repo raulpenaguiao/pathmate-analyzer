@@ -94,6 +94,10 @@ def delete_coaching(coaching_id: str) -> bool:
     file_path.unlink(missing_ok=True)
     if meta.get("bundle"):
         (Config.COACHING_FILES_DIR / meta["bundle"]["stored_filename"]).unlink(missing_ok=True)
+    if meta.get("participant_import"):
+        pi = meta["participant_import"]
+        (Config.COACHING_FILES_DIR / pi["raw_stored_filename"]).unlink(missing_ok=True)
+        (Config.COACHING_FILES_DIR / pi["data_stored_filename"]).unlink(missing_ok=True)
     _delete_rgroups_files(coaching_id)
     (Config.COACHINGS_DIR / f"{coaching_id}.json").unlink(missing_ok=True)
     return True
@@ -181,6 +185,74 @@ def coaching_bundle_path(coaching_id: str) -> Path | None:
         return None
     p = Config.COACHING_FILES_DIR / meta["bundle"]["stored_filename"]
     return p if p.exists() else None
+
+
+# ---------------------------------------------------------------------------
+# Participant import (.pmcp — a real participant's raw runtime export).
+# Reconstructed into a variable snapshot + observable-event timeline by
+# app.participant_import, and attached to an existing coaching to seed the
+# Chat tab's simulator with that participant's real history instead of a
+# blank one. Mirrors the coaching-bundle attach/detach pattern above.
+# ---------------------------------------------------------------------------
+
+def save_participant_import(coaching_id: str, filename: str, file_bytes: bytes) -> dict:
+    """Parse and attach a .pmcp export to an existing coaching. Returns the
+    updated coaching meta. Raises participant_import.ParticipantImportError
+    on a bad file."""
+    from app.participant_import import parse_pmcp  # local: keeps this module import-light
+
+    meta = get_coaching(coaching_id)
+    if meta is None:
+        raise ValueError("coaching not found")
+    data = parse_pmcp(file_bytes)  # raises ParticipantImportError on bad input
+
+    raw_stored = f"{coaching_id}.participant_import.pmcp"
+    data_stored = f"{coaching_id}.participant_import.json"
+    with open(Config.COACHING_FILES_DIR / raw_stored, "wb") as f:
+        f.write(file_bytes)
+    _write_json(Config.COACHING_FILES_DIR / data_stored, data)
+
+    meta["participant_import"] = {
+        "raw_stored_filename": raw_stored,
+        "data_stored_filename": data_stored,
+        "original_filename": filename,
+        "uploaded_at": _now_iso(),
+        "size_bytes": len(file_bytes),
+        "summary": {
+            "nickname": data["participant"].get("nickname"),
+            "systemUniqueId": data["participant"].get("systemUniqueId"),
+            "variables": len(data["variables"]),
+            "timelineEvents": len(data["timeline"]),
+            "cascadesCompleted": data["dialog_status"].get("cascadesCompleted"),
+            "warnings": data["warnings"],
+        },
+    }
+    _write_json(Config.COACHINGS_DIR / f"{coaching_id}.json", meta)
+    return meta
+
+
+def delete_participant_import(coaching_id: str) -> bool:
+    meta = get_coaching(coaching_id)
+    if meta is None or not meta.get("participant_import"):
+        return False
+    pi = meta["participant_import"]
+    (Config.COACHING_FILES_DIR / pi["raw_stored_filename"]).unlink(missing_ok=True)
+    (Config.COACHING_FILES_DIR / pi["data_stored_filename"]).unlink(missing_ok=True)
+    meta.pop("participant_import", None)
+    _write_json(Config.COACHINGS_DIR / f"{coaching_id}.json", meta)
+    return True
+
+
+def get_participant_import_data(coaching_id: str) -> dict | None:
+    """The full parsed import (vars + timeline) for seeding the simulator —
+    not just the summary kept in the coaching's own meta file."""
+    meta = get_coaching(coaching_id)
+    if meta is None or not meta.get("participant_import"):
+        return None
+    path = Config.COACHING_FILES_DIR / meta["participant_import"]["data_stored_filename"]
+    if not path.exists():
+        return None
+    return _read_json(path)
 
 
 # ---------------------------------------------------------------------------

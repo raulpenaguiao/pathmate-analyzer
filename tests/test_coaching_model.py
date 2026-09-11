@@ -5,7 +5,7 @@ from pathlib import Path
 from app.coaching_model import parse_model
 from app.coaching_stats import compute_stats
 
-SAMPLE = Path(__file__).resolve().parent.parent / "Coaching_ALEX_v01_zum_Ausprobieren.html"
+SAMPLE = Path(__file__).resolve().parent / "fixtures" / "coaching_ALEX_v01.html"
 
 
 class CoachingModelTest(unittest.TestCase):

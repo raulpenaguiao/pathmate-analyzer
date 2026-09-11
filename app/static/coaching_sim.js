@@ -117,6 +117,7 @@
 		else if (b.dataset.slot) post({ type: "tick", to: "next-slot" });
 		else if (b.dataset.periodic) post({ type: "run_periodic" });
 		else if (b.dataset.reset) post({ type: "reset" });
+		else if (b.dataset.startImport) post({ type: "start_from_import" });
 		else if (b.dataset.answer !== undefined) post({ type: "answer", value: b.dataset.answer });
 		else if (b.id === "sim-launch-btn") {
 			var v = el.launchSelect.value || "";

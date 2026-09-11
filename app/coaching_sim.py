@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import ast
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from app.coaching_model import CoachingModel, VARIABLE_RE
 
@@ -59,6 +59,14 @@ def _fmt(value) -> str:
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value)
+
+
+def _fmt_epoch(ts) -> str:
+    try:
+        dt = datetime.fromtimestamp(int(ts) / 1000, tz=timezone.utc)
+    except (TypeError, ValueError, OSError):
+        return str(ts)
+    return dt.strftime("%Y-%m-%d %H:%M")
 
 
 def _parse_date(text: str) -> date | None:
@@ -194,10 +202,51 @@ class Simulator:
         return state
 
     # -- public step ----------------------------------------------------
+    def initial_state_from_import(self, import_data: dict) -> dict:
+        """Seed a fresh state from a parsed .pmcp participant import (see
+        ``app.participant_import``): the real current $variable snapshot,
+        plus the reconstructed observable-event history replayed as
+        transcript lines so it can be scrolled/navigated. The clock is
+        re-based to day 0 like a normal reset - the sim's own relative clock
+        has no relation to the real wall-clock dates in the import - so
+        continuing forward from here uses the simulator's day/hour, not the
+        participant's real calendar.
+        """
+        state = self.initial_state()
+        state["transcript"] = []
+        p = import_data.get("participant") or {}
+        label = p.get("nickname") or p.get("systemUniqueId") or "participant"
+        state["transcript"].append(
+            {"kind": "system", "text": f"📥 Imported real participant \"{label}\" — replaying observed history:", "t": ""}
+        )
+        for event in import_data.get("timeline", []):
+            stamp = _fmt_epoch(event.get("timestamp"))
+            if event["kind"] == "var_change":
+                text = f"{event['name']} → {_fmt(event.get('value'))}"
+            elif event["kind"] == "cascade_complete":
+                text = f"dialog cascade completed ({event['cascade_id'][:16]}…)"
+            else:
+                continue
+            state["transcript"].append({"kind": "import", "text": text, "t": stamp})
+        for w in import_data.get("warnings", []):
+            state["transcript"].append({"kind": "system", "text": f"⚠️ {w}", "t": ""})
+        state["vars"].update(import_data.get("variables") or {})
+        self._refresh_system_vars(state)  # sim's own $today/$system* win back over the real ones
+        state["transcript"].append(
+            {"kind": "system", "text": "── continuing simulation from here — clock re-based to day 0, 08:00 ──", "t": self._stamp(state)}
+        )
+        return state
+
     def step(self, state: dict, action: dict) -> dict:
         kind = action.get("type")
         if kind == "reset":
             return self.initial_state()
+        if kind == "start_from_import":
+            import_data = action.get("import_data")
+            if not import_data:
+                self._log(state, "system", "No imported participant data available.")
+                return state
+            return self.initial_state_from_import(import_data)
         if kind == "set_var":
             name = action["name"]
             if not name.startswith("$"):

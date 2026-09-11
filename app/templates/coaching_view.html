@@ -117,6 +117,28 @@
 					<button type="submit" class="secondary">Attach coaching.json</button>
 				</form>
 				{% endif %}
+				<h3>Real participant import (.pmcp)</h3>
+				{% set pin = coaching.get('participant_import') %}
+				{% if pin %}
+				{% set ps = pin.get('summary', {}) %}
+				<table class="data-table">
+					<tr><th>Attached</th><td>{{ pin.uploaded_at[:19] }}</td></tr>
+					<tr><th>Participant</th><td>{{ ps.get('nickname') or ps.get('systemUniqueId') or '(unnamed)' }}</td></tr>
+					<tr><th>Variables</th><td>{{ ps.get('variables', 0) }}</td></tr>
+					<tr><th>Timeline events</th><td>{{ ps.get('timelineEvents', 0) }}</td></tr>
+					<tr><th>Cascades completed</th><td>{{ ps.get('cascadesCompleted', 0) }}</td></tr>
+				</table>
+				{% for w in ps.get('warnings', []) %}<p class="node-meta">&#9888; {{ w }}</p>{% endfor %}
+				<form method="post" action="{{ url_for('main.coaching_participant_import_delete', coaching_id=coaching.id) }}" onsubmit="return confirm('Detach the participant import?');">
+					<button type="submit" class="secondary">Detach participant import</button>
+				</form>
+				{% else %}
+				<p class="muted">No participant import attached. Attach a <code>.pmcp</code> export (a zipped raw participant dump) to replay a real participant's history in the Chat tab and continue the simulation from there.</p>
+				<form method="post" action="{{ url_for('main.coaching_participant_import_upload', coaching_id=coaching.id) }}" enctype="multipart/form-data" class="inline-form">
+					<input type="file" name="participant_import" accept=".pmcp" required>
+					<button type="submit" class="secondary">Attach .pmcp</button>
+				</form>
+				{% endif %}
 			</section>
 		</div>
 	</section>
@@ -236,6 +258,9 @@
 					<button type="button" data-slot="1" class="secondary">next slot</button>
 					<button type="button" data-periodic="1" class="secondary">run periodic rules</button>
 					<button type="button" data-reset="1" class="secondary">reset</button>
+					{% if coaching.get('participant_import') %}
+					<button type="button" data-start-import="1" class="secondary">start from imported participant</button>
+					{% endif %}
 				</div>
 				<div class="sim-launch">
 					<select id="sim-launch-select"></select>
