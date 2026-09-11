@@ -184,9 +184,9 @@ def eval_expr(expr: str, variables: dict) -> tuple[bool | None, tuple[str, str] 
 # ---------------------------------------------------------------------------
 
 class Simulator:
-    def __init__(self, model: CoachingModel, lang: str | None = None):
+    def __init__(self, model: CoachingModel | None, lang: str | None = None):
         self.model = model
-        self.lang = lang or (model.languages[0] if model.languages else "en-GB")
+        self.lang = lang or (model.languages[0] if model and model.languages else "en-GB")
 
     # -- state ------------------------------------------------------------
     def initial_state(self) -> dict:
@@ -241,12 +241,6 @@ class Simulator:
         kind = action.get("type")
         if kind == "reset":
             return self.initial_state()
-        if kind == "start_from_import":
-            import_data = action.get("import_data")
-            if not import_data:
-                self._log(state, "system", "No imported participant data available.")
-                return state
-            return self.initial_state_from_import(import_data)
         if kind == "set_var":
             name = action["name"]
             if not name.startswith("$"):

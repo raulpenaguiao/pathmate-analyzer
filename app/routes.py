@@ -116,42 +116,84 @@ def coaching_micro_dialogs(coaching_id):
     )
 
 
-@bp.route("/coachings/<coaching_id>/sim/init")
+@bp.route("/coachings/<coaching_id>/chats")
 @login_required
-def coaching_sim_init(coaching_id):
+def coaching_chats_list(coaching_id):
+    """Sidebar contents: every persisted chat (live or imported) for this
+    coaching, most recently updated first."""
+    if storage.get_coaching(coaching_id) is None:
+        abort(404)
+    return jsonify(chats=storage.list_chats(coaching_id))
+
+
+@bp.route("/coachings/<coaching_id>/chats/new", methods=["POST"])
+@login_required
+def coaching_chat_new(coaching_id):
     model = load_model(coaching_id)
     if model is None:
         abort(404)
-    sim = Simulator(model)
+    name = f"Chat {len(storage.list_chats(coaching_id)) + 1}"
+    chat = storage.create_chat(coaching_id, name=name, kind="live", state=Simulator(model).initial_state())
+    return jsonify(chat=chat)
+
+
+@bp.route("/coachings/<coaching_id>/chats/<chat_id>")
+@login_required
+def coaching_chat_get(coaching_id, chat_id):
+    chat = storage.get_chat(coaching_id, chat_id)
+    if chat is None:
+        abort(404)
+    model = load_model(coaching_id)
     return jsonify(
-        state=sim.initial_state(),
-        dialogs=[{"i": d.i, "name": d.name} for d in model.micro_dialogs],
-        groups=[{"i": g.i, "name": g.name} for g in model.message_groups],
-        languages=model.languages,
+        chat=chat,
+        dialogs=[{"i": d.i, "name": d.name} for d in model.micro_dialogs] if model else [],
+        groups=[{"i": g.i, "name": g.name} for g in model.message_groups] if model else [],
+        languages=model.languages if model else ["en-GB"],
     )
 
 
-@bp.route("/coachings/<coaching_id>/sim/step", methods=["POST"])
+@bp.route("/coachings/<coaching_id>/chats/<chat_id>/step", methods=["POST"])
 @login_required
-def coaching_sim_step(coaching_id):
+def coaching_chat_step(coaching_id, chat_id):
     model = load_model(coaching_id)
     if model is None:
         abort(404)
+    existing = storage.get_chat(coaching_id, chat_id)
+    if existing is None:
+        abort(404)
     payload = request.get_json(silent=True) or {}
-    state = payload.get("state")
     action = payload.get("action") or {}
-    if action.get("type") == "start_from_import":
-        action = dict(action, import_data=storage.get_participant_import_data(coaching_id))
-    sim = Simulator(model, lang=payload.get("lang"))
-    if not isinstance(state, dict):
-        state = sim.initial_state()
-    try:
-        state = sim.step(state, action)
-    except Exception as exc:  # keep a bad rule from 500-ing the whole run
-        state.setdefault("transcript", []).append(
-            {"kind": "system", "text": f"Simulation error: {exc}", "t": ""}
-        )
+
+    if action.get("type") == "reset" and existing.get("kind") == "imported":
+        # "reset" on an imported chat means replay the real participant
+        # again from scratch, not wipe it to a blank live simulation.
+        state = storage.reseed_imported_chat(coaching_id, chat_id) or existing["state"]
+    else:
+        sim = Simulator(model, lang=payload.get("lang"))
+        state = existing["state"]
+        try:
+            state = sim.step(state, action)
+        except Exception as exc:  # keep a bad rule from 500-ing the whole run
+            state.setdefault("transcript", []).append(
+                {"kind": "system", "text": f"Simulation error: {exc}", "t": ""}
+            )
+    storage.update_chat_state(coaching_id, chat_id, state)
     return jsonify(state=state)
+
+
+@bp.route("/coachings/<coaching_id>/chats/<chat_id>/rename", methods=["POST"])
+@login_required
+def coaching_chat_rename(coaching_id, chat_id):
+    name = (request.get_json(silent=True) or {}).get("name", "").strip()
+    if not name or not storage.rename_chat(coaching_id, chat_id, name):
+        return jsonify(ok=False), 400
+    return jsonify(ok=True)
+
+
+@bp.route("/coachings/<coaching_id>/chats/<chat_id>/delete", methods=["POST"])
+@login_required
+def coaching_chat_delete(coaching_id, chat_id):
+    return jsonify(ok=storage.delete_chat(coaching_id, chat_id))
 
 
 @bp.route("/coachings/<coaching_id>/raw")
@@ -226,9 +268,10 @@ def coaching_bundle_upload(coaching_id):
 @bp.route("/coachings/<coaching_id>/participant-import", methods=["POST"])
 @login_required
 def coaching_participant_import_upload(coaching_id):
-    """Attach a .pmcp participant export to this coaching — seeds the Chat
-    tab's simulator with that participant's real variable state and
-    reconstructed event history instead of a blank one."""
+    """Parse a .pmcp participant export and add it as a new imported chat —
+    listed in the Chat tab sidebar alongside any live/simulated chats,
+    seeded with that participant's real variable state and reconstructed
+    event history, immediately explorable and continuable."""
     if storage.get_coaching(coaching_id) is None:
         abort(404)
     upload = request.files.get("participant_import")
@@ -238,23 +281,13 @@ def coaching_participant_import_upload(coaching_id):
         flash("Expected a .pmcp file (a zipped participant export).", "error")
     else:
         try:
-            meta = storage.save_participant_import(coaching_id, upload.filename, upload.read())
-            s = meta["participant_import"]["summary"]
-            flash(f"Participant import attached — {s['variables']} variables, "
-                  f"{s['timelineEvents']} timeline events, {s['cascadesCompleted']} cascades completed.",
+            chat = storage.create_imported_chat(coaching_id, upload.filename, upload.read())
+            s = chat["participant_summary"]
+            flash(f'Imported "{chat["name"]}" as a new chat — {s["variables"]} variables, '
+                  f'{s["timelineEvents"]} timeline events, {s["cascadesCompleted"]} cascades completed.',
                   "success")
         except ParticipantImportError as e:
-            flash(f"Not attached: {e}", "error")
-    return redirect(url_for("main.coaching_view", coaching_id=coaching_id) + "#chat")
-
-
-@bp.route("/coachings/<coaching_id>/participant-import/delete", methods=["POST"])
-@login_required
-def coaching_participant_import_delete(coaching_id):
-    if storage.delete_participant_import(coaching_id):
-        flash("Participant import detached.", "success")
-    else:
-        flash("No participant import to detach.", "error")
+            flash(f"Not imported: {e}", "error")
     return redirect(url_for("main.coaching_view", coaching_id=coaching_id) + "#chat")
 
 

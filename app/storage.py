@@ -8,6 +8,7 @@ concurrent writers.
 from __future__ import annotations
 
 import json
+import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -94,10 +95,13 @@ def delete_coaching(coaching_id: str) -> bool:
     file_path.unlink(missing_ok=True)
     if meta.get("bundle"):
         (Config.COACHING_FILES_DIR / meta["bundle"]["stored_filename"]).unlink(missing_ok=True)
-    if meta.get("participant_import"):
+    if meta.get("participant_import"):  # pre-chats legacy attachment, if never migrated
         pi = meta["participant_import"]
         (Config.COACHING_FILES_DIR / pi["raw_stored_filename"]).unlink(missing_ok=True)
         (Config.COACHING_FILES_DIR / pi["data_stored_filename"]).unlink(missing_ok=True)
+    chats_dir = Config.COACHING_FILES_DIR / f"{coaching_id}.chats"
+    if chats_dir.exists():
+        shutil.rmtree(chats_dir)
     _delete_rgroups_files(coaching_id)
     (Config.COACHINGS_DIR / f"{coaching_id}.json").unlink(missing_ok=True)
     return True
@@ -188,71 +192,188 @@ def coaching_bundle_path(coaching_id: str) -> Path | None:
 
 
 # ---------------------------------------------------------------------------
-# Participant import (.pmcp — a real participant's raw runtime export).
-# Reconstructed into a variable snapshot + observable-event timeline by
-# app.participant_import, and attached to an existing coaching to seed the
-# Chat tab's simulator with that participant's real history instead of a
-# blank one. Mirrors the coaching-bundle attach/detach pattern above.
+# Chats — every conversation explored in the Chat tab, persisted server-side
+# so it survives a page reload and is listed in a sidebar: either a freshly
+# simulated "live" run, or one seeded from a real participant's .pmcp export
+# ("imported", via app.participant_import). A coaching can hold any number of
+# each. Each chat's full {clock, vars, open_dialog, pending, transcript}
+# state (app.coaching_sim.Simulator) lives in its own file under
+# "<coaching_id>.chats/"; only a small summary is kept in the coaching's own
+# meta file, for cheap sidebar listing.
 # ---------------------------------------------------------------------------
 
-def save_participant_import(coaching_id: str, filename: str, file_bytes: bytes) -> dict:
-    """Parse and attach a .pmcp export to an existing coaching. Returns the
-    updated coaching meta. Raises participant_import.ParticipantImportError
-    on a bad file."""
-    from app.participant_import import parse_pmcp  # local: keeps this module import-light
+def _chats_dir(coaching_id: str) -> Path:
+    d = Config.COACHING_FILES_DIR / f"{coaching_id}.chats"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
-    meta = get_coaching(coaching_id)
-    if meta is None:
-        raise ValueError("coaching not found")
-    data = parse_pmcp(file_bytes)  # raises ParticipantImportError on bad input
 
-    raw_stored = f"{coaching_id}.participant_import.pmcp"
-    data_stored = f"{coaching_id}.participant_import.json"
-    with open(Config.COACHING_FILES_DIR / raw_stored, "wb") as f:
-        f.write(file_bytes)
-    _write_json(Config.COACHING_FILES_DIR / data_stored, data)
+def _write_chat_state(coaching_id: str, chat_id: str, state: dict) -> None:
+    _write_json(_chats_dir(coaching_id) / f"{chat_id}.json", state)
 
-    meta["participant_import"] = {
-        "raw_stored_filename": raw_stored,
-        "data_stored_filename": data_stored,
-        "original_filename": filename,
-        "uploaded_at": _now_iso(),
-        "size_bytes": len(file_bytes),
-        "summary": {
-            "nickname": data["participant"].get("nickname"),
-            "systemUniqueId": data["participant"].get("systemUniqueId"),
-            "variables": len(data["variables"]),
-            "timelineEvents": len(data["timeline"]),
-            "cascadesCompleted": data["dialog_status"].get("cascadesCompleted"),
-            "warnings": data["warnings"],
-        },
-    }
+
+def _read_chat_state(coaching_id: str, chat_id: str) -> dict | None:
+    path = _chats_dir(coaching_id) / f"{chat_id}.json"
+    if not path.exists():
+        return None
+    return _read_json(path)
+
+
+def _migrate_legacy_participant_import(coaching_id: str, meta: dict) -> dict:
+    """One-time upgrade path: before chats existed, a coaching could hold at
+    most one attached participant_import. Turn it into a regular imported
+    chat the first time this coaching's chats are touched post-redesign."""
+    pi = meta.get("participant_import")
+    if not pi:
+        return meta
+    from app.coaching_sim import Simulator
+
+    data_path = Config.COACHING_FILES_DIR / pi["data_stored_filename"]
+    raw_path = Config.COACHING_FILES_DIR / pi["raw_stored_filename"]
+    if data_path.exists():
+        import_data = _read_json(data_path)
+        state = Simulator(model=None).initial_state_from_import(import_data)
+        label = (import_data["participant"].get("nickname")
+                 or import_data["participant"].get("systemUniqueId") or "participant")
+        chat_id = uuid.uuid4().hex
+        now = pi.get("uploaded_at") or _now_iso()
+        summary = {
+            "id": chat_id, "name": f"{label} (imported)", "kind": "imported",
+            "created_at": now, "updated_at": now,
+            "participant_summary": pi.get("summary"),
+        }
+        _write_chat_state(coaching_id, chat_id, state)
+        if raw_path.exists():
+            raw_path.rename(_chats_dir(coaching_id) / f"{chat_id}.pmcp")
+        meta.setdefault("chats", []).append(summary)
+    data_path.unlink(missing_ok=True)
+    raw_path.unlink(missing_ok=True)
+    meta.pop("participant_import", None)
     _write_json(Config.COACHINGS_DIR / f"{coaching_id}.json", meta)
     return meta
 
 
-def delete_participant_import(coaching_id: str) -> bool:
+def list_chats(coaching_id: str) -> list[dict]:
     meta = get_coaching(coaching_id)
-    if meta is None or not meta.get("participant_import"):
+    if meta is None:
+        return []
+    meta = _migrate_legacy_participant_import(coaching_id, meta)
+    return sorted(meta.get("chats", []), key=lambda c: c.get("updated_at", ""), reverse=True)
+
+
+def get_chat(coaching_id: str, chat_id: str) -> dict | None:
+    """A chat's summary plus its full state, for loading into the Chat tab
+    when selected from the sidebar."""
+    meta = get_coaching(coaching_id)
+    if meta is None:
+        return None
+    meta = _migrate_legacy_participant_import(coaching_id, meta)
+    summary = next((c for c in meta.get("chats", []) if c["id"] == chat_id), None)
+    if summary is None:
+        return None
+    state = _read_chat_state(coaching_id, chat_id)
+    if state is None:
+        return None
+    return {**summary, "state": state}
+
+
+def create_chat(coaching_id: str, name: str, kind: str, state: dict,
+                 participant_summary: dict | None = None) -> dict:
+    meta = get_coaching(coaching_id)
+    if meta is None:
+        raise ValueError("coaching not found")
+    chat_id = uuid.uuid4().hex
+    now = _now_iso()
+    summary = {
+        "id": chat_id, "name": name, "kind": kind,
+        "created_at": now, "updated_at": now,
+        "participant_summary": participant_summary,
+    }
+    _write_chat_state(coaching_id, chat_id, state)
+    meta.setdefault("chats", []).append(summary)
+    _write_json(Config.COACHINGS_DIR / f"{coaching_id}.json", meta)
+    return {**summary, "state": state}
+
+
+def update_chat_state(coaching_id: str, chat_id: str, state: dict) -> bool:
+    meta = get_coaching(coaching_id)
+    if meta is None:
         return False
-    pi = meta["participant_import"]
-    (Config.COACHING_FILES_DIR / pi["raw_stored_filename"]).unlink(missing_ok=True)
-    (Config.COACHING_FILES_DIR / pi["data_stored_filename"]).unlink(missing_ok=True)
-    meta.pop("participant_import", None)
+    summary = next((c for c in meta.get("chats", []) if c["id"] == chat_id), None)
+    if summary is None:
+        return False
+    summary["updated_at"] = _now_iso()
+    _write_chat_state(coaching_id, chat_id, state)
     _write_json(Config.COACHINGS_DIR / f"{coaching_id}.json", meta)
     return True
 
 
-def get_participant_import_data(coaching_id: str) -> dict | None:
-    """The full parsed import (vars + timeline) for seeding the simulator —
-    not just the summary kept in the coaching's own meta file."""
+def rename_chat(coaching_id: str, chat_id: str, name: str) -> bool:
     meta = get_coaching(coaching_id)
-    if meta is None or not meta.get("participant_import"):
+    if meta is None:
+        return False
+    summary = next((c for c in meta.get("chats", []) if c["id"] == chat_id), None)
+    if summary is None:
+        return False
+    summary["name"] = name
+    _write_json(Config.COACHINGS_DIR / f"{coaching_id}.json", meta)
+    return True
+
+
+def delete_chat(coaching_id: str, chat_id: str) -> bool:
+    meta = get_coaching(coaching_id)
+    if meta is None:
+        return False
+    chats = meta.get("chats", [])
+    remaining = [c for c in chats if c["id"] != chat_id]
+    if len(remaining) == len(chats):
+        return False
+    meta["chats"] = remaining
+    _write_json(Config.COACHINGS_DIR / f"{coaching_id}.json", meta)
+    (_chats_dir(coaching_id) / f"{chat_id}.json").unlink(missing_ok=True)
+    (_chats_dir(coaching_id) / f"{chat_id}.pmcp").unlink(missing_ok=True)
+    return True
+
+
+def create_imported_chat(coaching_id: str, filename: str, file_bytes: bytes) -> dict:
+    """Parse a .pmcp export and add it as a new imported chat. Raises
+    participant_import.ParticipantImportError on a bad file."""
+    from app.coaching_sim import Simulator
+    from app.participant_import import parse_pmcp
+
+    if get_coaching(coaching_id) is None:
+        raise ValueError("coaching not found")
+    data = parse_pmcp(file_bytes)  # raises ParticipantImportError on bad input
+    state = Simulator(model=None).initial_state_from_import(data)
+    label = data["participant"].get("nickname") or data["participant"].get("systemUniqueId") or "participant"
+    summary = {
+        "nickname": data["participant"].get("nickname"),
+        "systemUniqueId": data["participant"].get("systemUniqueId"),
+        "variables": len(data["variables"]),
+        "timelineEvents": len(data["timeline"]),
+        "cascadesCompleted": data["dialog_status"].get("cascadesCompleted"),
+        "warnings": data["warnings"],
+    }
+    chat = create_chat(coaching_id, name=f"{label} (imported)", kind="imported",
+                        state=state, participant_summary=summary)
+    with open(_chats_dir(coaching_id) / f"{chat['id']}.pmcp", "wb") as f:
+        f.write(file_bytes)
+    return chat
+
+
+def reseed_imported_chat(coaching_id: str, chat_id: str) -> dict | None:
+    """Re-parse an imported chat's original .pmcp and rebuild its seeded
+    state from scratch — what "reset" means for an imported chat, since a
+    plain blank reset would otherwise discard the only link back to the
+    real participant it came from."""
+    from app.coaching_sim import Simulator
+    from app.participant_import import parse_pmcp
+
+    raw_path = _chats_dir(coaching_id) / f"{chat_id}.pmcp"
+    if not raw_path.exists():
         return None
-    path = Config.COACHING_FILES_DIR / meta["participant_import"]["data_stored_filename"]
-    if not path.exists():
-        return None
-    return _read_json(path)
+    data = parse_pmcp(raw_path.read_bytes())
+    return Simulator(model=None).initial_state_from_import(data)
 
 
 # ---------------------------------------------------------------------------

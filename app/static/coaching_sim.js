@@ -3,7 +3,17 @@
 	var root = document.querySelector(".sim");
 	if (!root) return;
 
-	var stepUrl = root.dataset.stepUrl;
+	var urls = {
+		list: root.dataset.listUrl,
+		new: root.dataset.newUrl,
+		getBase: root.dataset.getUrlBase,
+		stepBase: root.dataset.stepUrlBase,
+		renameBase: root.dataset.renameUrlBase,
+		deleteBase: root.dataset.deleteUrlBase,
+	};
+
+	var chats = [];
+	var activeId = null;
 	var state = null;
 	var meta = { dialogs: [], groups: [], languages: [] };
 	var varFilter = "";
@@ -14,26 +24,34 @@
 		pending: document.getElementById("sim-pending"),
 		vars: document.querySelector("#sim-vars tbody"),
 		launchSelect: document.getElementById("sim-launch-select"),
+		chatList: document.getElementById("chat-list"),
 	};
 
-	function post(action) {
-		return fetch(stepUrl, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ state: state, action: action, lang: meta.languages[0] }),
-		})
-			.then(function (r) { return r.json(); })
-			.then(function (data) { state = data.state; render(); });
+	function urlFor(base, id) {
+		return base.replace("__ID__", id);
 	}
 
-	var started = false;
-	function init() {
-		if (started) return;
-		started = true;
-		fetch(root.dataset.initUrl)
+	function loadChats(selectId) {
+		return fetch(urls.list)
 			.then(function (r) { return r.json(); })
 			.then(function (data) {
-				state = data.state;
+				chats = data.chats || [];
+				renderChatList();
+				var toSelect = selectId || (chats[0] && chats[0].id);
+				if (toSelect) return selectChat(toSelect);
+				activeId = null;
+				state = null;
+				render();
+			});
+	}
+
+	function selectChat(id) {
+		activeId = id;
+		renderChatList();
+		return fetch(urlFor(urls.getBase, id))
+			.then(function (r) { return r.json(); })
+			.then(function (data) {
+				state = data.chat.state;
 				meta = {
 					dialogs: data.dialogs || [],
 					groups: data.groups || [],
@@ -42,6 +60,17 @@
 				populateLaunch();
 				render();
 			});
+	}
+
+	function post(action) {
+		if (!activeId) return Promise.resolve();
+		return fetch(urlFor(urls.stepBase, activeId), {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ action: action, lang: meta.languages[0] }),
+		})
+			.then(function (r) { return r.json(); })
+			.then(function (data) { state = data.state; render(); });
 	}
 
 	function populateLaunch() {
@@ -60,8 +89,34 @@
 		el.launchSelect.innerHTML = html;
 	}
 
+	function renderChatList() {
+		if (!chats.length) {
+			el.chatList.innerHTML = '<li class="muted chat-empty">No chats yet &mdash; start a new one or import a .pmcp.</li>';
+			return;
+		}
+		el.chatList.innerHTML = chats
+			.map(function (c) {
+				var badge = c.kind === "imported" ? "📥" : "💬";
+				var active = c.id === activeId ? " is-active" : "";
+				return (
+					'<li class="chat-item' + active + '" data-chat-id="' + c.id + '">' +
+					'<span class="chat-item-name" title="' + escapeHtml(c.name) + '">' +
+					badge + " " + escapeHtml(c.name) + "</span>" +
+					'<button type="button" class="chat-item-del" data-del-chat="' + c.id + '" title="Delete this chat">&times;</button>' +
+					"</li>"
+				);
+			})
+			.join("");
+	}
+
 	function render() {
-		if (!state) return;
+		if (!state) {
+			el.clock.textContent = "…";
+			el.transcript.innerHTML = '<p class="muted">Select a chat on the left, start a new one, or import a .pmcp.</p>';
+			el.pending.hidden = true;
+			el.vars.innerHTML = "";
+			return;
+		}
 		var c = state.clock;
 		el.clock.textContent =
 			"day " + c.day + ", " + pad(c.hour) + ":" + pad(c.minute);
@@ -112,12 +167,34 @@
 
 	root.addEventListener("click", function (e) {
 		var b = e.target.closest("button");
-		if (!b) return;
+
+		if (b && b.id === "chat-new-btn") {
+			fetch(urls.new, { method: "POST" })
+				.then(function (r) { return r.json(); })
+				.then(function (data) { loadChats(data.chat.id); });
+			return;
+		}
+
+		if (b && b.dataset.delChat) {
+			e.stopPropagation();
+			if (!confirm("Delete this chat? This can't be undone.")) return;
+			var deletedId = b.dataset.delChat;
+			fetch(urlFor(urls.deleteBase, deletedId), { method: "POST" })
+				.then(function () { loadChats(deletedId === activeId ? null : activeId); });
+			return;
+		}
+
+		var item = e.target.closest(".chat-item");
+		if (item && item.dataset.chatId) {
+			selectChat(item.dataset.chatId);
+			return;
+		}
+
+		if (!b || !state) return;
 		if (b.dataset.tick) post({ type: "tick", minutes: +b.dataset.tick });
 		else if (b.dataset.slot) post({ type: "tick", to: "next-slot" });
 		else if (b.dataset.periodic) post({ type: "run_periodic" });
 		else if (b.dataset.reset) post({ type: "reset" });
-		else if (b.dataset.startImport) post({ type: "start_from_import" });
 		else if (b.dataset.answer !== undefined) post({ type: "answer", value: b.dataset.answer });
 		else if (b.id === "sim-launch-btn") {
 			var v = el.launchSelect.value || "";
@@ -142,6 +219,13 @@
 		return String(s).replace(/[&<>"']/g, function (ch) {
 			return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
 		});
+	}
+
+	var started = false;
+	function init() {
+		if (started) return;
+		started = true;
+		loadChats();
 	}
 
 	document.addEventListener("DOMContentLoaded", init);
