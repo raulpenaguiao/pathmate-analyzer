@@ -54,6 +54,32 @@ def _read_csv(path: Path) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Server-rendered previews -- so the tab shows what's actually on disk (and
+# lets the next step's button enable/disable) instead of only what happened
+# to run in this browser tab this page-load.
+# ---------------------------------------------------------------------------
+
+_PATH_FOR = {"table": table_path, "requests": requests_path, "generated": generated_path}
+
+PREVIEW_COLS = {
+    "table": ["pool", "type", "poolVariants", "thin", "en-GB"],
+    "requests": ["pool", "haveVariants", "needVariants", "comment"],
+    "generated": ["pool", "variantIndex", "status", "en-GB"],
+}
+
+
+def preview(coaching_id: str, kind: str, max_rows: int = 8) -> dict | None:
+    """None if that step hasn't produced a CSV yet; otherwise a small dict
+    the template renders as a table: total row count, the columns to show,
+    and up to `max_rows` of the actual rows on disk."""
+    path = _PATH_FOR[kind](coaching_id)
+    if not path.is_file():
+        return None
+    rows = _read_csv(path)
+    return {"total": len(rows), "cols": PREVIEW_COLS[kind], "rows": rows[:max_rows]}
+
+
+# ---------------------------------------------------------------------------
 # Step 1 & 2 -- synchronous, no network calls
 # ---------------------------------------------------------------------------
 

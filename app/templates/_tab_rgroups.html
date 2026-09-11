@@ -1,48 +1,83 @@
+{% macro csv_preview(p) %}
+{% if p %}
+<div class="table-scroll">
+<table class="data-table rgroups-preview">
+	<thead><tr>{% for c in p.cols %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+	<tbody>
+	{% for row in p.rows %}
+	<tr>{% for c in p.cols %}<td>{{ (row.get(c, '') | string) | truncate(80) }}</td>{% endfor %}</tr>
+	{% endfor %}
+	</tbody>
+</table>
+</div>
+<p class="muted">{{ p.total }} row{{ 's' if p.total != 1 else '' }} on the server{% if p.total > p.rows | length %} (showing the first {{ p.rows | length }}){% endif %}.</p>
+{% endif %}
+{% endmacro %}
+
+{% set p1 = previews.table %}
+{% set p2 = previews.requests %}
+{% set p3 = previews.generated %}
+
 <div class="rgroups-panel"
+	data-self-url="{{ url_for('main.coaching_rgroups_tab', coaching_id=coaching.id) }}"
 	data-report-url="{{ url_for('main.rgroups_report', coaching_id=coaching.id) }}"
 	data-prepare-url="{{ url_for('main.rgroups_prepare', coaching_id=coaching.id) }}"
 	data-expand-start-url="{{ url_for('main.rgroups_expand_start', coaching_id=coaching.id) }}"
 	data-expand-status-url="{{ url_for('main.rgroups_expand_status', coaching_id=coaching.id, job_id='JOBID') }}"
 	data-download-url="{{ url_for('main.rgroups_download', coaching_id=coaching.id, kind='KIND') }}">
 
-	<p class="muted">Grows the thin <code>r_*</code> randomisation pools in this coaching's attached <code>coaching.json</code>, in three steps. A fourth step writes the new variants into the live editor and needs a browser, so it stays a CLI tool: <code>tools/rgroups-table/rgroup_apply.py --limit N --apply</code>.</p>
+	<p class="muted">Grows the thin <code>r_*</code> randomisation pools in this coaching's attached <code>coaching.json</code>, in three steps &mdash; each one has to finish before the next unlocks. A fourth step writes the new variants into the live editor and needs a browser, so it stays a CLI tool: <code>tools/rgroups-table/rgroup_apply.py --limit N --apply</code>.</p>
 
 	<div class="rgroups-step">
 		<h3>1. Build the table</h3>
 		<p class="muted">One row per <code>r_*</code>-tagged message, with its pool, variant count and text.</p>
-		<button type="button" class="secondary" id="rgroups-step1-btn">Build table</button>
-		<div class="rgroups-result" id="rgroups-step1-result"></div>
+		<button type="button" class="secondary" id="rgroups-step1-btn">{{ 'Rebuild table' if p1 else 'Build table' }}</button>
+		<p class="rgroups-error" id="rgroups-step1-error" hidden></p>
+		<div class="rgroups-result" id="rgroups-step1-result">
+			{{ csv_preview(p1) }}
+			{% if p1 %}<a class="button secondary" href="{{ url_for('main.rgroups_download', coaching_id=coaching.id, kind='table') }}">&#8681; rgroups_table.csv</a>{% endif %}
+		</div>
 	</div>
 
 	<div class="rgroups-step">
 		<h3>2. Prepare the request manifest</h3>
 		<p class="muted">One row per thin pool (fewer than 10 distinct variants) &mdash; no prompt text yet, no API calls.</p>
-		<button type="button" class="secondary" id="rgroups-step2-btn">Prepare requests</button>
-		<div class="rgroups-result" id="rgroups-step2-result"></div>
+		<button type="button" class="secondary" id="rgroups-step2-btn" {% if not p1 %}disabled title="Run step 1 first"{% endif %}>{{ 'Rebuild requests' if p2 else 'Prepare requests' }}</button>
+		{% if not p1 %}<p class="muted">Run step 1 first.</p>{% endif %}
+		<p class="rgroups-error" id="rgroups-step2-error" hidden></p>
+		<div class="rgroups-result" id="rgroups-step2-result">
+			{{ csv_preview(p2) }}
+			{% if p2 %}<a class="button secondary" href="{{ url_for('main.rgroups_download', coaching_id=coaching.id, kind='requests') }}">&#8681; rgroups_requests.csv</a>{% endif %}
+		</div>
 	</div>
 
 	<div class="rgroups-step">
 		<h3>3. Generate variants with an LLM</h3>
 		<p class="muted">Calls the provider's API once per thin pool, up to the limit below. The key is used only for this run &mdash; it is never written to disk.</p>
+		{% if not p2 %}<p class="muted">Run step 2 first.</p>{% endif %}
 		<form id="rgroups-expand-form" class="stacked-form">
 			<label>Provider
-				<select name="provider">
+				<select name="provider" {% if not p2 %}disabled{% endif %}>
 					<option value="claude">Claude</option>
 					<option value="chatgpt">ChatGPT</option>
 				</select>
 			</label>
 			<label>API key
-				<input type="password" name="api_key" required autocomplete="off" placeholder="sk-...">
+				<input type="password" name="api_key" required autocomplete="off" placeholder="sk-..." {% if not p2 %}disabled{% endif %}>
 			</label>
 			<label>Limit (max API calls, required)
-				<input type="number" name="limit" min="1" step="1" required>
+				<input type="number" name="limit" min="1" step="1" {% if p2 %}max="{{ p2.total }}"{% endif %} required {% if not p2 %}disabled{% endif %}>
 			</label>
-			<button type="submit" class="secondary">Generate</button>
+			<button type="submit" class="secondary" {% if not p2 %}disabled{% endif %}>Generate</button>
 		</form>
 		<div class="rgroups-progress" id="rgroups-progress" hidden>
 			<div class="rgroups-progress-bar"><div class="rgroups-progress-fill" id="rgroups-progress-fill"></div></div>
 			<p class="muted" id="rgroups-progress-label"></p>
 		</div>
-		<div class="rgroups-result" id="rgroups-step3-result"></div>
+		<p class="rgroups-error" id="rgroups-step3-error" hidden></p>
+		<div class="rgroups-result" id="rgroups-step3-result">
+			{{ csv_preview(p3) }}
+			{% if p3 %}<a class="button secondary" href="{{ url_for('main.rgroups_download', coaching_id=coaching.id, kind='generated') }}">&#8681; rgroups_generated.csv</a>{% endif %}
+		</div>
 	</div>
 </div>

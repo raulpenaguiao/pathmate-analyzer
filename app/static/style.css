@@ -443,6 +443,13 @@ button.answer { background: var(--accent-soft); color: #274bb0; margin: 2px; }
 	transition: width 0.3s ease;
 }
 .rgroups-progress-label { margin: var(--sp-1) 0 0; }
+.rgroups-error { color: var(--danger); margin: var(--sp-2) 0 0; }
+.rgroups-preview { font-size: 0.85rem; }
+.rgroups-preview td, .rgroups-preview th { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button:disabled, .stacked-form select:disabled, .stacked-form input:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
 
 /* ---- deploy footer -------------------------------------------------- */
 

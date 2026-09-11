@@ -250,7 +250,9 @@ def _require_bundle(coaching_id):
 @login_required
 def coaching_rgroups_tab(coaching_id):
     meta, _ = _require_bundle(coaching_id)
-    return render_template("_tab_rgroups.html", coaching=meta)
+    previews = {kind: rgroups_tool.preview(coaching_id, kind)
+                for kind in ("table", "requests", "generated")}
+    return render_template("_tab_rgroups.html", coaching=meta, previews=previews)
 
 
 @bp.route("/coachings/<coaching_id>/rgroups/report", methods=["POST"])
