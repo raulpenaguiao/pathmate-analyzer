@@ -340,6 +340,18 @@ sys.stdout.flush()
 os._exit(rc)
 PY
   then
+    LOGIN_RC=0
+  else
+    LOGIN_RC=1
+  fi
+  # The Python step above hard-exits (os._exit) to skip waiting on
+  # Playwright's Node driver subprocess teardown - that subprocess inherits
+  # this terminal's stdin, and being killed out from under it like that can
+  # leave the TTY in raw mode (arrow keys then print literal escape bytes
+  # instead of cycling shell history). Restore it unconditionally; harmless
+  # no-op if stdin isn't actually a terminal.
+  [ -t 0 ] && stty sane 2>/dev/null || true
+  if [ "$LOGIN_RC" -eq 0 ]; then
     echo "login OK. Next: deactivate Monitoring in the browser, then run your export."
   else
     echo "auto-login did not complete — finish it by hand in the browser." >&2
