@@ -278,9 +278,23 @@
 	{# ---------------------------------------------------------------------- Raw #}
 	<section class="tab-panel" data-tab="raw">
 		<div class="raw-toolbar">
-			<a class="button secondary" href="{{ url_for('main.coaching_download', coaching_id=coaching.id) }}">&#8681; Export original .html</a>
+			<div class="raw-source-tabs">
+				{% if coaching.get('bundle') %}
+				<button type="button" class="raw-source is-active" data-raw-source="html">HTML export</button>
+				<button type="button" class="raw-source" data-raw-source="bundle">coaching.json</button>
+				{% endif %}
+			</div>
+			<div class="raw-downloads">
+				<a class="button secondary" data-raw-download="html" href="{{ url_for('main.coaching_download', coaching_id=coaching.id) }}">&#8681; Export original .html</a>
+				{% if coaching.get('bundle') %}
+				<a class="button secondary" data-raw-download="bundle" hidden href="{{ url_for('main.coaching_bundle_download', coaching_id=coaching.id) }}">&#8681; Export coaching.json</a>
+				{% endif %}
+			</div>
 		</div>
-		<iframe class="coaching-frame" src="{{ url_for('main.coaching_raw', coaching_id=coaching.id) }}"></iframe>
+		<iframe class="coaching-frame" data-raw-frame="html" src="{{ url_for('main.coaching_raw', coaching_id=coaching.id) }}"></iframe>
+		{% if coaching.get('bundle') %}
+		<iframe class="coaching-frame" data-raw-frame="bundle" hidden src="{{ url_for('main.coaching_bundle_raw', coaching_id=coaching.id) }}"></iframe>
+		{% endif %}
 	</section>
 </div>
 

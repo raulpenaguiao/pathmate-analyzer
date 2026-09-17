@@ -330,9 +330,30 @@ COLS = ["Type", "Comment", "Message Text / Events", "Channel", "Answer Type",
         "Contains Media Content", "Contains Link To Survey", "Contains Rules"]
 
 
+def _all_blank(cells: list[str]) -> bool:
+    return not any((c or "").strip() for c in cells)
+
+
 async def sweep_table(page):
     """Scroll-and-accumulate every row of the current micro-dialog `.v-table`.
-    Returns (total, {row_index: [cells]}, [missing_indices])."""
+    Returns (total, {row_index: [cells]}, [missing_indices]).
+
+    `total` is only an ESTIMATE (`Math.round(scrollHeight / rowHeight)` in
+    GRAB_JS — there's no authoritative PMCP-provided row count to read
+    directly). Confirmed live 2026-09-14: this estimate can be badly
+    inflated for reasons not yet root-caused (a single-navigation repro
+    right after the dialog immediately preceding it in a real sweep did NOT
+    reproduce it, and the same dialog swept correctly the day before under
+    an apparently identical sequence — this looks like a genuine
+    intermittent Vaadin timing race, not a deterministic trigger tied to
+    a specific prior dialog's size). One real occurrence: "Quit spirometry
+    dialog after successful spirometry procedure" estimated total=51 when
+    real content ends at row 14 (15 rows) - rows 15-50 were all completely
+    empty across every column. Trim any TRAILING run of fully-blank rows
+    from the result before returning - a genuine PMCP row always has some
+    content in at least one column, so a fully-blank row is never real,
+    and trimming only the trailing run (not scattered mid-table blanks)
+    keeps this conservative."""
     seen: dict[int, list[str]] = {}
     try:
         await page.wait_for_selector(".v-table .v-table-body tr", timeout=8000)
@@ -347,6 +368,7 @@ async def sweep_table(page):
     if total == 0:
         return 0, {}, []
     if not meta["scrollable"]:
+        total = _trim_trailing_blanks(total, seen)
         return total, seen, [i for i in range(total) if i not in seen]
     step = meta["ch"] or 240
     y, stale = 0, 0
@@ -367,8 +389,21 @@ async def sweep_table(page):
         if stale >= 3 and len(seen) >= total:
             break
         y += step
+    total = _trim_trailing_blanks(total, seen)
     missing = [i for i in range(total) if i not in seen]
     return total, seen, missing
+
+
+def _trim_trailing_blanks(total: int, seen: dict[int, list[str]]) -> int:
+    """Shrink `total` past any trailing run of fully-blank captured rows,
+    dropping them from `seen` too. Stops at the first non-blank row from
+    the end, so it never touches a blank row that isn't part of the
+    trailing run (conservative - see sweep_table's docstring)."""
+    trimmed = total
+    while trimmed > 0 and trimmed - 1 in seen and _all_blank(seen[trimmed - 1]):
+        del seen[trimmed - 1]
+        trimmed -= 1
+    return trimmed
 
 
 async def all_targets(page) -> list[dict]:

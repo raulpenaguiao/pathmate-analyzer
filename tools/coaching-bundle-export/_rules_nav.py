@@ -20,6 +20,8 @@ Vaadin 7 tree facts confirmed live 2026-09-10 (see
 from __future__ import annotations
 
 import re
+import sys
+from pathlib import Path
 
 TREE_DUMP_JS = r"""
 () => {
@@ -154,10 +156,29 @@ SENDER_ICON = "message-icon-small.png"       # rule sends a message / starts a d
 CONDITION_ICON = "rule-icon-small.png"       # condition / calculation rule
 
 
+def _parse_rule_caption(caption: str) -> dict:
+    """Structured `{comment, kind, lhs, rhs/target, ...}` from a Rules-tree
+    caption (`"<comment>: <expr>"`, comment optional) - Stage 4 Phase 0
+    (`docs/stage4_chat_engine_plan.md`). Delegates to the shared grammar in
+    `app/rule_grammar.py` so the exporter and the HTML-driven simulator
+    parse the same fixed operator phrases from one place; see that module's
+    docstring for why comment-splitting has to happen here rather than in
+    `parse_expr` itself (the HTML export never has a comment prefix to
+    strip - it's already a separate column there)."""
+    repo = Path(__file__).resolve().parents[2]
+    if str(repo) not in sys.path:
+        sys.path.insert(0, str(repo))
+    from app.rule_grammar import parse_rule_caption
+    return parse_rule_caption(caption)
+
+
 def build_rule_tree(tree_nodes: list[dict]) -> list[dict]:
     """A flat, ordered rule list with stable uids + parent links, from a
     TREE_DUMP_JS node list. Section roots (depth 0) set the `section` of
-    everything under them and are dropped from the output."""
+    everything under them and are dropped from the output. Each node also
+    gets an `expr` field: the caption's comment + structured expression
+    (Stage 4 Phase 0) - `expr.kind` is "unsupported" for JS-snippet/regex
+    conditions PMCP allows outside its declarative mini-language."""
     out: list[dict] = []
     last_at_depth: dict[int, str | None] = {}
     section = None
@@ -176,6 +197,7 @@ def build_rule_tree(tree_nodes: list[dict]) -> list[dict]:
             "uid": uid, "section": section, "depth": d, "order": counter,
             "parentUid": last_at_depth.get(d - 1),
             "kind": kind, "icon": n["icon"], "caption": n["caption"],
+            "expr": _parse_rule_caption(n["caption"]),
             "treeIndex": n["i"],
         })
         last_at_depth[d] = uid
@@ -197,10 +219,10 @@ async def ensure_rules_tree(page) -> bool:
     tab = page.locator(".v-captiontext", has_text="Rules")
     if await tab.count():
         try:
-            await tab.first.click()
-            await page.wait_for_timeout(2500)
+            await tab.first.click(timeout=8000)
         except Exception:  # noqa: BLE001
-            pass
+            await _mouse_click(page, tab.first)
+        await page.wait_for_timeout(2500)
     return bool(await page.evaluate("document.querySelectorAll('.v-tree').length"))
 
 
@@ -213,12 +235,51 @@ async def _aria_of(page, ti: int, i: int) -> str | None:
     return next((n["ariaExpanded"] for n in trees[ti]["nodes"] if n["i"] == i), None)
 
 
+async def _mouse_click(page, locator, offset_x: float = None, offset_y: float = None,
+                        timeout: int = 8000) -> bool:
+    """Click via a real OS-level mouse move+click at the element's actual
+    on-screen coordinates, instead of Playwright's Locator.click() (which
+    does its own "visible, enabled, stable" actionability re-check).
+    Confirmed live 2026-09-15: that re-check can fail persistently (full
+    default-timeout hangs, `expand_all`/`select_node`/tab navigation all
+    affected at once) with NO modal, notification, or overlay present to
+    explain it - not the well-documented "not enabled" quirk (which is a
+    real disabled state), something else about Vaadin's DOM causing
+    Playwright's stability check specifically to never settle. A raw mouse
+    click at the same coordinates goes through the real input pipeline
+    (unlike a JS `element.click()`, which can desync the Vaadin
+    client/server session if used to bypass a stuck popup - confirmed
+    2026-09-14, see `create_variables.py`/memory) and worked every time
+    this was hit. Returns False (not an exception) if the element can't be
+    located at all, so callers can fall back or retry."""
+    try:
+        await locator.scroll_into_view_if_needed(timeout=timeout)
+    except Exception:  # noqa: BLE001
+        pass  # bounding_box below still catches a genuinely-missing element
+    try:
+        box = await locator.bounding_box(timeout=timeout)
+    except Exception:  # noqa: BLE001
+        return False
+    if not box:
+        return False
+    x = box["x"] + (offset_x if offset_x is not None else box["width"] / 2)
+    y = box["y"] + (offset_y if offset_y is not None else box["height"] / 2)
+    await page.mouse.move(x, y)
+    await page.wait_for_timeout(120)
+    await page.mouse.click(x, y)
+    return True
+
+
 async def select_node(page, ti: int, i: int) -> None:
     """Click a node's caption at x=20 to select it (box centre is dead space)."""
     cap = (page.locator(".v-tree").nth(ti)
            .locator(".v-tree-node[role=treeitem]").nth(i)
            .locator(":scope > .v-tree-node-caption"))
-    await cap.click(position={"x": 20, "y": 8}, timeout=4000)
+    try:
+        await cap.click(position={"x": 20, "y": 8}, timeout=4000)
+    except Exception:  # noqa: BLE001
+        if not await _mouse_click(page, cap, offset_x=20, offset_y=8):
+            raise
 
 
 async def click_expander(page, ti: int, i: int) -> bool:
@@ -316,38 +377,90 @@ async def rule_edit_button(page):
 
 async def close_windows(page) -> int:
     """Dismiss every open modal. On the rule editor the only button ("Close")
-    commits a no-op re-save — returns how many such committing clicks."""
+    commits a no-op re-save — returns how many such committing clicks.
+
+    The dismiss button intermittently reports "not enabled" for well over
+    Playwright's default 30s actionability wait (a known Vaadin quirk,
+    documented repeatedly across autochanges/ — not just the usual
+    millisecond-scale flakiness). A single `.click()` with no outer retry
+    then aborts the whole caller with an unhandled TimeoutError, which is
+    exactly what crashed export_coaching.py mid-sweep on 2026-09-12 (see
+    autochanges/2026-09-12-alex-v02-phase3.7-*). Retrying the click itself a
+    few times (4x8s) fixed that occurrence, but a second run the same day hit
+    an even longer stuck spell that exhausted all 4 retries too — so a failed
+    click no longer raises here: fall back to Escape and let the OUTER loop
+    (widened 6->10) re-examine and retry the whole close, rather than
+    crashing the caller's sweep over one bad spell. Only raise if a modal is
+    still open after every outer attempt — fail loud instead of silently
+    returning with a modal left open, which would desync the caller's
+    per-sender loop."""
     committed = 0
-    for _ in range(6):
+    for _ in range(10):
         if not await page.locator(".v-window").count():
             return committed
         clicked = False
         for label in ("Cancel", "Close", "Exit", "OK"):
             btn = page.locator(".v-window .v-button-caption", has_text=label)
             if await btn.count():
-                await btn.last.click()
-                if label in ("Close", "OK"):
-                    committed += 1
+                ok = False
+                for attempt in range(4):
+                    try:
+                        await btn.last.click(timeout=8000)
+                        ok = True
+                        break
+                    except Exception:  # noqa: BLE001
+                        if attempt == 3:
+                            ok = await _mouse_click(page, btn.last)
+                            break
+                        await page.wait_for_timeout(1000)
+                if ok:
+                    if label in ("Close", "OK"):
+                        committed += 1
+                else:
+                    print(f"  ! close_windows: {label!r} stuck 'not enabled' "
+                          f"past 4x8s — Escape + outer retry")
+                    await page.keyboard.press("Escape")
                 clicked = True
                 break
         if not clicked:
             await page.keyboard.press("Escape")
         await page.wait_for_timeout(450)
+    if await page.locator(".v-window").count():
+        raise RuntimeError("close_windows: a modal is still open after 10 "
+                           "attempts (dismiss button stuck 'not enabled') — "
+                           "failing loud rather than leaving state open.")
     return committed
 
 
 async def open_rule_modal(page, ti: int, i: int) -> dict | None:
     """Select the i-th treeitem, click its toolbar Edit, return the
-    RULE_MODAL_JS dump plus the DOES-NOT-answer inner trees. Retries once.
-    Leaves the modal OPEN — caller must close_windows()."""
-    for attempt in range(2):
-        await select_node(page, ti, i)
+    RULE_MODAL_JS dump plus the DOES-NOT-answer inner trees. Retries a few
+    times. Leaves the modal OPEN — caller must close_windows()."""
+    for attempt in range(4):
+        try:
+            await select_node(page, ti, i)
+        except Exception:  # noqa: BLE001
+            await page.wait_for_timeout(800)
+            continue
         await page.wait_for_timeout(450)
         btn = await rule_edit_button(page)
         if not btn:
             await page.wait_for_timeout(500)
             continue
-        await btn.click()
+        try:
+            await btn.click(timeout=8000)
+        except Exception:  # noqa: BLE001
+            # same "element not enabled" Vaadin quirk close_windows() retries
+            # for — a fresh select_node + re-fetched button on the next loop
+            # iteration is what actually clears it, not just waiting longer.
+            # On the last attempt, try a real mouse click before giving up
+            # entirely (see _mouse_click's docstring — confirmed live
+            # 2026-09-15 this clears cases plain retrying never does).
+            if attempt == 3 and await _mouse_click(page, btn):
+                pass
+            else:
+                await page.wait_for_timeout(800)
+                continue
         try:
             await page.wait_for_selector(".v-window .v-window-header", timeout=6000)
         except Exception:  # noqa: BLE001
@@ -397,6 +510,43 @@ async def open_rule_modal(page, ti: int, i: int) -> dict | None:
 #     commits (creates the rule) - there is no separate Cancel on either.
 # ---------------------------------------------------------------------------
 
+async def _click_retry(page, locator, attempts: int = 4, timeout: int = 8000,
+                        settle_ms: int = 1000) -> bool:
+    """Retry a click a few times before giving up - the "element is not
+    enabled" Vaadin quirk (documented repeatedly across this project) can
+    persist for the full default 30s actionability wait. Confirmed live
+    2026-09-14/15: `_open_field_popup`/`_fill_and_ok` had never had this
+    protection (unlike `close_windows`/`open_rule_modal`, hardened earlier)
+    and crashed mid Phase-4.1.2 rule edit on this exact flakiness, leaving
+    two stacked stuck popups open.
+
+    After real retries are exhausted, falls back to a raw OS-level mouse
+    click (`_mouse_click`) at the element's actual coordinates before
+    giving up entirely. This is NOT the same as forcing a click via a raw
+    JS `element.click()` - that bypasses the real input pipeline and was
+    confirmed live (2026-09-14, `create_variables.py`) to be able to
+    visually close a popup while desyncing the Vaadin client/server
+    session, silently breaking every later server round-trip with no
+    error shown - never do that. A real `page.mouse.move()+click()` at the
+    genuine coordinates goes through the same event pipeline a human
+    click would; it only skips Playwright's own extra "stable across two
+    frames" pre-check, which was confirmed live 2026-09-15 to hang
+    indefinitely on elements with no modal/overlay/notification present to
+    explain it (session-wide - `expand_all`, `select_node`, and plain tab
+    navigation were all affected at once, ruling out the ordinary
+    "not enabled" disabled-state quirk this function was originally
+    written for)."""
+    for attempt in range(attempts):
+        try:
+            await locator.click(timeout=timeout)
+            return True
+        except Exception:  # noqa: BLE001
+            if attempt == attempts - 1:
+                return await _mouse_click(page, locator)
+            await page.wait_for_timeout(settle_ms)
+    return False
+
+
 async def _open_field_popup(page, edit_index: int):
     """Click the edit_index-th 'Edit' button in the OUTER (first) .v-window,
     in DOM order. Leaves the resulting popup open."""
@@ -414,7 +564,8 @@ async def _open_field_popup(page, edit_index: int):
     el = handle.as_element() if handle else None
     if not el:
         return False
-    await el.click()
+    if not await _click_retry(page, el):
+        return False
     await page.wait_for_timeout(900)
     return True
 
@@ -425,12 +576,14 @@ async def _fill_and_ok(page, text: str) -> bool:
     ta = sub.locator("textarea, input[type=text]").first
     if not await ta.count():
         return False
-    await ta.click()
+    if not await _click_retry(page, ta):
+        return False
     await ta.fill(text)
-    ok = sub.locator(".v-button-caption", has_text="OK")
+    ok = sub.locator(".v-button-caption", has_text="OK").last
     if not await ok.count():
         return False
-    await ok.last.click()
+    if not await _click_retry(page, ok):
+        return False
     await page.wait_for_timeout(700)
     return True
 
@@ -458,6 +611,92 @@ async def set_rule_result_variable(page, var_name: str) -> bool:
     return await _open_field_popup(page, 3) and await _fill_and_ok(page, var_name)
 
 
+async def set_rule_operator(page, operator_text: str, verify: bool = True) -> bool:
+    """The comparison/assign OPERATOR (e.g. "calculated value is smaller
+    than", "calculate value but result is always true") is a SEPARATE
+    control from Rule[x]/Term[y] - confirmed live 2026-09-15 building
+    Phase 4.1's medication rules. It's not behind one of the 4 Edit-button
+    popups; it's a directly-clickable `.v-filterselect` (Vaadin ComboBox,
+    `-no-input` variant - click-to-open-a-list, not type-to-filter) sitting
+    in the OUTER form, the first non-disabled one in DOM order. On an
+    EXISTING rule (e.g. one made via Duplicate) this already holds the
+    right value and never needs touching - `set_rule_condition_x`/`_y`
+    only ever change the bare value/variable text, never the operator
+    phrase, and that's correct: editing Rule[x] on a duplicated cmp-type
+    rule does not change it into an assign-type rule or vice versa. Only a
+    brand-new rule (via `New`) starts with a DEFAULT operator
+    ("calculated value equals", confirmed live) that must be set
+    explicitly before the rule means what you intend.
+
+    Confirmed unreliable enough to need its own verification: one live
+    click on the filterselect + option can report success (no exception)
+    while the selection silently doesn't take, leaving the rule on
+    PMCP's default placeholder display (`--- calculated value equals
+    ---`) - the same class of "click succeeds, intent doesn't land"
+    flakiness documented elsewhere in this project (e.g. checkboxes
+    needing `force=True`). `verify=True` (default) re-reads the
+    filterselect's displayed text after selecting and retries once if it
+    doesn't match - don't disable this without a good reason."""
+    for attempt in range(2 if verify else 1):
+        w = page.locator(".v-window").first
+        fs = w.locator(".v-filterselect:not(.v-disabled)").first
+        if not await _click_retry(page, fs):
+            continue
+        await page.wait_for_timeout(500)
+        popup = page.locator(".v-filterselect-suggestpopup")
+        if not await popup.count():
+            continue
+        opt = popup.get_by_text(operator_text, exact=False).first
+        if not await opt.count():
+            return False  # the text itself doesn't exist as an option - retrying won't help
+        if not await _click_retry(page, opt):
+            continue
+        await page.wait_for_timeout(500)
+        if not verify:
+            return True
+        now = await fs.inner_text() if await fs.count() else ""
+        if operator_text in now:
+            return True
+    return False
+
+
+async def set_rule_micro_dialog(page, path_text: str, max_pages: int = 20) -> bool:
+    """'Micro dialog to start' - the 3rd filterselect (index 2) in the outer
+    form, same `-no-input` click-to-open-a-list widget as the operator
+    dropdown, but server-paginated (confirmed live 2026-09-15: 10 options
+    per page, `.v-filterselect-nextpage`/`-prevpage` controls) rather than
+    a short fixed list, since it lists every dialog AND folder in the whole
+    coaching. `path_text` should match a full path exactly as PMCP renders
+    it - `"A > B"` for a dialog nested under folder A (confirmed live,
+    Phase 3.5: a dialog nested under its original gets listed as a path,
+    not a bare name)."""
+    w = page.locator(".v-window").first
+    fs = w.locator(".v-filterselect").nth(2)
+    if not await _click_retry(page, fs):
+        return False
+    await page.wait_for_timeout(600)
+    popup = page.locator(".v-filterselect-suggestpopup")
+    if not await popup.count():
+        return False
+    for _ in range(max_pages):
+        opt = popup.get_by_text(path_text, exact=True)
+        if await opt.count():
+            if not await _click_retry(page, opt.first):
+                return False
+            await page.wait_for_timeout(500)
+            now = await fs.inner_text()
+            return path_text in now
+        nextbtn = popup.locator(".v-filterselect-nextpage")
+        if not await nextbtn.count():
+            return False
+        cls = await nextbtn.get_attribute("class") or ""
+        if "disabled" in cls:
+            return False
+        await _click_retry(page, nextbtn)
+        await page.wait_for_timeout(500)
+    return False
+
+
 async def set_rule_checkbox(page, label_substr: str, checked: bool) -> bool:
     """One of the 4 TRUE-result action checkboxes (or any other directly-
     live checkbox in the outer form). Modal must already be open. No-ops if
@@ -473,29 +712,53 @@ async def set_rule_checkbox(page, label_substr: str, checked: bool) -> bool:
     return True
 
 
-async def set_rule_hour_variable(page, var_name: str) -> bool:
+async def set_rule_hour_variable(page, var_name: str, verify: bool = True,
+                                  max_pages: int = 40) -> bool:
     """The 'Hour to send message' $variable filterselect. Only live once
     its owning action checkbox (Send message / Start micro dialog) is
     already checked - call set_rule_checkbox first if needed. var_name
-    without the leading '$' also works (matched as substring)."""
+    without the leading '$' also works (matched as substring).
+
+    Rewritten 2026-09-16: (1) to match `set_rule_operator`/
+    `set_rule_micro_dialog`'s proven approach (click the filterselect
+    WRAPPER directly via `_click_retry`, find the option by text in the
+    popup) - the original version clicked an inner `<input>` and looked
+    for `.gwt-MenuItem`, which doesn't match this widget's actual popup
+    markup and silently always returned False; (2) because this list is
+    every $variable in the coaching (334 on ALEX v01) and is server-
+    paginated the same way `set_rule_micro_dialog`'s dialog-path list is -
+    a variable past the first ~10 alphabetically needs paging to reach,
+    confirmed live with `$userSetDesired...` (near the end of the
+    alphabet)."""
     # the Hour filterselect is identified by position (4th, index 3) per
     # the confirmed field order - see phase1-completion.md's table.
-    target = page.locator(".v-window .v-filterselect").nth(3)
-    inp = target.locator("input")
-    if not await inp.count():
+    fs = page.locator(".v-window .v-filterselect").nth(3)
+    if not await _click_retry(page, fs):
         return False
-    await inp.click()
-    await page.wait_for_timeout(700)
+    await page.wait_for_timeout(600)
     popup = page.locator(".v-filterselect-suggestpopup")
     if not await popup.count():
         return False
-    item = popup.locator(".gwt-MenuItem", has_text=var_name).first
-    if not await item.count():
-        await page.keyboard.press("Escape")
-        return False
-    await item.click()
-    await page.wait_for_timeout(700)
-    return True
+    for _ in range(max_pages):
+        opt = popup.get_by_text(var_name, exact=False).first
+        if await opt.count():
+            if not await _click_retry(page, opt):
+                return False
+            await page.wait_for_timeout(500)
+            if not verify:
+                return True
+            now = await fs.inner_text() if await fs.count() else ""
+            return var_name.lstrip("$") in now
+        nextbtn = popup.locator(".v-filterselect-nextpage")
+        if not await nextbtn.count():
+            break
+        cls = await nextbtn.get_attribute("class") or ""
+        if "disabled" in cls:
+            break
+        await _click_retry(page, nextbtn)
+        await page.wait_for_timeout(500)
+    await page.keyboard.press("Escape")
+    return False
 
 
 # ---------------------------------------------------------------------------

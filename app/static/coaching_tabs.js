@@ -142,6 +142,21 @@
 		var rtb = document.getElementById("rules-tree-btn");
 		if (rtb) rtb.addEventListener("click", toggleRulesTree);
 
+		document.querySelectorAll(".raw-source").forEach(function (btn) {
+			btn.addEventListener("click", function () {
+				var src = btn.dataset.rawSource;
+				document.querySelectorAll(".raw-source").forEach(function (b) {
+					b.classList.toggle("is-active", b === btn);
+				});
+				document.querySelectorAll("[data-raw-frame]").forEach(function (f) {
+					f.hidden = f.dataset.rawFrame !== src;
+				});
+				document.querySelectorAll("[data-raw-download]").forEach(function (a) {
+					a.hidden = a.dataset.rawDownload !== src;
+				});
+			});
+		});
+
 		var h = decodeURIComponent(location.hash.slice(1));
 		if (h.indexOf("tab-") === 0) activateTab(h.slice(4));
 		else if (h) jumpTo(h);

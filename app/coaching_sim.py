@@ -20,28 +20,20 @@ import re
 from datetime import date, datetime, timedelta, timezone
 
 from app.coaching_model import CoachingModel, VARIABLE_RE
+from app.rule_grammar import (
+    ARROW as _ARROW,
+    CMP_OPS as _CMP_OPS,
+    ASSIGN_TRUE as _ASSIGN_TRUE,
+    ASSIGN_FALSE as _ASSIGN_FALSE,
+    DATE_DIFF as _DATE_DIFF,
+    DATE_ADD as _DATE_ADD,
+    parse_expr,
+)
 
 BASE_DATE = date(2026, 1, 1)
 DAY_SLOTS = (6, 12, 18, 22)  # hour boundaries for the "advance to next slot" button
 _MAX_TRANSCRIPT = 500
 _MAX_DIALOG_STEPS = 400
-
-_ARROW = "→"
-
-_CMP_OPS = {
-    "calculated value equals": lambda a, b: _num(a) == _num(b),
-    "calculated value not equals": lambda a, b: _num(a) != _num(b),
-    "calculated value is bigger or equal than": lambda a, b: _num(a) >= _num(b),
-    "calculated value is smaller or equal than": lambda a, b: _num(a) <= _num(b),
-    "calculated value is bigger than": lambda a, b: _num(a) > _num(b),
-    "calculated value is smaller than": lambda a, b: _num(a) < _num(b),
-    "text value equals": lambda a, b: str(a).strip() == str(b).strip(),
-    "text value not equals": lambda a, b: str(a).strip() != str(b).strip(),
-}
-_ASSIGN_TRUE = ("calculate value but result is always true", "create text but result is always true")
-_ASSIGN_FALSE = ("calculate value but result is always false", "create text but result is always false")
-_DATE_DIFF = "calculate date difference in days and always true"
-_DATE_ADD = "calculate new date by adding y days and always true"
 
 
 # ---------------------------------------------------------------------------
@@ -110,40 +102,9 @@ def _eval_arith(expr: str, variables: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# rule expression parsing + evaluation
+# rule expression evaluation (parse_expr itself lives in app/rule_grammar.py,
+# shared with the exporter's Rules-tree caption parsing)
 # ---------------------------------------------------------------------------
-
-def parse_expr(expr: str) -> dict:
-    """-> {kind: 'cmp'|'assign'|'date_diff'|'date_add'|'unknown', ...}."""
-    target = None
-    left = expr
-    if _ARROW in expr:
-        left, target = expr.rsplit(_ARROW, 1)
-        left, target = left.strip(), target.strip()
-
-    for phrase, fn in _CMP_OPS.items():
-        if phrase in left:
-            lhs, rhs = left.split(phrase, 1)
-            return {"kind": "cmp", "phrase": phrase, "lhs": lhs.strip(), "rhs": rhs.strip()}
-
-    if _DATE_DIFF in left:
-        lhs, rhs = left.split(_DATE_DIFF, 1)
-        return {"kind": "date_diff", "lhs": lhs.strip(), "rhs": rhs.strip(), "target": target}
-    if _DATE_ADD in left:
-        lhs, rhs = left.split(_DATE_ADD, 1)
-        return {"kind": "date_add", "lhs": lhs.strip(), "rhs": rhs.strip(), "target": target}
-
-    for phrase in _ASSIGN_TRUE:
-        if phrase in left:
-            return {"kind": "assign", "lhs": left.split(phrase, 1)[0].strip(),
-                    "target": target, "result": True}
-    for phrase in _ASSIGN_FALSE:
-        if phrase in left:
-            return {"kind": "assign", "lhs": left.split(phrase, 1)[0].strip(),
-                    "target": target, "result": False}
-
-    return {"kind": "unknown", "raw": expr}
-
 
 def eval_expr(expr: str, variables: dict) -> tuple[bool | None, tuple[str, str] | None]:
     """Returns (truthiness, assignment). truthiness is None for unsupported."""

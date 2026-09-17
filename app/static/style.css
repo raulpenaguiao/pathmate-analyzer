@@ -337,7 +337,18 @@ code, .mono { font-family: var(--mono); font-size: 0.86em; }
 .md-panel[data-lang="ro-RO"] .lang--en-GB { display: none; }
 
 /* raw */
-.raw-toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--sp-3); }
+.raw-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.raw-source-tabs { display: flex; gap: var(--sp-1); }
+.raw-source {
+	background: var(--sunken);
+	color: var(--fg-soft);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-sm);
+	padding: var(--sp-1) var(--sp-3);
+	font-size: 0.85rem;
+	cursor: pointer;
+}
+.raw-source.is-active { background: var(--accent); color: white; border-color: var(--accent); }
 .coaching-frame {
 	width: 100%;
 	height: 72vh;

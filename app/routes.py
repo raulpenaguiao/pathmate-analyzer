@@ -205,6 +205,24 @@ def coaching_raw(coaching_id):
     return send_file(file_path, mimetype="text/html")
 
 
+@bp.route("/coachings/<coaching_id>/bundle/raw")
+@login_required
+def coaching_bundle_raw(coaching_id):
+    file_path = storage.coaching_bundle_path(coaching_id)
+    if file_path is None or not file_path.exists():
+        abort(404)
+    return send_file(file_path, mimetype="application/json")
+
+
+@bp.route("/coachings/<coaching_id>/bundle/download")
+@login_required
+def coaching_bundle_download(coaching_id):
+    file_path = storage.coaching_bundle_path(coaching_id)
+    if file_path is None or not file_path.exists():
+        abort(404)
+    return send_file(file_path, as_attachment=True, download_name="coaching.json")
+
+
 @bp.route("/coachings/<coaching_id>/rules-tree")
 @login_required
 def coaching_rules_tree(coaching_id):

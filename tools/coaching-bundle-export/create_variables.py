@@ -36,6 +36,7 @@ import os
 from playwright.async_api import async_playwright
 
 import _pmcp_safety as safety
+import _variables_nav as V
 
 CDP = os.environ.get("PMCP_CDP", "http://127.0.0.1:9222")
 
@@ -79,54 +80,19 @@ async def open_variables_tab(page) -> bool:
     return await on_variables_view(page)
 
 
-SWEEP_NAMES_JS = r"""
-async () => {
-  const t = document.querySelector('.v-table');
-  if (!t) return [];
-  const scroller = t.querySelector('.v-table-body-wrapper') || t.querySelector('.v-scrollable');
-  const seen = new Set();
-  const grab = () => t.querySelectorAll('.v-table-body tr').forEach(tr => {
-    const first = tr.querySelector('.v-table-cell-wrapper');
-    if (first) seen.add(first.textContent.trim());
-  });
-  const waitForLoad = async (maxMs) => {
-    const start = Date.now();
-    // wait for it to appear (server round trip starting) OR just settle
-    await new Promise(r => setTimeout(r, 150));
-    while (document.querySelector('.v-loading-indicator') && Date.now() - start < maxMs) {
-      await new Promise(r => setTimeout(r, 150));
-    }
-    await new Promise(r => setTimeout(r, 150));
-  };
-  scroller.scrollTop = 0; await waitForLoad(4000); grab();
-  // server-paginated (confirmed live: a '.v-loading-indicator' appears on
-  // scroll and more rows arrive after it clears) - jump to bottom and wait
-  // for the indicator each time, repeating until scrollHeight AND the
-  // unique-name count both stop growing across two consecutive attempts.
-  let lastHeight = -1, lastCount = -1, stable = 0, guard = 0;
-  while (stable < 2 && guard++ < 60) {
-    scroller.scrollTop = scroller.scrollHeight;
-    await waitForLoad(4000);
-    grab();
-    const h = scroller.scrollHeight, c = seen.size;
-    stable = (h === lastHeight && c === lastCount) ? stable + 1 : 0;
-    lastHeight = h; lastCount = c;
-  }
-  scroller.scrollTop = 0; await new Promise(r => setTimeout(r, 150));
-  return [...seen];
-}
-"""
-
-
 async def all_variable_names(page) -> set[str]:
-    """The Variables table is virtualized AND server-paginated (confirmed
-    live: a '.v-loading-indicator' shows while more rows load after a
-    scroll) - a plain innerText check, or even a scroll sweep with only a
-    short fixed wait, false-negatives on rows not yet fetched. Scroll to
-    the bottom repeatedly, waiting out the loading indicator each time,
-    until the row count stops growing."""
-    names = await page.evaluate(SWEEP_NAMES_JS)
-    return set(names)
+    """Delegates to _variables_nav.sweep_variables() (the incremental-scroll
+    sweep fixed 2026-09-12/14). This function used to have its own
+    jump-straight-to-bottom sweep, which looked converged (stable
+    scrollHeight + row count) but was confirmed live to silently miss ~75%
+    of rows on this exact table — see _variables_nav.py's module docstring.
+    A false negative here wouldn't create real duplicate variables (PMCP's
+    own "New" flow is the actual gate on that), but it would make
+    create_one()'s own post-create existence check report false "not found
+    after create" errors on variables that actually did get created —
+    switched to the fixed sweep to stop that."""
+    rows = await V.sweep_variables(page)
+    return {r["Variable Name"] for r in rows}
 
 
 async def scroll_table_to_row(page, name: str, max_steps: int = 45) -> bool:
@@ -151,6 +117,27 @@ async def scroll_table_to_row(page, name: str, max_steps: int = 45) -> bool:
     return await row.count() > 0
 
 
+async def _click_retry(page, locator, attempts: int = 4, timeout: int = 8000,
+                        settle_ms: int = 1000) -> bool:
+    """Retry a click a few times before giving up - the "element is not
+    enabled" Vaadin quirk (documented repeatedly across this project) can
+    persist for the full default 30s actionability wait, not just
+    millisecond-scale flakiness. Confirmed live 2026-09-14: this exact
+    function's clicks (all previously bare, no retry) crashed a Phase 4.1
+    variable-creation run mid-way, leaving a stray "Enter name for
+    variable:" popup open that then desynced the whole Vaadin session
+    (see autochanges/2026-09-14-*)."""
+    for attempt in range(attempts):
+        try:
+            await locator.click(timeout=timeout)
+            return True
+        except Exception:  # noqa: BLE001
+            if attempt == attempts - 1:
+                return False
+            await page.wait_for_timeout(settle_ms)
+    return False
+
+
 async def create_one(page, name: str, value: str, apply: bool, existing: set[str]) -> str:
     if name in existing:
         return "already exists - skipped"
@@ -158,13 +145,16 @@ async def create_one(page, name: str, value: str, apply: bool, existing: set[str
         return f"would create with value {value!r} (dry run)"
 
     new_btn = page.locator(".v-button-caption", has_text="New").first
-    await new_btn.click()
+    if not await _click_retry(page, new_btn):
+        return "ERROR: 'New' button stuck 'not enabled' - nothing changed"
     await page.wait_for_timeout(700)
     ta = page.locator(".v-window textarea, .v-window input[type=text]").first
-    await ta.click()
+    if not await _click_retry(page, ta):
+        return "ERROR: name field stuck 'not enabled' - popup left open, close it by hand"
     await ta.fill(name)
-    ok = page.locator(".v-window .v-button-caption", has_text="OK")
-    await ok.last.click()
+    ok = page.locator(".v-window .v-button-caption", has_text="OK").last
+    if not await _click_retry(page, ok):
+        return "ERROR: name popup's OK stuck 'not enabled' - popup left open, close it by hand"
     await page.wait_for_timeout(1200)
 
     # select the new row (server-paginated table - scroll to find it) and
@@ -188,20 +178,28 @@ async def create_one(page, name: str, value: str, apply: bool, existing: set[str
             break
     if not selected:
         return "ERROR: row found but selection never registered (v-selected)"
-    await edit_btn.click()
+    if not await _click_retry(page, edit_btn):
+        return "ERROR: created, but 'Edit' stuck 'not enabled' - value not set, fix by hand"
     await page.wait_for_timeout(700)
     val_input = page.locator(".v-window textarea, .v-window input[type=text]").first
-    await val_input.click()
+    if not await _click_retry(page, val_input):
+        return "ERROR: created, but value field stuck 'not enabled' - popup left open, close by hand"
     await val_input.fill(value)
-    ok2 = page.locator(".v-window .v-button-caption", has_text="OK")
-    await ok2.last.click()
+    ok2 = page.locator(".v-window .v-button-caption", has_text="OK").last
+    if not await _click_retry(page, ok2):
+        return "ERROR: created, but value popup's OK stuck 'not enabled' - popup left open, close by hand"
     await page.wait_for_timeout(1000)
 
-    after = await all_variable_names(page)
-    if name in after:
+    # Confirm via a targeted scroll-to-row, not a full re-sweep - the fixed
+    # all_variable_names() takes ~2 minutes on this table (334 rows), which
+    # would turn an N-variable run into N x ~2 minutes if called here per
+    # variable (found live 2026-09-14 running Phase 4.1's medication
+    # variables). scroll_table_to_row() is the same fast incremental-scroll
+    # search already used to find the row for editing above.
+    if await scroll_table_to_row(page, name):
         existing.add(name)
         return "created"
-    return "ERROR: still not found after create (full re-sweep)"
+    return "ERROR: still not found after create (targeted row search)"
 
 
 async def main():

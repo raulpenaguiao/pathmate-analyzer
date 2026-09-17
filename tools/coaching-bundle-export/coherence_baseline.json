@@ -1,16 +1,17 @@
 {
-  "coaching": "ALEX v01 (\"ALEX v01 zum Ausprobieren\")",
-  "generatedAt": "2026-09-10T14:43:29+0200",
-  "note": "Known-good structural counts. export_coaching.py --update-baseline regenerates this against a fresh export you trust.",
+  "coaching": "ALEX v01 zum Ausprobieren",
+  "generatedAt": "2026-09-14T10:54:18+0200",
   "metrics": {
-    "microDialogs": 83,
-    "nodesTotal": 1177,
-    "messageNodes": 919,
-    "decisionNodes": 258,
-    "randomisationGroups": 102,
-    "ruleTreeNodes": 117,
-    "sendingRules": 25
+    "microDialogs": 65,
+    "nodesTotal": 1049,
+    "messageNodes": 830,
+    "decisionNodes": 219,
+    "randomisationGroups": 95,
+    "ruleTreeNodes": 125,
+    "sendingRules": 21,
+    "variablesTotal": 334
   },
+  "note2": "2026-09-14: 'Quit spirometry dialog after successful spirometry procedure' deliberately excluded from acceptedPerDialogDeltas despite export_coaching.py --update-baseline having computed [51, 7] for it - node-level inspection shows the sweep's 51 is mostly bogus (rows 15-50 of 51 are completely blank/empty, real content ends at row 14), almost certainly a stale-scrollHeight race in _menu_nav.py's sweep_table()/GRAB_JS right after navigating from the much-larger parent dialog. Left OUT on purpose so the coherence check keeps flagging this dialog until the underlying sweep bug is diagnosed and fixed - see TASKS.md.",
   "acceptedPerDialogDeltas": {
     "Prompt patient to conduct daily spirometry / Feedback on compliance regarding daily spirometry / Good Compliance": [
       11,
@@ -26,10 +27,6 @@
     ],
     "Adherence barriers dialog / Medication": [
       18,
-      4
-    ],
-    "Testing questionnaires": [
-      6,
       4
     ]
   }
