@@ -9,24 +9,56 @@ the number of API calls is always an explicit, bounded choice.
   .venv/bin/python rgroup_expand.py --limit 10 --dry-run   # prompts only, no calls
 
 Provider auto-detects from whichever key env var is set (ANTHROPIC_API_KEY ->
-claude, OPENAI_API_KEY -> chatgpt); --provider forces it. No third-party
-packages — plain urllib.
+claude, OPENAI_API_KEY -> chatgpt, also read from <repo>/.env if not already
+set); --provider forces it. No third-party packages for the API calls
+themselves — plain urllib.
+
+All input/output files (rgroups_requests_*.csv, rgroups_generated_*.csv,
+expand_prompts_*.txt, expand_raw_failures.txt) live in <repo>/data/rgroups/,
+not next to this script - the directory is created if missing, and the path
+is computed from this file's own location, not the current working
+directory, so this runs the same regardless of where it's invoked from.
+
+The input defaults to the most RECENTLY-RUN rgroups_requests_*.csv (by its
+embedded YYMMDDHHMMSS timestamp, not file mtime); the output CSV and its
+matching prompt log share one fresh timestamp for this run, so a
+rgroups_generated_<ts>.csv and expand_prompts_<ts>.txt pair always
+correspond to the exact same run. expand_raw_failures.txt stays a single
+running append-only log across every run (not per-run timestamped) - it's
+a diagnostic history, not a per-run artifact.
 """
 from __future__ import annotations
 
 import csv
 import json
 import os
+import re
 import sys
 import time
 import urllib.request
 from collections import OrderedDict
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+from _rgroups_files import latest, now_ts
+
 HERE = Path(__file__).resolve().parent
-REQUESTS = HERE / "rgroups_requests.csv"
-OUT = HERE / "rgroups_generated.csv"
-PROMPTS = HERE / "expand_prompts.txt"
+REPO = HERE.parents[1]
+# Explicit path (not a cwd-relative search) so this works the same regardless
+# of where this script is invoked from - matches app/config.py's load_dotenv()
+# use, just pointed at the repo root by construction instead of relying on
+# python-dotenv's own upward-search default. Never overrides a key already
+# set in the real shell environment (load_dotenv's own default behavior).
+load_dotenv(REPO / ".env")
+
+# All generated/intermediate files live in data/rgroups/, not next to this
+# script - keeps a `--dry-run` test (or any test run) from ever clobbering
+# real output sitting in the same directory as the source, and matches how
+# tools/coaching-bundle-export writes into data/exports/. Path is computed
+# from this file's own location, not the cwd - run this from anywhere.
+DATA_DIR = REPO / "data" / "rgroups"
+RAW_FAILURES = DATA_DIR / "expand_raw_failures.txt"
 
 GEN_COLS = ["pool", "randomisationGroup", "microDialog", "folderPath",
             "variantIndex", "en-GB", "ro-RO", "status"]
@@ -90,13 +122,53 @@ def detect_provider() -> str:
     sys.exit("set ANTHROPIC_API_KEY or OPENAI_API_KEY (or pass --dry-run)")
 
 
-def call_llm(provider: str, prompt: str, api_key: str | None = None) -> list[dict]:
+class LLMParseError(Exception):
+    """The LLM's response wasn't valid JSON (truncated mid-string, an
+    unescaped quote inside a message, extra commentary, etc). Carries
+    whatever _salvage_variants() could still recover, so a caller can use
+    partial results instead of throwing away an entire pool over one bad
+    character - and the raw text, so the failure is actually diagnosable
+    instead of just a JSONDecodeError with a line/column number."""
+
+    def __init__(self, original: Exception, raw_text: str, salvaged: list[dict]):
+        super().__init__(str(original))
+        self.original = original
+        self.raw_text = raw_text
+        self.salvaged = salvaged
+
+
+def _salvage_variants(text: str) -> list[dict]:
+    """Best-effort recovery from a malformed/truncated JSON array: pull out
+    every top-level {...} object individually (each variant object is flat -
+    no nested braces - so a simple non-greedy brace match is safe) and keep
+    whichever ones parse on their own. One truncated object at the end (the
+    common case when the response got cut off) or one bad escape in the
+    middle no longer costs the whole batch."""
+    out = []
+    for m in re.finditer(r"\{[^{}]*\}", text, re.DOTALL):
+        try:
+            obj = json.loads(m.group(0))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            out.append(obj)
+    return out
+
+
+def _log_raw_failure(pool: str, text: str, error: Exception) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with RAW_FAILURES.open("a", encoding="utf-8") as fh:
+        fh.write(f"\n{'='*80}\npool: {pool}\nerror: {error!r}\n{'-'*80}\n{text}\n")
+
+
+def call_llm(provider: str, prompt: str, api_key: str | None = None,
+             max_tokens: int = 2000, pool: str = "?") -> list[dict]:
     if provider == "claude":
         key = api_key or os.environ["ANTHROPIC_API_KEY"]
         model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5")
         req = urllib.request.Request(
             "https://api.anthropic.com/v1/messages",
-            data=json.dumps({"model": model, "max_tokens": 2000, "system": SYSTEM,
+            data=json.dumps({"model": model, "max_tokens": max_tokens, "system": SYSTEM,
                              "messages": [{"role": "user", "content": prompt}]}).encode(),
             method="POST",
             headers={"x-api-key": key, "anthropic-version": "2023-06-01",
@@ -109,7 +181,7 @@ def call_llm(provider: str, prompt: str, api_key: str | None = None) -> list[dic
         model = os.environ.get("OPENAI_MODEL", "gpt-4o")
         req = urllib.request.Request(
             "https://api.openai.com/v1/chat/completions",
-            data=json.dumps({"model": model, "temperature": 0.9,
+            data=json.dumps({"model": model, "temperature": 0.9, "max_tokens": max_tokens,
                              "messages": [{"role": "system", "content": SYSTEM},
                                           {"role": "user", "content": prompt}]}).encode(),
             method="POST",
@@ -125,7 +197,12 @@ def call_llm(provider: str, prompt: str, api_key: str | None = None) -> list[dic
     if text.startswith("```"):
         text = text.split("```")[1]
         text = text[4:].strip() if text.lower().startswith("json") else text.strip()
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        salvaged = _salvage_variants(text)
+        _log_raw_failure(pool, text, e)
+        raise LLMParseError(e, text, salvaged) from e
 
 
 def build_prompt(req: dict) -> str:
@@ -165,13 +242,28 @@ def expand(requests, provider, limit, dry=False, progress=None, api_key=None):
         need = int(req["needVariants"])
         variants, status = [], "dry-run"
         if not dry:
+            # Scale the token budget with how much was actually asked for -
+            # a fixed 2000 is plenty for a couple of variants but can run
+            # close to the edge for a pool needing many, making truncation
+            # (an unterminated string at the cutoff) more likely.
+            max_tokens = max(2000, 400 * need + 500)
             try:
-                variants = call_llm(provider, prompt, api_key=api_key)
+                variants = call_llm(provider, prompt, api_key=api_key,
+                                     max_tokens=max_tokens, pool=pool)
                 if not isinstance(variants, list):
                     raise ValueError(
                         f"expected a JSON array, got {type(variants).__name__}")
                 status = "ok"
                 time.sleep(1)
+            except LLMParseError as e:
+                if e.salvaged:
+                    variants = e.salvaged
+                    status = (f"partial: recovered {len(e.salvaged)}/{need} after "
+                              f"a JSON parse error ({e.original!r}) - raw response "
+                              f"in {RAW_FAILURES.name}")
+                else:
+                    variants = []
+                    status = f"failed: {e.original!r} - raw response in {RAW_FAILURES.name}"
             except Exception as e:  # noqa: BLE001 -- one bad pool must not abort the run
                 variants = []
                 status = f"failed: {e!r}"
@@ -198,10 +290,12 @@ def main() -> None:
         sys.exit("--limit N is required (it caps the number of API calls). "
                  "See rgroups_requests.csv for how many thin pools there are.")
     limit = int(sys.argv[sys.argv.index("--limit") + 1])
-    if not REQUESTS.is_file():
-        sys.exit(f"{REQUESTS.name} not found — run rgroup_prepare.py first")
+    requests_csv = latest(DATA_DIR, "rgroups_requests", ".csv")
+    if requests_csv is None:
+        sys.exit(f"no rgroups_requests_*.csv in {DATA_DIR} — run rgroup_prepare.py first")
+    print(f"using {requests_csv.name}")
 
-    reqs = list(csv.DictReader(REQUESTS.open(encoding="utf-8")))
+    reqs = list(csv.DictReader(requests_csv.open(encoding="utf-8")))
 
     def _p(i, n, pool, status):
         if status == "start":
@@ -211,17 +305,21 @@ def main() -> None:
 
     gen_rows, prompt_log = expand(reqs, provider, limit, dry=dry, progress=_p)
 
-    with OUT.open("w", newline="") as fh:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    ts = now_ts()
+    out = DATA_DIR / f"rgroups_generated_{ts}.csv"
+    prompts = DATA_DIR / f"expand_prompts_{ts}.txt"
+    with out.open("w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=GEN_COLS)
         w.writeheader()
         w.writerows(gen_rows)
-    PROMPTS.write_text("\n".join(prompt_log))
+    prompts.write_text("\n".join(prompt_log))
     ok = sum(1 for r in gen_rows if r["status"] == "ok")
     print(f"\nprovider={provider}  pools processed={min(limit, len(reqs))}/{len(reqs)}  "
           f"variants ok={ok}/{len(gen_rows)}")
-    print(f"wrote {OUT.name} and {PROMPTS.name}")
+    print(f"wrote {out} and {prompts}")
     if dry:
-        print("dry run — no API calls; review expand_prompts.txt, then rerun with a key")
+        print(f"dry run — no API calls; review {prompts.name}, then rerun with a key")
 
 
 if __name__ == "__main__":

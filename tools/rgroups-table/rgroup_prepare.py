@@ -7,8 +7,15 @@ is the request manifest — one row = one LLM call step 3 will make. It does
 NOT contain the prompt text; step 3 builds that.
 
   .venv/bin/python rgroup_prepare.py
-    default input : rgroups_table.csv   (from rgroup_report.py)
+    default input : ../../data/rgroups/rgroups_table_*.csv (the most
+                    RECENTLY-RUN one, by its embedded timestamp - not
+                    necessarily the most recently modified file on disk)
+    output        : ../../data/rgroups/rgroups_requests_YYMMDDHHMMSS.csv
+                    (dir created if missing; YYMMDDHHMMSS = this run's time)
     TARGET=10     : "thin pool" threshold (env; must match step 1)
+
+  All paths are computed from this file's own location (Path(__file__)),
+  not the current working directory - run it from anywhere.
 """
 from __future__ import annotations
 
@@ -18,9 +25,10 @@ import sys
 from collections import OrderedDict
 from pathlib import Path
 
+from _rgroups_files import latest, now_ts
+
 HERE = Path(__file__).resolve().parent
-TABLE = HERE / "rgroups_table.csv"
-OUT = HERE / "rgroups_requests.csv"
+DATA_DIR = HERE.parents[1] / "data" / "rgroups"
 TARGET = int(os.environ.get("TARGET", "10"))
 
 SEP = "\n"  # existing variants joined with newlines inside a quoted CSV cell
@@ -68,17 +76,21 @@ def build_requests(table_rows: list[dict]) -> list[dict]:
 
 
 def main() -> None:
-    if not TABLE.is_file():
-        sys.exit(f"{TABLE.name} not found — run rgroup_report.py first")
-    rows = list(csv.DictReader(TABLE.open(encoding="utf-8")))
+    table = latest(DATA_DIR, "rgroups_table", ".csv")
+    if table is None:
+        sys.exit(f"no rgroups_table_*.csv in {DATA_DIR} — run rgroup_report.py first")
+    rows = list(csv.DictReader(table.open(encoding="utf-8")))
     reqs = build_requests(rows)
-    with OUT.open("w", newline="") as fh:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    out = DATA_DIR / f"rgroups_requests_{now_ts()}.csv"
+    with out.open("w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=COLS)
         w.writeheader()
         w.writerows(reqs)
     total_calls = len(reqs)
     total_variants = sum(int(r["needVariants"]) for r in reqs)
-    print(f"{total_calls} thin pools -> {OUT.name}  "
+    print(f"using {table.name}")
+    print(f"{total_calls} thin pools -> {out.name}  "
           f"({total_calls} API calls, {total_variants} variants to generate)")
     print("review it, then:  rgroup_expand.py --limit N   (N caps the API calls)")
 

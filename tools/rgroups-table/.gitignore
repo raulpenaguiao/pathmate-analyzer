@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
-rgroups_requests.csv
-rgroups_generated.csv
-expand_prompts.txt
+# rgroups_requests.csv / rgroups_generated.csv / expand_prompts.txt /
+# expand_raw_failures.txt no longer live in this directory - they're written
+# to <repo>/data/rgroups/ (already covered by the root .gitignore's /data/
+# rule), so there's nothing left here for these three rules to match.

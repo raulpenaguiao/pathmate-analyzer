@@ -7,9 +7,17 @@ the full en-GB / ro-RO text + context.
 
   .venv/bin/python rgroup_report.py [coaching.json] [--md OUT.md]
     default input : ../../data/exports/coaching.json
-    --md          : also write the per-group markdown summary
-                    (the `docs/randomisation_groups_*` deliverable view)
+    output        : ../../data/rgroups/rgroups_table_YYMMDDHHMMSS.csv
+                    (dir created if missing; YYMMDDHHMMSS = this run's time)
+    --md          : also write the per-group markdown summary to
+                    ../../data/rgroups/rgroups_report.md (fixed name - the
+                    `docs/randomisation_groups_*` deliverable view, meant to
+                    reflect the current/latest run, not one timestamped copy
+                    per run)
     TARGET=10     : "thin pool" threshold (env)
+
+  All paths are computed from this file's own location (Path(__file__)),
+  not the current working directory - run it from anywhere.
 
 Parses the JSON — no browser.
 """
@@ -22,9 +30,12 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
+from _rgroups_files import now_ts
+
 HERE = Path(__file__).resolve().parent
-DEFAULT_IN = HERE.parents[1] / "data" / "exports" / "coaching.json"
-TABLE = HERE / "rgroups_table.csv"
+REPO = HERE.parents[1]
+DATA_DIR = REPO / "data" / "rgroups"
+DEFAULT_IN = REPO / "data" / "exports" / "coaching.json"
 TARGET = int(os.environ.get("TARGET", "10"))
 
 COLS = [
@@ -128,7 +139,7 @@ def main() -> None:
     if "--md" in args:
         i = args.index("--md")
         md_out = Path(args[i + 1]) if i + 1 < len(args) and not args[i + 1].startswith("-") \
-            else HERE / "rgroups_report.md"
+            else DATA_DIR / "rgroups_report.md"
         args = [a for a in args if a != "--md" and a != str(md_out)]
     src = Path(args[0]) if args else DEFAULT_IN
     if not src.is_file():
@@ -137,6 +148,8 @@ def main() -> None:
     bundle = json.loads(src.read_text())
     rows = collect(bundle)
 
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    TABLE = DATA_DIR / f"rgroups_table_{now_ts()}.csv"
     with TABLE.open("w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=COLS)
         w.writeheader()

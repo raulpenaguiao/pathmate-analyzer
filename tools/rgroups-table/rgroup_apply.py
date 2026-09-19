@@ -1,14 +1,18 @@
-"""Step 4 of the r_ pipeline — rgroups_generated.csv -> the live PMCP editor.
+"""Step 4 of the r_ pipeline — rgroups_generated_*.csv -> the live PMCP editor.
 
-Applies EVERY `ok` variant in ``rgroups_generated.csv`` (from
-``rgroup_expand.py``) — there is no review gate. ``--limit N`` is REQUIRED
-and caps how many variants are added. DEFAULT IS A DRY RUN; pass ``--apply``
-to actually write. Needs a logged-in PMCP tab on the CDP browser
-(``tools/start_pmcp.sh``).
+WRITES BY DEFAULT. Applies EVERY `ok` variant in the most RECENTLY-RUN
+``rgroups_generated_*.csv`` (by its embedded YYMMDDHHMMSS timestamp, from
+``rgroup_expand.py``) — there is no review gate beyond the LLM output
+itself. ``--limit N`` is REQUIRED and caps how many variants are added.
+Pass ``--dry-run`` to preview instead (add/dedup: prints the plan, no
+browser at all; undo: does the live read but skips the delete click).
+Needs a logged-in PMCP tab on the CDP browser (``tools/start_pmcp.sh``).
 
   PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py --limit 5
   PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py \
-      --apply --limit 1 --pool 'r_MorningGreetings @ Morning greetings'
+      --limit 1 --pool 'r_MorningGreetings @ Morning greetings'
+  PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py \
+      --dry-run --limit 5   # preview only, nothing written
 
 Per variant (recipe mapped by
 ``../coaching-bundle-export/probe_add_message.py`` against the sandbox):
@@ -24,14 +28,27 @@ Per variant (recipe mapped by
   8. **OK** (commits the sub-editor) -> **Close** (outer modal)
   9. **Move Up** until the row directly above is in the same group
 
-Idempotent: a variant whose en-GB already exists in the pool is skipped.
+IDEMPOTENT, and this is the actual safety net (not the dry-run default that
+used to gate this script) — before adding, each variant's target pool is
+read LIVE from the browser, and a variant whose en-GB text already matches
+a row there is skipped, not duplicated. Running the exact same generated
+CSV twice is always safe. The old CSV-only dry-run couldn't reflect this at
+all (it never touched the browser, so it always showed everything as
+"ADD" even when a variant was already present) — one reason it wasn't a
+particularly useful default.
 
-DEFAULT IS A DRY RUN - it navigates and prints the plan but performs no
-mutating click. Pass ``--apply`` to actually write.
+  --dedup --pool 'r_X @ Y'    delete exact-duplicate rows within one pool
+                              (clean up a failed/interrupted run)
+  --undo                      the inverse of the normal add flow: for every
+                              `ok` variant in the target CSV (same
+                              --pool/--limit scoping as adding), find and
+                              DELETE the matching live row instead of adding
+                              it. Safe to run against a CSV whose variants
+                              were only partially applied, or not applied at
+                              all (reports "not found", doesn't error).
 
-  PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python apply_approved.py
-  PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python apply_approved.py \
-      --apply --limit 1 --pool 'r_MorningGreetings @ Morning greetings'
+  PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py \
+      --undo --limit 1 --pool 'r_MorningGreetings @ Morning greetings'
 """
 from __future__ import annotations
 
@@ -43,8 +60,10 @@ import re
 import sys
 from pathlib import Path
 
+from _rgroups_files import latest
+
 HERE = Path(__file__).resolve().parent
-GENERATED = HERE / "rgroups_generated.csv"
+DATA_DIR = HERE.parents[1] / "data" / "rgroups"
 CDP = os.environ.get("PMCP_CDP", "http://127.0.0.1:9222")
 
 
@@ -55,12 +74,15 @@ def menu_path(meta_row) -> list[str]:
 
 
 def build_plan(args):
-    """Read rgroups_generated.csv (from rgroup_expand.py) and turn every `ok`
-    variant into a plan item. No review gate — everything generated is
-    applied; `--limit` caps the count."""
-    if not GENERATED.is_file():
-        sys.exit(f"{GENERATED.name} not found — run rgroup_expand.py first")
-    rows = list(csv.DictReader(GENERATED.open(encoding="utf-8")))
+    """Read the most RECENTLY-RUN rgroups_generated_*.csv (from
+    rgroup_expand.py) and turn every `ok` variant into a plan item. No
+    review gate — everything generated is applied; `--limit` caps the
+    count."""
+    generated = latest(DATA_DIR, "rgroups_generated", ".csv")
+    if generated is None:
+        sys.exit(f"no rgroups_generated_*.csv in {DATA_DIR} — run rgroup_expand.py first")
+    print(f"using {generated.name}")
+    rows = list(csv.DictReader(generated.open(encoding="utf-8")))
     meta = {}
     plan = []
     for r in rows:
@@ -415,6 +437,58 @@ async def run_apply(plan, args, meta):
                 print(f"\n{pool}: removed {removed} duplicate row(s)")
                 return
 
+            if args.undo:
+                # Mirrors the add-loop's own idempotency check below, run in
+                # reverse: find the row a matching add would have skipped,
+                # and delete it instead of leaving it alone. Missing rows are
+                # reported, not errors - undo must be safe to run against a
+                # CSV that was only partially applied, or never applied.
+                removed = notfound = errors_u = 0
+                for p in plan:
+                    label = f"{' / '.join(p['path'])}  [{p['group']}]  {p['en'][:40]!r}"
+                    try:
+                        await S.navigate_and_select(page, p["path"])
+                        await S.wait_round_trip(page)
+                        heads, rows = await read_table(page)
+                        gi = rg_col(heads)
+                        ci = next((i for i, h in enumerate(heads) if "Message Text" in h), 2)
+                        grp = grp_rows(rows, gi, p["group"])
+                        key = p["en"].strip()[:18]
+                        match = next((k for k in grp if key and ci < len(rows[k])
+                                      and key in rows[k][ci]), None)
+                        if match is None:
+                            print(f"  o {label}: not found (already removed, or never added)")
+                            notfound += 1
+                            continue
+                        if args.dry_run:
+                            print(f"  ? {label}: would delete row {match}")
+                            removed += 1
+                            continue
+                        await select_row(page, match)
+                        if await selected_row(page) != match:
+                            print(f"  ! {label}: could not select row {match}")
+                            errors_u += 1
+                            continue
+                        d = await node_btn(page, "Delete")
+                        if not d:
+                            print(f"  ! {label}: no enabled Delete button")
+                            errors_u += 1
+                            continue
+                        await d.click()
+                        await page.wait_for_timeout(700)
+                        await confirm(page)
+                        await dismiss(page)
+                        await S.wait_round_trip(page)
+                        print(f"  - {label}: deleted row {match}")
+                        removed += 1
+                    except Exception as e:  # noqa: BLE001
+                        print(f"  !! {label}: {e!r}")
+                        errors_u += 1
+                        await dismiss(page)
+                verb = "would remove" if args.dry_run else "removed"
+                print(f"\nundo: {verb}={removed}  not-found={notfound}  errors={errors_u}")
+                return
+
             for p in plan:
                 if p["skip_existing"]:
                     skipped += 1
@@ -590,32 +664,50 @@ async def run_apply(plan, args, meta):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--apply", action="store_true",
-                    help="actually write (default: dry run, navigate + report only)")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="preview only, write nothing. Add/dedup: no browser "
+                         "at all, just prints the plan. Undo: does the live "
+                         "read but skips the delete click.")
     ap.add_argument("--limit", type=int, required=True,
-                    help="REQUIRED: cap the number of variants added")
+                    help="REQUIRED: cap the number of variants added/undone")
     ap.add_argument("--pool", help="only this pool (e.g. 'r_X @ Micro Dialog')")
     ap.add_argument("--dedup", action="store_true",
                     help="delete rows in --pool whose text exactly copies an "
                          "earlier sibling in the same group (clean up failed runs)")
+    ap.add_argument("--undo", action="store_true",
+                    help="inverse of the normal add flow: delete the rows the "
+                         "target CSV's variants added, instead of adding them "
+                         "(same --pool/--limit scoping as adding)")
     ap.add_argument("--debug", action="store_true", help="verbose per-step state dump")
     args = ap.parse_args()
+
+    if args.dedup and args.undo:
+        sys.exit("--dedup and --undo are mutually exclusive")
 
     plan, meta = build_plan(args)
 
     if args.dedup:
         if not args.pool:
             sys.exit("--dedup requires --pool 'r_X @ Micro Dialog'")
-        if not args.apply:
+        if args.dry_run:
             print(f"dry run - would de-dup pool {args.pool!r} in the live editor. "
-                  "Pass --apply to do it.")
+                  "Drop --dry-run to do it.")
             return
         asyncio.run(run_apply(plan, args, meta))
         return
 
+    if args.undo:
+        # --dry-run still opens the browser here (unlike the add flow's dry
+        # run below) - it's a live read to report what WOULD be deleted,
+        # not a CSV-only guess, since presence can only be known live.
+        asyncio.run(run_apply(plan, args, meta))
+        return
+
     print_plan(plan)
-    if not args.apply:
-        print("dry run - pass --apply to write. Nothing was changed.")
+    if args.dry_run:
+        print("dry run - nothing written (this preview is CSV-only, so it "
+              "can't reflect live idempotency - drop --dry-run to actually "
+              "check the pool and add only what's missing).")
         return
     todo = [p for p in plan if not p["skip_existing"]]
     if not todo:
