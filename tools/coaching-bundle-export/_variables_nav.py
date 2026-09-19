@@ -108,9 +108,17 @@ async () => {
 
 
 async def sweep_variables(page) -> list[dict]:
-    """Full read sweep of the Variables tab. Caller must already be on the
-    Variables view (open_variables_tab). Returns one dict per variable,
-    keyed by COLS, sorted by name."""
+    """Full read sweep of the Variables tab. Switches to the Variables view
+    itself if not already there (open_variables_tab is idempotent/cheap
+    when it already is) - a caller can no longer skip this precondition by
+    forgetting to call open_variables_tab() first, the same class of
+    wrong-tab mistake documented in _menu_nav.WrongMenuError /
+    _rules_nav.WrongMenuError. Returns one dict per variable, keyed by
+    COLS, sorted by name."""
+    if not await open_variables_tab(page):
+        raise RuntimeError(
+            "Variables tab not on screen and couldn't switch to it - check "
+            "the browser is actually in a coaching's Edit view.")
     rows = await page.evaluate(SWEEP_ROWS_JS)
     out = []
     for cells in rows:

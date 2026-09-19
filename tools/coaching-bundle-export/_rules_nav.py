@@ -270,8 +270,29 @@ async def _mouse_click(page, locator, offset_x: float = None, offset_y: float = 
     return True
 
 
+class WrongMenuError(RuntimeError):
+    """Raised when the Rules `.v-tree` isn't on screen and couldn't be
+    switched to. Without this check, navigating from the wrong tab surfaces
+    as a confusing element-not-found/timeout deep inside select_node rather
+    than a clear "wrong tab" message - see _menu_nav.WrongMenuError, the
+    same class of mistake found live 2026-09-18 in a Micro Dialogs script."""
+
+
+async def _require_rules_tree(page) -> None:
+    """select_node() is the one primitive every Rules-tab navigation
+    function (click_expander, expand_all, open_rule_modal, ...) goes
+    through, so checking here covers all of them unconditionally - no
+    caller can skip it by forgetting to call ensure_rules_tree() itself."""
+    if not await ensure_rules_tree(page):
+        raise WrongMenuError(
+            "Rules tree not on screen and couldn't switch to it - check the "
+            "browser is actually in a coaching's Edit view (not the "
+            "Coachings list or a different tab like Micro Dialogs/Variables).")
+
+
 async def select_node(page, ti: int, i: int) -> None:
     """Click a node's caption at x=20 to select it (box centre is dead space)."""
+    await _require_rules_tree(page)
     cap = (page.locator(".v-tree").nth(ti)
            .locator(".v-tree-node[role=treeitem]").nth(i)
            .locator(":scope > .v-tree-node-caption"))

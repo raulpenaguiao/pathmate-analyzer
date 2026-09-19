@@ -120,9 +120,34 @@ async def wait_popup(page, depth: int, tries: int = 40) -> bool:
     return False
 
 
+class WrongMenuError(RuntimeError):
+    """Raised when the Micro Dialogs menubar isn't on screen and couldn't be
+    switched to. Distinguishes "we're on the wrong tab/view entirely" from a
+    genuine "that label doesn't exist" failure - without this check both
+    surface as the same misleading "top item X not found", which reads like
+    a typo in the label rather than a navigation precondition never being
+    met (confirmed live 2026-09-18: rgroup_apply.py failed this way after
+    the browser was left on the Rules tab from a prior export run - the
+    error pointed at the wrong thing entirely)."""
+
+
+async def _require_micro_dialogs(page) -> None:
+    """Every navigation entry point below calls this FIRST, unconditionally
+    - a caller can never skip the check by forgetting to call
+    ensure_micro_dialogs() itself. Cheap when already on the right tab
+    (ensure_micro_dialogs no-ops if the menubar is already present)."""
+    if not await ensure_micro_dialogs(page):
+        raise WrongMenuError(
+            "Micro Dialogs menubar not on screen and couldn't switch to it - "
+            "check the browser is actually in a coaching's Edit view (not "
+            "the Coachings list or a different tab like Rules/Variables) "
+            "and that Monitoring is deactivated.")
+
+
 async def open_folder_path(page, labels: list[str]) -> int:
     """Re-navigate from the bar and hover every segment of `labels` so the
     folder's own submenu popup is open. Returns depth == len(labels)."""
+    await _require_micro_dialogs(page)
     await close_menus(page)
     bar = await bar_loc(page)
     n = await bar.count()
@@ -235,6 +260,7 @@ async def discover(page) -> list[dict]:
 
 async def navigate_and_select(page, labels: list[str]):
     """Open the menu path by label and click the final leaf."""
+    await _require_micro_dialogs(page)
     if len(labels) == 1:
         await close_menus(page)
         bar = await bar_loc(page)
