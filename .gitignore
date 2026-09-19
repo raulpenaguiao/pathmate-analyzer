@@ -230,3 +230,7 @@ __marimo__/
 
 # PMCP coaching Report-HTML exports dropped at repo root for --report
 /Coaching_*.html
+
+# Personal Claude Code permission overrides - .claude/settings.json (shared,
+# committed) carries the agent-system permissions everyone needs
+.claude/settings.local.json

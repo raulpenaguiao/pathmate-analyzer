@@ -175,8 +175,10 @@ keep working until phase E swaps the wiring.
 ### Phase D — interruption
 - A sender that would fire while `state["pending"]` is set → **skip**, log
   `"(rule X suppressed: a question is already open)"`.
-- Document this as an explicit assumption in `ALEX_v02_simulator_scope.md`
-  style (it's a modelling choice, not verified PMCP behaviour).
+- This is a modelling choice, not verified PMCP behaviour — flag it as an
+  explicit assumption directly in this doc (or in a committed doc reachable
+  from here), not in `ALEX_v02_simulator_scope.md` — that file is
+  gitignored (local-only, stale) and won't exist on a fresh clone.
 - **Acceptance:** two senders due in the same tick → only the first opens;
   the second fires on a later tick once the first is answered/expired.
 
@@ -192,8 +194,10 @@ keep working until phase E swaps the wiring.
 ### Phase F — patient-model hook  *(design only in this workstream)*
 - Refactor `answer` so a headless `PatientModel.respond(pending, clock) ->
   value | None | "later"` can drive the engine without HTTP. This is the
-  seam workstream 5 (Markov patient simulation) plugs into — see
-  `ALEX_v02_simulator_scope.md` §4–7.
+  seam workstream 5 (Markov patient simulation) plugs into — `§4–7 of
+  ALEX_v02_simulator_scope.md` had the fuller spec for this, but that file
+  is gitignored/stale and may not be present; don't block on finding it,
+  treat this bullet as the seam's actual spec if it's missing.
 
 ---
 
@@ -225,7 +229,10 @@ keep working until phase E swaps the wiring.
 - `docs/rules_stage3_ALEX_v01.md` + `tools/coaching-bundle-export/rules_stage3_ALEX_v01.json`
   → the 25 sending rules with timing/routing, and the rule tree.
 - `ALEX_v02_simulator_scope.md` → the fuller (tier-model) design this is a
-  reframing of; §4–7 are the workstream-5 patient/Markov spec.
+  reframing of; §4–7 are the workstream-5 patient/Markov spec. **Stale,
+  gitignored, local-only** — don't expect it to exist on a fresh clone;
+  it's listed here for historical context only, nothing in this plan
+  should require reading it to proceed.
 - `autochanges/2026-09-10-rules-tree-stage3-sweep.md` → Stage-3 session log
   and the Vaadin/portal gotchas.
 - Auto-memory: `coaching-analysis-rework`, `pathmate-analyzer-roadmap`,

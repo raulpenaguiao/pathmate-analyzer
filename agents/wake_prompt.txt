@@ -1,0 +1,1 @@
+Run echo $AGENT_SLUG to find out who you are. Then, before anything else: read agents/RULES.md in full, read agents/$AGENT_SLUG/AGENT.md in full, and check your mailbox with agents/checkmail.sh $AGENT_SLUG - act on whatever's there per RULES.md. State your codename and role once done, then wait if your inbox was empty.
