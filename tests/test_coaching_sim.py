@@ -144,5 +144,78 @@ class SimulatorTest(unittest.TestCase):
         self.assertIsInstance(state["transcript"], list)
 
 
+class RandomisationGroupTest(unittest.TestCase):
+    """Stage 4 Phase B (docs/stage4_chat_engine_plan.md): a run of consecutive
+    message nodes sharing a randomisation group collapses to one seeded pick."""
+
+    def _model_with_run(self, n_variants: int, group: str = "r_greeting"):
+        from app.coaching_model import CoachingModel, MicroDialog, Node
+
+        nodes = [
+            Node(
+                n=i, type="message", comment="", channel="", writes_var=None,
+                text_by_lang={"en-GB": f"variant {i}"},
+                randomisation_group=group,
+            )
+            for i in range(n_variants)
+        ]
+        dialog = MicroDialog(i=0, name="Greeting", comment="", nodes=nodes, uid="md-000")
+        return CoachingModel(rules=[], micro_dialogs=[dialog], message_groups=[],
+                              variables={}, languages=["en-GB"])
+
+    def _coach_lines(self, state):
+        return [l["text"] for l in state["transcript"] if l["kind"] == "coach"]
+
+    def test_exactly_one_variant_fires(self):
+        model = self._model_with_run(5)
+        sim = Simulator(model)
+        state = sim.step(sim.initial_state(seed=1), {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual(len(self._coach_lines(state)), 1)
+
+    def test_same_seed_same_pick(self):
+        model = self._model_with_run(20)
+        sim = Simulator(model)
+        a = sim.step(sim.initial_state(seed=42), {"type": "launch_dialog", "dialog_i": 0})
+        b = sim.step(sim.initial_state(seed=42), {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual(self._coach_lines(a), self._coach_lines(b))
+
+    def test_different_seed_can_differ(self):
+        model = self._model_with_run(20)
+        sim = Simulator(model)
+        picks = {
+            tuple(self._coach_lines(
+                sim.step(sim.initial_state(seed=s), {"type": "launch_dialog", "dialog_i": 0})
+            ))
+            for s in range(10)
+        }
+        self.assertGreater(len(picks), 1)
+
+    def test_repeat_launch_can_pick_a_different_variant(self):
+        model = self._model_with_run(20)
+        sim = Simulator(model)
+        state = sim.initial_state(seed=7)
+        state = sim.step(state, {"type": "launch_dialog", "dialog_i": 0})
+        first = self._coach_lines(state)
+        state = sim.step(state, {"type": "launch_dialog", "dialog_i": 0})
+        second = self._coach_lines(state)[-1:]
+        self.assertNotEqual(first, second)
+
+    def test_dialog_without_groups_is_unchanged(self):
+        from app.coaching_model import CoachingModel, MicroDialog, Node
+
+        nodes = [
+            Node(n=0, type="message", comment="", channel="", writes_var=None,
+                 text_by_lang={"en-GB": "hello"}),
+            Node(n=1, type="message", comment="", channel="", writes_var=None,
+                 text_by_lang={"en-GB": "how are you"}),
+        ]
+        dialog = MicroDialog(i=0, name="Plain", comment="", nodes=nodes)
+        model = CoachingModel(rules=[], micro_dialogs=[dialog], message_groups=[],
+                               variables={}, languages=["en-GB"])
+        sim = Simulator(model)
+        state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual(self._coach_lines(state), ["hello", "how are you"])
+
+
 if __name__ == "__main__":
     unittest.main()

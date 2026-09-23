@@ -16,6 +16,8 @@ See ``ALEX_v02_simulator_scope.md`` for the fuller design this is a cut-down of.
 from __future__ import annotations
 
 import ast
+import hashlib
+import random
 import re
 from datetime import date, datetime, timedelta, timezone
 
@@ -29,6 +31,20 @@ from app.rule_grammar import (
     DATE_ADD as _DATE_ADD,
     parse_expr,
 )
+
+def _rgroup_pick_index(seed, dialog_key, group: str, call_index: int, n: int) -> int:
+    """Deterministic pick within a run of `n` sibling variants sharing one
+    randomisation group: a stable (non-PYTHONHASHSEED-dependent) hash of
+    (seed, dialog, group, call_index), so the same seed replaying the same
+    action sequence always makes the same picks (Phase B,
+    docs/stage4_chat_engine_plan.md), while a later re-launch of the same
+    dialog (a higher call_index) can land on a different variant."""
+    if n <= 1:
+        return 0
+    payload = f"{seed}|{dialog_key}|{group}|{call_index}".encode()
+    digest = hashlib.sha256(payload).digest()
+    return int.from_bytes(digest[:8], "big") % n
+
 
 BASE_DATE = date(2026, 1, 1)
 DAY_SLOTS = (6, 12, 18, 22)  # hour boundaries for the "advance to next slot" button
@@ -150,13 +166,16 @@ class Simulator:
         self.lang = lang or (model.languages[0] if model and model.languages else "en-GB")
 
     # -- state ------------------------------------------------------------
-    def initial_state(self) -> dict:
+    def initial_state(self, seed: int | None = None) -> dict:
         state = {
             "clock": {"day": 0, "hour": 8, "minute": 0},
             "vars": {},
             "open_dialog": None,
             "pending": None,
             "transcript": [],
+            # fixed for the life of this simulation - makes r-group picks
+            # (Phase B) reproducible; a fresh reset gets a fresh seed.
+            "seed": seed if seed is not None else random.SystemRandom().getrandbits(32),
         }
         self._refresh_system_vars(state)
         self._log(state, "system", "Simulation reset. Clock at day 0, 08:00.")
@@ -349,6 +368,13 @@ class Simulator:
 
     def _advance(self, state: dict) -> None:
         steps = 0
+        # per-call cache: {"<dialog>:<group>": chosen absolute node index} -
+        # computed once per run of sibling r-group variants as the walker
+        # reaches its first node, reused for the rest of that run so the
+        # scan-ahead only happens once. Not persisted - state carries the
+        # cross-call bookkeeping (`_rgroup_calls`) that makes the pick
+        # itself reproducible across separate launches of the same dialog.
+        resolved_groups: dict[str, int] = {}
         while state.get("open_dialog") and not state.get("pending"):
             steps += 1
             if steps > _MAX_DIALOG_STEPS:
@@ -367,6 +393,36 @@ class Simulator:
             variables = state["vars"]
 
             if node.type == "message":
+                group = node.randomisation_group
+                if group:
+                    key = f"{dialog.uid or dialog.i}:{group}"
+                    if key not in resolved_groups:
+                        run_start = od["node_idx"]
+                        run_len = 0
+                        j = run_start
+                        while (
+                            j < len(dialog.nodes)
+                            and dialog.nodes[j].type == "message"
+                            and dialog.nodes[j].randomisation_group == group
+                        ):
+                            run_len += 1
+                            j += 1
+                        calls = state.setdefault("_rgroup_calls", {})
+                        call_index = calls.get(key, 0)
+                        calls[key] = call_index + 1
+                        pick = _rgroup_pick_index(
+                            state.get("seed", 0), dialog.uid or dialog.i, group, call_index, run_len
+                        )
+                        resolved_groups[key] = run_start + pick
+                        if run_len > 1:
+                            self._log(
+                                state, "system",
+                                f'🎲 r-group "{group}": picked variant {pick + 1} of {run_len}.'
+                            )
+                    if od["node_idx"] != resolved_groups[key]:
+                        od["node_idx"] += 1
+                        continue
+
                 if node.trigger_exprs and not all(self._passes(e, variables) for e in node.trigger_exprs):
                     od["node_idx"] += 1
                     continue
