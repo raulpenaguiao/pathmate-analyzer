@@ -217,5 +217,118 @@ class RandomisationGroupTest(unittest.TestCase):
         self.assertEqual(self._coach_lines(state), ["hello", "how are you"])
 
 
+class SenderRuleTest(unittest.TestCase):
+    """Stage 4 Phase C (docs/stage4_chat_engine_plan.md): a DAILY BASIS
+    sender rule auto-launches its dialog once its send hour arrives, once
+    per day, and an unanswered question it opened times out."""
+
+    def _model(self, *, send_hour_variable="$dueHour", send_hour_clock=None,
+               timeout=None, target="Evening check", extra_rules=()):
+        from app.coaching_model import CoachingModel, MicroDialog, Node, Rule
+
+        question = Node(n=0, type="message", comment="", channel="", writes_var="$mood",
+                        text_by_lang={"en-GB": "How was your day?"},
+                        answer_options_by_lang={"en-GB": "1:good\n2:bad"})
+        dialog = MicroDialog(i=0, name="Evening check", comment="", nodes=[question], uid="md-000")
+        sender = Rule(
+            i=1, context="DAILY BASIS", depth=0,
+            raw_expr="$enabled calculated value equals 1", comment="send evening check",
+            writes_var=None, sends_message=True, stops_intervention=False,
+            is_js_snippet=False, supported=True,
+            uid="r-001", kind="sender", micro_dialog_path=["Folder", target],
+            send_hour_variable=send_hour_variable, send_hour_clock=send_hour_clock,
+            not_answered_timeout_minutes=timeout,
+        )
+        return CoachingModel(rules=[*extra_rules, sender], micro_dialogs=[dialog],
+                             message_groups=[], variables={}, languages=["en-GB"])
+
+    def _start(self, model, **vars_):
+        sim = Simulator(model)
+        state = sim.initial_state(seed=1)
+        state["vars"].update({"$enabled": "1", "$dueHour": "21.5", **vars_})
+        # day 0 08:00 -> day 1 00:00: crosses midnight, DAILY BASIS registers the sender
+        return sim, sim.step(state, {"type": "tick", "minutes": 960})
+
+    def _tick_to(self, sim, state, hour, minute=0):
+        c = state["clock"]
+        delta = (hour * 60 + minute) - (c["hour"] * 60 + c["minute"])
+        return sim.step(state, {"type": "tick", "minutes": delta})
+
+    def _launches(self, state):
+        return [l for l in state["transcript"] if "auto-launches" in l["text"]]
+
+    def test_not_launched_before_due_hour(self):
+        sim, state = self._start(self._model())
+        state = self._tick_to(sim, state, 21, 20)
+        self.assertEqual(self._launches(state), [])
+        self.assertIsNone(state["pending"])
+
+    def test_launched_once_due_hour_passes(self):
+        sim, state = self._start(self._model())
+        state = self._tick_to(sim, state, 21, 30)  # decimal 21.5 -> 21:30
+        self.assertEqual(len(self._launches(state)), 1)
+        self.assertEqual(state["pending"]["rule_uid"], "r-001")
+
+    def test_fires_once_per_day_and_rearms_next_day(self):
+        sim, state = self._start(self._model())
+        state = self._tick_to(sim, state, 21, 30)
+        state = sim.step(state, {"type": "answer", "value": "1"})
+        state = self._tick_to(sim, state, 23, 0)
+        self.assertEqual(len(self._launches(state)), 1)
+        state = sim.step(state, {"type": "tick", "minutes": 60})  # -> day 2 00:00, re-registers
+        state = self._tick_to(sim, state, 22, 0)
+        self.assertEqual(len(self._launches(state)), 2)
+
+    def test_clock_literal_fallback_when_variable_unset(self):
+        model = self._model(send_hour_variable="$unsetVar", send_hour_clock="19:15")
+        sim, state = self._start(model)
+        state = self._tick_to(sim, state, 19, 0)
+        self.assertEqual(self._launches(state), [])
+        state = self._tick_to(sim, state, 19, 15)
+        self.assertEqual(len(self._launches(state)), 1)
+
+    def test_coaching_rewriting_today_does_not_block_sender(self):
+        # regression: ALEX v01 rewrites $today during DAILY BASIS (r-000/r-001,
+        # with a `{#d}` suffix), which used to make the due-today registration
+        # never match again and the sender never fire.
+        from app.coaching_model import Rule
+        rewrite = Rule(
+            i=0, context="DAILY BASIS", depth=0,
+            raw_expr="$enabled+1 calculate value but result is always true → $today",
+            comment="clobber $today", writes_var="$today", sends_message=False,
+            stops_intervention=False, is_js_snippet=False, supported=True,
+        )
+        sim, state = self._start(self._model(extra_rules=[rewrite]))
+        state = self._tick_to(sim, state, 22, 0)
+        self.assertEqual(len(self._launches(state)), 1)
+
+    def test_unanswered_question_times_out(self):
+        sim, state = self._start(self._model(timeout=60))
+        state = self._tick_to(sim, state, 21, 30)
+        self.assertIsNotNone(state["pending"])
+        state = self._tick_to(sim, state, 22, 0)
+        self.assertIsNotNone(state["pending"])  # 30 min < 60 min timeout
+        state = self._tick_to(sim, state, 22, 30)
+        self.assertIsNone(state["pending"])
+        self.assertTrue(any("not answered (timeout)" in l["text"] for l in state["transcript"]))
+
+    def test_sender_suppressed_while_question_open(self):
+        sim, state = self._start(self._model())
+        state = sim.step(state, {"type": "launch_dialog", "dialog_i": 0})  # manual, stays open
+        state = self._tick_to(sim, state, 22, 0)
+        self.assertEqual(self._launches(state), [])
+        self.assertTrue(any("suppressed" in l["text"] for l in state["transcript"]))
+        state = sim.step(state, {"type": "answer", "value": "2"})
+        state = self._tick_to(sim, state, 22, 30)
+        self.assertEqual(len(self._launches(state)), 1)
+
+    def test_unresolvable_target_warns_once_per_day(self):
+        sim, state = self._start(self._model(target="No such dialog"))
+        for h in (21, 22, 23):
+            state = self._tick_to(sim, state, h, 45)
+        warnings = [l for l in state["transcript"] if "no resolvable target" in l["text"]]
+        self.assertEqual(len(warnings), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

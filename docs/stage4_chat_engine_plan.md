@@ -203,12 +203,68 @@ keep working until phase E swaps the wiring.
 
 ## 5. Open questions to settle by reading data (not blocking)
 
-- DAILY BASIS trigger: 00:00 pass vs the "3 AM delayed day start" guard rule.
-  → read `ruleTree` under `Execution on DAILY BASIS` and the top of
-  `PERIODIC BASIS`.
-- Is `send_hour_variable` redundant with the condition chain? → check whether
-  each sender's ancestor rules include a `$systemHour`-vs-`$userSet…Time`
-  comparison.
+- **RESOLVED 2026-09-23 (Mirror, before Phase C, against the real ALEX v01
+  export)** — DAILY BASIS trigger: it's its own separately-scheduled pass
+  (matches the Simulator's existing crossed-midnight model), not literally
+  invoked by the "3 AM delayed day start" rule. That rule is the *first*
+  rule under `PERIODIC BASIS`, gating a `"🚀 Only perform if daily rules
+  have NOT been already performed"` branch - a same-day catch-up path for
+  when the app missed its midnight run, not the day's primary trigger.
+  `PERIODIC BASIS`'s sibling branch (`"...have been already performed"`)
+  holds the section's normal per-tick sender checks. Phase C does not need
+  to change how DAILY vs PERIODIC get invoked.
+- **RESOLVED, and the plan's guess was WRONG** — `send_hour_variable` is
+  **not** redundant with the condition chain: checked all 18 real
+  `sendingRules`' full ancestor chains in `ruleTree` (`parentUid` walk) -
+  **none** contain a `$systemHour`/`$systemDecimalMinuteOfHour` comparison
+  anywhere. A sender's condition chain being truthy only means the message
+  is *due* (content-wise, e.g. `$today text value equals $dateOfNextACQ`);
+  the configured hour (`send_hour_variable`, falling back to
+  `send_hour_clock` when unset - all 5 checked `send_hour_variable`s
+  default to the coaching's `-99`/"unset" sentinel) is a genuinely separate
+  gate the engine must enforce itself. Consequence for Phase C: a
+  `PERIODIC BASIS` sender (7 of 18) whose condition stays truthy across
+  many ticks needs its own due-hour + once-per-day dedup logic, or it
+  would auto-relaunch its dialog on every single periodic tick.
+  Implemented as `_sender_due()` / `state["_sender_last_fired"]` in
+  `coaching_sim.py`.
+- **Also found, not previously flagged**: none of the 18 real
+  `sendingRules` have any `doesAnswerRules`/`doesNotAnswerRules` populated
+  - the not-answered-timeout → run-the-handler-subtree half of Phase C has
+  no real data to verify shape against. Implemented defensively: the
+  timeout fires, `pending` clears, and a *non-empty* `does_not_answer_rules`
+  is logged (names/counts) rather than evaluated as executable rules -
+  evaluating against a guessed, unverified schema was judged riskier than
+  a clearly-flagged gap. Revisit once a coaching with real
+  `doesAnswerRules`/`doesNotAnswerRules` data is exported.
+- **`microDialogPath` shape, found while resolving the above**: a list of
+  folder-tree breadcrumb segments (e.g. `["Prompt patient to take
+  controller medication", "...first dose", "...first dose (v02)"]`, or
+  `['']` when PMCP never resolved a target at all) - only the **last**
+  non-empty segment is the actual target dialog's name; resolve it the
+  same way `DecisionBranch.jump_dialog`/`cascade_dialog` already are
+  (match against `MicroDialog.name`), not the whole path.
+- **`send_hour_variable` holds a decimal hour, not "HH:MM"** (e.g.
+  `$userSetBedtime-0.17` → `21.83` = 21:50). Only `sendHourClock` /
+  `sendHourLiteral` are "HH:MM" strings. `_sender_due()` tries a float
+  first and falls back to an HH:MM parse.
+- **System hour variable names were wrong (pre-existing bug, fixed in
+  Phase C)**: the real ALEX v01 rules read `$systemHourOfDay` and
+  `$systemDecimalMinuteOfHour` (a fraction of an hour); there are zero
+  occurrences of `$systemHour`/`$systemMinute`, which is all the
+  simulator used to set. Every hour-gated rule, including "Delayed day
+  start at 3 AM", was always false. Both naming conventions are now set.
+  This likely matters beyond Phase C (Stage 3 / exporter reviewers).
+- **The coaching owns `$today`, so the engine can't rely on it**: ALEX v01
+  r-000 rebuilds it as `$systemDayOfMonth.$systemMonth.$systemYear`
+  (unpadded, e.g. `3.1.2026`), then r-001 applies `$today{#d}`. The
+  engine doesn't interpret the `{#d}` suffix (3 occurrences in the
+  export, no documentation found), so `$today` ends up as the literal
+  `3.1.2026{#d}`. That broke Phase C's once-per-day key (fixed: senders
+  now key on `clock["day"]`), and it probably also breaks the coaching's
+  own `$today` comparisons (r-010/r-014 date diffs, r-097/r-098
+  `text value equals`). **Open**: what `{#d}` does in PMCP. Don't guess;
+  it needs a doc reference or a live precedent.
 - Coverage of `_CMP_OPS` vs operators actually appearing in `ruleTree`
   captions → tally distinct operator phrases in
   `rules_stage3_ALEX_v01.json`.

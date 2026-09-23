@@ -92,6 +92,22 @@ def _fmt_date(d: date) -> str:
     return f"{d.day:02d}.{d.month:02d}.{d.year}"
 
 
+def _abs_minutes(clock: dict) -> int:
+    return clock["day"] * 1440 + clock["hour"] * 60 + clock["minute"]
+
+
+def _parse_hhmm(text) -> int | None:
+    """"HH:MM" -> minutes since midnight, or None if unparseable/unset -
+    used to resolve a sender's due hour (Phase C)."""
+    m = re.match(r"^\s*(\d{1,2}):(\d{2})\s*$", str(text or ""))
+    if not m:
+        return None
+    hour, minute = int(m.group(1)), int(m.group(2))
+    if not (0 <= hour < 24 and 0 <= minute < 60):
+        return None
+    return hour * 60 + minute
+
+
 _ALLOWED_AST = (
     ast.Expression, ast.BinOp, ast.UnaryOp, ast.Add, ast.Sub, ast.Mult,
     ast.Div, ast.FloorDiv, ast.Mod, ast.Pow, ast.USub, ast.UAdd, ast.Constant,
@@ -246,7 +262,7 @@ class Simulator:
     # -- clock ----------------------------------------------------------
     def _tick(self, state: dict, action: dict) -> None:
         clock = state["clock"]
-        before = clock["day"] * 1440 + clock["hour"] * 60 + clock["minute"]
+        before = _abs_minutes(clock)
 
         if action.get("to") == "next-slot":
             minutes = self._minutes_to_next_slot(clock)
@@ -261,9 +277,58 @@ class Simulator:
         self._refresh_system_vars(state)
         self._log(state, "system", f"⏩ Advanced to {self._stamp(state)}.")
 
+        # every clock move can make an open question overdue (Phase C) -
+        # check before running any rules, so a stale pending doesn't block a
+        # sender that would otherwise fire this same tick.
+        self._check_pending_timeout(state)
+
         for _ in range(max(0, crossed_midnights)):
             self._run_context(state, "DAILY BASIS")
         self._run_context(state, "PERIODIC BASIS")
+        self._check_due_senders(state)
+
+    def _check_due_senders(self, state: dict) -> None:
+        """DAILY-BASIS senders registered as due-today (see _run_context) -
+        re-checked on every tick since their one DAILY BASIS evaluation
+        moment is typically well before their actual send hour."""
+        # Keyed on the engine's own clock day, never on `$today`: the
+        # coaching owns that variable and rewrites it during DAILY BASIS
+        # (ALEX v01 r-000/r-001 rebuild it unpadded and append a `{#d}`
+        # format suffix the engine doesn't interpret), so it never matches
+        # the value `_refresh_system_vars` puts back on the next tick.
+        today = state["clock"]["day"]
+        for rule_uid, registered_day in state.get("_sender_due_today", {}).items():
+            if registered_day != today:
+                continue  # a stale/previous day's registration, not re-armed yet today
+            rule = next((r for r in self.model.rules if r.uid == rule_uid), None)
+            if rule is not None:
+                self._maybe_auto_launch(state, rule)
+
+    def _check_pending_timeout(self, state: dict) -> None:
+        """Phase C: a sender-launched question left unanswered past its
+        `not_answered_timeout_minutes` is handled as not-answered - cleared,
+        logged, and (best-effort - see docs/stage4_chat_engine_plan.md §5,
+        no real coaching has populated `does_not_answer_rules` to verify the
+        shape against yet) its does-not-answer handlers are flagged rather
+        than evaluated blind."""
+        pending = state.get("pending")
+        if not pending or not pending.get("rule_uid"):
+            return  # no owning sender (manually launched, or an older/legacy state) - no timeout
+        rule = next((r for r in self.model.rules if r.uid == pending["rule_uid"]), None)
+        if rule is None or not rule.not_answered_timeout_minutes:
+            return
+        if _abs_minutes(state["clock"]) < pending["sent_at"] + rule.not_answered_timeout_minutes:
+            return
+        dialog = self.model.micro_dialogs[pending["dialog_i"]]
+        self._log(state, "system", f'⏱ "{dialog.name}" handled as not answered (timeout).')
+        state["pending"] = None
+        state["open_dialog"] = None
+        if rule.does_not_answer_rules:
+            self._log(
+                state, "system",
+                f"({len(rule.does_not_answer_rules)} does-not-answer rule(s) configured - "
+                "not interpreted yet, see the plan doc's §5)."
+            )
 
     def _minutes_to_next_slot(self, clock: dict) -> int:
         now_h = clock["hour"] + clock["minute"] / 60
@@ -283,6 +348,17 @@ class Simulator:
             "$systemDayOfWeek": str(today.isoweekday()),
             "$systemHour": str(clock["hour"]),
             "$systemMinute": str(clock["minute"]),
+            # The real ALEX v01 export's own rules never reference
+            # $systemHour/$systemMinute at all (checked: 0 occurrences) -
+            # every hour-of-day gate (incl. "Delayed day start at 3 AM")
+            # reads $systemHourOfDay/$systemDecimalMinuteOfHour instead, the
+            # latter as a *fraction of an hour* (added directly to the hour
+            # to get a decimal-hour value - see "Save current time in
+            # decimal format" -> $timeDecimal in the plan doc's §5). Setting
+            # both naming conventions since some coaching might genuinely
+            # use the other one - found no evidence either way.
+            "$systemHourOfDay": str(clock["hour"]),
+            "$systemDecimalMinuteOfHour": _fmt(clock["minute"] / 60),
         })
 
     # -- rule execution ----------------------------------------------
@@ -314,14 +390,94 @@ class Simulator:
             if truthy and assignment:
                 fired += 1
             if truthy and r.sends_message:
-                self._log(state, "system", f"Rule #{r.i} sends a message"
-                          + (f": {r.comment}" if r.comment else ""))
+                if r.kind == "sender":  # bundle-only - HTML-parsed rules never set .kind
+                    if context == "DAILY BASIS":
+                        # DAILY BASIS is evaluated once/day (see the crossed-
+                        # midnight loop in _tick), typically near day-start -
+                        # almost never the sender's actual due hour. Register
+                        # it as "due today, once the clock catches up" instead
+                        # of gating on the hour right now; _check_due_senders
+                        # re-checks the hour on every later tick this same
+                        # day. A PERIODIC BASIS sender needs none of this -
+                        # that context is already re-evaluated every tick.
+                        state.setdefault("_sender_due_today", {})[r.uid] = state["clock"]["day"]
+                    else:
+                        self._maybe_auto_launch(state, r)
+                else:
+                    self._log(state, "system", f"Rule #{r.i} sends a message"
+                              + (f": {r.comment}" if r.comment else ""))
             if truthy and r.stops_intervention:
                 self._log(state, "system", f"Rule #{r.i} stops the intervention.")
             stack.append((r.depth, truthy))
 
         if fired:
             self._log(state, "rule", f"{context}: applied {fired} rule assignment(s).")
+
+    # -- sender rules -> auto-launch (Phase C) ------------------------
+    def _maybe_auto_launch(self, state: dict, rule) -> None:
+        if state.get("pending"):
+            # Phase D (interruption) isn't implemented as its own feature
+            # yet, but a sender firing while a question is already open
+            # must not silently clobber it - PMCP "won't overwrite an open
+            # question" (docs/stage4_chat_engine_plan.md Phase D). Skipped
+            # here; the same rule fires again on a later tick once the
+            # open question is answered or times out.
+            self._log(state, "rule", f"(rule #{rule.i} suppressed: a question is already open)")
+            return
+        if not self._sender_due(state, rule):
+            return
+        # marked as fired for today even when the target can't be resolved -
+        # it was due and attempted, and otherwise the warning below would
+        # repeat on every tick for the rest of the day.
+        state.setdefault("_sender_last_fired", {})[rule.uid] = state["clock"]["day"]
+        dialog_i = self._resolve_dialog_by_path(rule.micro_dialog_path)
+        if dialog_i is None:
+            self._log(state, "system", f"⚠️ sender rule #{rule.i} has no resolvable target dialog"
+                      + (f" ({rule.comment})" if rule.comment else ""))
+            return
+        dialog = self.model.micro_dialogs[dialog_i]
+        self._log(state, "system", f'📨 rule #{rule.i} auto-launches "{dialog.name}"'
+                  + (f" ({rule.comment})" if rule.comment else ""))
+        self._launch_dialog(state, dialog_i, rule=rule)
+
+    def _sender_due(self, state: dict, rule) -> bool:
+        """Whether `rule`'s configured send hour has arrived and it hasn't
+        already fired today. `send_hour_variable` is NOT redundant with the
+        condition chain (verified against real data, see the plan doc's
+        §5) - it's a genuinely separate gate the engine must enforce."""
+        due_minutes = None
+        if rule.send_hour_variable:
+            val = state["vars"].get(rule.send_hour_variable)
+            if val not in (None, "", "-99"):
+                # A *computed decimal hour* (e.g. $userSetBedtime-0.17 ->
+                # 22.33), not "HH:MM" - the coaching's own rules work in
+                # this same decimal-hour space (see $systemHourOfDay +
+                # $systemDecimalMinuteOfHour -> $timeDecimal). Falls back to
+                # an "HH:MM" parse in case some coaching stores it that way
+                # instead - no real example of that seen yet.
+                try:
+                    due_minutes = round(float(val) * 60) % 1440
+                except (TypeError, ValueError):
+                    due_minutes = _parse_hhmm(val)
+        if due_minutes is None:
+            due_minutes = _parse_hhmm(rule.send_hour_literal or rule.send_hour_clock)
+        if due_minutes is None:
+            return False  # no resolvable schedule - can't tell it's due
+        clock = state["clock"]
+        if clock["hour"] * 60 + clock["minute"] < due_minutes:
+            return False
+        last_fired_day = state.get("_sender_last_fired", {}).get(rule.uid)
+        return last_fired_day != clock["day"]
+
+    def _resolve_dialog_by_path(self, path: list[str]) -> int | None:
+        """`micro_dialog_path` is a list of folder-tree breadcrumbs (or
+        `['']` when PMCP never resolved a target) - only the last non-empty
+        segment is the actual dialog name, resolved the same way
+        `DecisionBranch.jump_dialog`/`cascade_dialog` already are."""
+        target = next((seg for seg in reversed(path or []) if seg), None)
+        if not target:
+            return None
+        return next((d.i for d in self.model.micro_dialogs if d.name == target), None)
 
     # -- message groups --------------------------------------------
     def _launch_group(self, state: dict, group_i: int) -> None:
@@ -343,11 +499,17 @@ class Simulator:
         return bool(result)
 
     # -- micro dialogs -------------------------------------------
-    def _launch_dialog(self, state: dict, dialog_i: int) -> None:
+    def _launch_dialog(self, state: dict, dialog_i: int, *, rule=None) -> None:
         if not (0 <= dialog_i < len(self.model.micro_dialogs)):
             return
         dialog = self.model.micro_dialogs[dialog_i]
-        state["open_dialog"] = {"dialog_i": dialog_i, "node_idx": 0}
+        # `origin_rule_uid` travels with `open_dialog` (Phase C): only a
+        # sender-triggered launch carries one, and only then does a
+        # question opened during this walk get a not-answered timeout.
+        state["open_dialog"] = {
+            "dialog_i": dialog_i, "node_idx": 0,
+            "origin_rule_uid": rule.uid if rule is not None else None,
+        }
         state["pending"] = None
         self._log(state, "system", f'▶ Micro dialog "{dialog.name}"')
         self._advance(state)
@@ -362,7 +524,10 @@ class Simulator:
         node = self._node_at(pending["dialog_i"], pending["node_idx"])
         if node and node.writes_var:
             state["vars"][node.writes_var] = value
-        state["open_dialog"] = {"dialog_i": pending["dialog_i"], "node_idx": pending["node_idx"] + 1}
+        state["open_dialog"] = {
+            "dialog_i": pending["dialog_i"], "node_idx": pending["node_idx"] + 1,
+            "origin_rule_uid": pending.get("rule_uid"),
+        }
         state["pending"] = None
         self._advance(state)
 
@@ -430,11 +595,16 @@ class Simulator:
                 if text:
                     self._log(state, "coach", text)
                 if node.answer_options_by_lang:
-                    state["pending"] = {
+                    pending = {
                         "dialog_i": od["dialog_i"],
                         "node_idx": od["node_idx"],
                         "options": self._options(node),
                     }
+                    rule_uid = od.get("origin_rule_uid")
+                    if rule_uid:
+                        pending["rule_uid"] = rule_uid
+                        pending["sent_at"] = _abs_minutes(state["clock"])
+                    state["pending"] = pending
                     return
                 od["node_idx"] += 1
 
@@ -467,7 +637,10 @@ class Simulator:
                     od["node_idx"] += 1
                     return
                 self._log(state, "system", f'decision {verb} to "{target}"')
-                state["open_dialog"] = {"dialog_i": idx, "node_idx": 0}
+                state["open_dialog"] = {
+                    "dialog_i": idx, "node_idx": 0,
+                    "origin_rule_uid": od.get("origin_rule_uid"),
+                }
                 return
             if branch.stop_micro_dialog:
                 self._log(state, "system", f'decision stops "{dialog.name}"')

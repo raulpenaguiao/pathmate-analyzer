@@ -146,6 +146,8 @@ class Rule:
     expr: dict | None = None  # structured {kind, lhs, op/phrase, rhs, target, ...}
     micro_dialog_path: list[str] = field(default_factory=list)
     send_hour_variable: str | None = None
+    send_hour_clock: str | None = None  # "HH:MM" literal fallback when the variable is unset
+    send_hour_literal: str | None = None
     not_answered_timeout_minutes: int | None = None
     does_answer_rules: list = field(default_factory=list)
     does_not_answer_rules: list = field(default_factory=list)
@@ -595,8 +597,10 @@ def _bundle_rule(r: dict, idx: int, sender_by_uid: dict) -> Rule:
     )
     sr = sender_by_uid.get(rule.uid)
     if sr:
-        rule.micro_dialog_path = [p for p in (sr.get("microDialogPath") or []) if p]
+        rule.micro_dialog_path = list(sr.get("microDialogPath") or [])
         rule.send_hour_variable = sr.get("sendHourVariable")
+        rule.send_hour_clock = sr.get("sendHourClock")
+        rule.send_hour_literal = sr.get("sendHourLiteral")
         rule.not_answered_timeout_minutes = sr.get("notAnsweredTimeoutMinutes")
         rule.does_answer_rules = sr.get("doesAnswerRules") or []
         rule.does_not_answer_rules = sr.get("doesNotAnswerRules") or []
