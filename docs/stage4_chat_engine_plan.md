@@ -181,6 +181,14 @@ keep working until phase E swaps the wiring.
   gitignored (local-only, stale) and won't exist on a fresh clone.
 - **Acceptance:** two senders due in the same tick → only the first opens;
   the second fires on a later tick once the first is answered/expired.
+- **Status (2026-09-23, Mirror): implemented with Phase C** in
+  `_maybe_auto_launch()`, tested by
+  `SenderRuleTest.test_two_senders_due_same_tick_second_waits` and
+  `test_sender_suppressed_while_question_open`.
+  **Explicit assumption, not verified PMCP behaviour:** a suppressed
+  sender is not marked as fired for the day, so it retries on every later
+  tick until it opens. Real PMCP might drop it for the day, queue it, or
+  interrupt the open question; no doc or live precedent seen yet.
 
 ### Phase E — Chat tab wiring
 - `sim/init` / `sim/step` keep their shapes. `Simulator` (or a new

@@ -322,6 +322,34 @@ class SenderRuleTest(unittest.TestCase):
         state = self._tick_to(sim, state, 22, 30)
         self.assertEqual(len(self._launches(state)), 1)
 
+    def test_two_senders_due_same_tick_second_waits(self):
+        # Phase D acceptance: only the first opens; the second fires on a
+        # later tick once the first question is answered.
+        from app.coaching_model import MicroDialog, Node, Rule
+
+        model = self._model()
+        second_q = Node(n=0, type="message", comment="", channel="", writes_var="$sleep",
+                        text_by_lang={"en-GB": "How did you sleep?"},
+                        answer_options_by_lang={"en-GB": "1:well\n2:badly"})
+        model.micro_dialogs.append(
+            MicroDialog(i=1, name="Sleep check", comment="", nodes=[second_q], uid="md-001"))
+        model.rules.append(Rule(
+            i=2, context="DAILY BASIS", depth=0,
+            raw_expr="$enabled calculated value equals 1", comment="send sleep check",
+            writes_var=None, sends_message=True, stops_intervention=False,
+            is_js_snippet=False, supported=True,
+            uid="r-002", kind="sender", micro_dialog_path=["Sleep check"],
+            send_hour_variable="$dueHour",
+        ))
+        sim, state = self._start(model)
+        state = self._tick_to(sim, state, 21, 30)
+        self.assertEqual(len(self._launches(state)), 1)
+        self.assertEqual(state["pending"]["rule_uid"], "r-001")
+        state = sim.step(state, {"type": "answer", "value": "1"})
+        state = self._tick_to(sim, state, 21, 45)
+        self.assertEqual(len(self._launches(state)), 2)
+        self.assertEqual(state["pending"]["rule_uid"], "r-002")
+
     def test_unresolvable_target_warns_once_per_day(self):
         sim, state = self._start(self._model(target="No such dialog"))
         for h in (21, 22, 23):
