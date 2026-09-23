@@ -250,6 +250,11 @@ class CoachingModel:
     message_groups: list[MessageGroup]
     variables: dict[str, dict[str, list[Ref]]]
     languages: list[str]
+    source: str = "html"  # "html" (parse_model) | "bundle" (parse_bundle)
+    # each variable's configured value from the export's Variables list
+    # (bundle path only - the HTML report doesn't carry them); the chat
+    # engine seeds a fresh simulation's vars from this.
+    variable_defaults: dict[str, str] = field(default_factory=dict)
 
     # -- convenience accessors used by templates -------------------------------
     def rules_by_context(self) -> list[tuple[str, list[Rule]]]:
@@ -686,6 +691,11 @@ def parse_bundle(data: dict) -> CoachingModel:
     groups: list[MessageGroup] = []
     variables = _build_variable_index(rules, dialogs, groups)
     languages = list((data.get("coaching") or {}).get("languages") or []) or ["en-GB"]
+    variable_defaults = {
+        v["Variable Name"]: str(v.get("Variable Value") or "")
+        for v in (data.get("variables") or [])
+        if isinstance(v, dict) and v.get("Variable Name")
+    }
 
     return CoachingModel(
         rules=rules,
@@ -693,6 +703,8 @@ def parse_bundle(data: dict) -> CoachingModel:
         message_groups=groups,
         variables=variables,
         languages=languages,
+        source="bundle",
+        variable_defaults=variable_defaults,
     )
 
 

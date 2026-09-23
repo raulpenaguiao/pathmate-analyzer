@@ -185,13 +185,25 @@ class Simulator:
     def initial_state(self, seed: int | None = None) -> dict:
         state = {
             "clock": {"day": 0, "hour": 8, "minute": 0},
-            "vars": {},
+            # seeded from the coaching's configured values (bundle only) -
+            # without them e.g. ALEX v01's $hyperparameter*EndHour day-slot
+            # gates compare against "" and $currentDaySlot reads "night" at 09:00
+            "vars": dict(self.model.variable_defaults) if self.model else {},
             "open_dialog": None,
             "pending": None,
             "transcript": [],
             # fixed for the life of this simulation - makes r-group picks
             # (Phase B) reproducible; a fresh reset gets a fresh seed.
             "seed": seed if seed is not None else random.SystemRandom().getrandbits(32),
+            # which parser built the model this state was stepped with - a
+            # chat must never be continued by the other engine. None when
+            # there's no model (a bare participant-import snapshot).
+            "engine": self.model.source if self.model else None,
+            # auto_periodic: every clock move also runs PERIODIC BASIS
+            # (the pre-Phase-E behaviour). Off, PERIODIC BASIS only runs on
+            # an explicit `run_periodic` step; DAILY BASIS, due-sender
+            # checks and not-answered timeouts are clock-driven either way.
+            "settings": {"auto_periodic": True},
         }
         self._refresh_system_vars(state)
         self._log(state, "system", "Simulation reset. Clock at day 0, 08:00.")
@@ -245,6 +257,10 @@ class Simulator:
             self._log(state, "system", f"Set {name} = {state['vars'][name]}")
         elif kind == "tick":
             self._tick(state, action)
+        elif kind == "set_setting":
+            name = action["name"]
+            state.setdefault("settings", {})[name] = action.get("value")
+            self._log(state, "system", f"Setting {name} = {action.get('value')}")
         elif kind == "run_periodic":
             self._run_context(state, "PERIODIC BASIS")
         elif kind == "launch_dialog":
@@ -284,7 +300,8 @@ class Simulator:
 
         for _ in range(max(0, crossed_midnights)):
             self._run_context(state, "DAILY BASIS")
-        self._run_context(state, "PERIODIC BASIS")
+        if state.get("settings", {}).get("auto_periodic", True):
+            self._run_context(state, "PERIODIC BASIS")
         self._check_due_senders(state)
 
     def _check_due_senders(self, state: dict) -> None:
@@ -315,12 +332,15 @@ class Simulator:
         if not pending or not pending.get("rule_uid"):
             return  # no owning sender (manually launched, or an older/legacy state) - no timeout
         rule = next((r for r in self.model.rules if r.uid == pending["rule_uid"]), None)
-        if rule is None or not rule.not_answered_timeout_minutes:
+        timeout_at = pending.get("timeout_at")
+        if rule is None or timeout_at is None:
             return
-        if _abs_minutes(state["clock"]) < pending["sent_at"] + rule.not_answered_timeout_minutes:
+        if _abs_minutes(state["clock"]) < timeout_at:
             return
         dialog = self.model.micro_dialogs[pending["dialog_i"]]
-        self._log(state, "system", f'⏱ "{dialog.name}" handled as not answered (timeout).')
+        self._log(state, "system", f'⏱ "{dialog.name}" handled as not answered (timeout).',
+                  event={"type": "timeout", "rule_uid": rule.uid, "rule_i": rule.i,
+                         **self._dialog_ref(pending["dialog_i"]), "node_idx": pending["node_idx"]})
         state["pending"] = None
         state["open_dialog"] = None
         if rule.does_not_answer_rules:
@@ -422,7 +442,18 @@ class Simulator:
             # question" (docs/stage4_chat_engine_plan.md Phase D). Skipped
             # here; the same rule fires again on a later tick once the
             # open question is answered or times out.
-            self._log(state, "rule", f"(rule #{rule.i} suppressed: a question is already open)")
+            # logged once per rule per day, not on every tick it keeps retrying
+            key = f"{rule.uid}@{state['clock']['day']}"
+            logged = state.setdefault("_suppressed_logged", [])
+            if key not in logged:
+                logged.append(key)
+                blocking = state["pending"]
+                self._log(state, "rule", f"(rule #{rule.i} suppressed: a question is already open)",
+                          event={"type": "suppressed", "rule_uid": rule.uid, "rule_i": rule.i,
+                                 "reason": "question_open",
+                                 "blocking_rule_uid": blocking.get("rule_uid"),
+                                 **{f"blocking_{k}": v for k, v in
+                                    self._dialog_ref(blocking["dialog_i"]).items()}})
             return
         if not self._sender_due(state, rule):
             return
@@ -433,11 +464,15 @@ class Simulator:
         dialog_i = self._resolve_dialog_by_path(rule.micro_dialog_path)
         if dialog_i is None:
             self._log(state, "system", f"⚠️ sender rule #{rule.i} has no resolvable target dialog"
-                      + (f" ({rule.comment})" if rule.comment else ""))
+                      + (f" ({rule.comment})" if rule.comment else ""),
+                      event={"type": "unresolved_target", "rule_uid": rule.uid, "rule_i": rule.i,
+                             "dialog_path": list(rule.micro_dialog_path)})
             return
         dialog = self.model.micro_dialogs[dialog_i]
         self._log(state, "system", f'📨 rule #{rule.i} auto-launches "{dialog.name}"'
-                  + (f" ({rule.comment})" if rule.comment else ""))
+                  + (f" ({rule.comment})" if rule.comment else ""),
+                  event={"type": "launch", "rule_uid": rule.uid, "rule_i": rule.i,
+                         **self._dialog_ref(dialog_i), "dialog_path": list(rule.micro_dialog_path)})
         self._launch_dialog(state, dialog_i, rule=rule)
 
     def _sender_due(self, state: dict, rule) -> bool:
@@ -600,10 +635,16 @@ class Simulator:
                         "node_idx": od["node_idx"],
                         "options": self._options(node),
                     }
+                    # timeout_at: absolute minutes (same unit as
+                    # _abs_minutes), None when no not-answered timeout applies
+                    pending["timeout_at"] = None
                     rule_uid = od.get("origin_rule_uid")
                     if rule_uid:
                         pending["rule_uid"] = rule_uid
                         pending["sent_at"] = _abs_minutes(state["clock"])
+                        rule = next((r for r in self.model.rules if r.uid == rule_uid), None)
+                        if rule is not None and rule.not_answered_timeout_minutes:
+                            pending["timeout_at"] = pending["sent_at"] + rule.not_answered_timeout_minutes
                     state["pending"] = pending
                     return
                 od["node_idx"] += 1
@@ -686,5 +727,14 @@ class Simulator:
         c = state["clock"]
         return f"day {c['day']}, {c['hour']:02d}:{c['minute']:02d}"
 
-    def _log(self, state: dict, kind: str, text: str) -> None:
-        state["transcript"].append({"kind": kind, "text": text, "t": self._stamp(state)})
+    def _log(self, state: dict, kind: str, text: str, event: dict | None = None) -> None:
+        line = {"kind": kind, "text": text, "t": self._stamp(state)}
+        if event is not None:
+            # structured twin of `text` for the Chat tab (launch / timeout /
+            # suppressed / unresolved_target) - `text` stays the fallback
+            line["event"] = event
+        state["transcript"].append(line)
+
+    def _dialog_ref(self, dialog_i: int) -> dict:
+        d = self.model.micro_dialogs[dialog_i]
+        return {"dialog_i": d.i, "dialog_uid": d.uid, "dialog_name": d.name}

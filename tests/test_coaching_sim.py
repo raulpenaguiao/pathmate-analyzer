@@ -350,6 +350,70 @@ class SenderRuleTest(unittest.TestCase):
         self.assertEqual(len(self._launches(state)), 2)
         self.assertEqual(state["pending"]["rule_uid"], "r-002")
 
+    # -- Phase E engine surface (fields the Chat tab reads) --------------
+    def _events(self, state, type_):
+        return [l["event"] for l in state["transcript"] if l.get("event", {}).get("type") == type_]
+
+    def test_engine_tag(self):
+        self.assertEqual(Simulator(self._model()).initial_state()["engine"], "html")  # CoachingModel default
+        model = self._model()
+        model.source = "bundle"
+        self.assertEqual(Simulator(model).initial_state()["engine"], "bundle")
+        self.assertIsNone(Simulator(None).initial_state()["engine"])
+
+    def test_vars_seeded_from_variable_defaults(self):
+        model = self._model()
+        model.variable_defaults = {"$hyperparameterEveningEndHour": "22"}
+        state = Simulator(model).initial_state()
+        self.assertEqual(state["vars"]["$hyperparameterEveningEndHour"], "22")
+        self.assertEqual(model.variable_defaults, {"$hyperparameterEveningEndHour": "22"})  # copied, not aliased
+        state["vars"]["$hyperparameterEveningEndHour"] = "23"
+        self.assertEqual(model.variable_defaults["$hyperparameterEveningEndHour"], "22")
+
+    def test_pending_timeout_at(self):
+        sim, state = self._start(self._model(timeout=90))
+        state = self._tick_to(sim, state, 21, 30)
+        self.assertEqual(state["pending"]["timeout_at"], 1 * 1440 + 21 * 60 + 30 + 90)
+        manual_sim, manual = self._start(self._model(timeout=90))
+        manual = manual_sim.step(manual, {"type": "launch_dialog", "dialog_i": 0})
+        self.assertIsNone(manual["pending"]["timeout_at"])  # not sender-launched
+
+    def test_structured_events(self):
+        sim, state = self._start(self._model(timeout=30))
+        state = sim.step(state, {"type": "launch_dialog", "dialog_i": 0})
+        state = self._tick_to(sim, state, 21, 30)
+        state = self._tick_to(sim, state, 21, 45)  # suppressed again - logged once only
+        [suppressed] = self._events(state, "suppressed")
+        self.assertEqual(suppressed["rule_uid"], "r-001")
+        self.assertEqual(suppressed["blocking_dialog_uid"], "md-000")
+        state = sim.step(state, {"type": "answer", "value": "1"})
+        state = self._tick_to(sim, state, 22, 0)
+        [launch] = self._events(state, "launch")
+        self.assertEqual((launch["rule_uid"], launch["dialog_uid"], launch["dialog_name"]),
+                         ("r-001", "md-000", "Evening check"))
+        self.assertEqual(launch["dialog_path"], ["Folder", "Evening check"])
+        state = self._tick_to(sim, state, 22, 30)
+        [timeout] = self._events(state, "timeout")
+        self.assertEqual((timeout["rule_uid"], timeout["dialog_uid"], timeout["node_idx"]),
+                         ("r-001", "md-000", 0))
+
+    def test_auto_periodic_off_skips_periodic_rules(self):
+        from app.coaching_model import Rule
+        counter = Rule(
+            i=0, context="PERIODIC BASIS", depth=0,
+            raw_expr="$ticks+1 calculate value but result is always true → $ticks",
+            comment="", writes_var="$ticks", sends_message=False,
+            stops_intervention=False, is_js_snippet=False, supported=True,
+        )
+        sim, state = self._start(self._model(extra_rules=[counter]), **{"$ticks": "0"})
+        self.assertEqual(state["vars"]["$ticks"], "1")
+        state = sim.step(state, {"type": "set_setting", "name": "auto_periodic", "value": False})
+        state = self._tick_to(sim, state, 21, 30)
+        self.assertEqual(state["vars"]["$ticks"], "1")
+        self.assertEqual(len(self._launches(state)), 1)  # due senders stay clock-driven
+        state = sim.step(state, {"type": "run_periodic"})
+        self.assertEqual(state["vars"]["$ticks"], "2")
+
     def test_unresolvable_target_warns_once_per_day(self):
         sim, state = self._start(self._model(target="No such dialog"))
         for h in (21, 22, 23):
