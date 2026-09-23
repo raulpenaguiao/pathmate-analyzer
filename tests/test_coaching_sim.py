@@ -37,6 +37,15 @@ class ExprEvalTest(unittest.TestCase):
         self.assertEqual(result, True)
         self.assertEqual(assignment, ("$participationInDays", "4"))
 
+    def test_date_modifier_pads_to_system_format(self):
+        # PMCP docs 6.0, Rules §3.5.1: $var{#d} -> dd.mm.yyyy (ALEX v01 r-001)
+        v = {"$today": "3.1.2026"}
+        result, assignment = eval_expr(
+            "$today{#d} calculate value but result is always true → $today", v)
+        self.assertEqual(assignment, ("$today", "03.01.2026"))
+        self.assertEqual(eval_expr("$x{#d} calculate value but result is always true → $y",
+                                   {"$x": "not a date"})[1], ("$y", "not a date"))
+
     def test_assignment_always_false_still_assigns(self):
         result, assignment = eval_expr(
             "0 calculate value but result is always false → $x", {}

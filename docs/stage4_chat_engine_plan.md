@@ -265,14 +265,20 @@ keep working until phase E swaps the wiring.
   This likely matters beyond Phase C (Stage 3 / exporter reviewers).
 - **The coaching owns `$today`, so the engine can't rely on it**: ALEX v01
   r-000 rebuilds it as `$systemDayOfMonth.$systemMonth.$systemYear`
-  (unpadded, e.g. `3.1.2026`), then r-001 applies `$today{#d}`. The
-  engine doesn't interpret the `{#d}` suffix (3 occurrences in the
-  export, no documentation found), so `$today` ends up as the literal
-  `3.1.2026{#d}`. That broke Phase C's once-per-day key (fixed: senders
-  now key on `clock["day"]`), and it probably also breaks the coaching's
-  own `$today` comparisons (r-010/r-014 date diffs, r-097/r-098
-  `text value equals`). **Open**: what `{#d}` does in PMCP. Don't guess;
-  it needs a doc reference or a live precedent.
+  (unpadded, e.g. `3.1.2026`), then r-001 applies `$today{#d}`. Phase C's
+  once-per-day key therefore uses `clock["day"]`, not `$today`.
+  **`{#d}` RESOLVED from the PMCP docs** (6.0, Coaching Editor > Rules,
+  "format modifiers" and §3.5.1): "`$var{#d}` Date in fixed system format
+  (dd.mm.yyyy)". It's now implemented in `_apply_date_modifiers()`, so
+  `$today` = `02.01.2026` on day 1. Don't confuse it with the Variables
+  page's format-string token `#d` ("Day of month, no leading zero").
+  That's a different context. The other documented modifiers (`{#D}`,
+  `{#t}`, `{#T}`, `{%.2f}`) aren't implemented, and ALEX v01 doesn't
+  use them.
+- **DAILY BASIS timing confirmed by the docs** (Rules §1.1.1): "evaluated
+  once per day at 00:00", and "Avoid: Triggering actions on the first day
+  of registration before 00:00". The simulator's crossed-midnight model
+  matches this.
 - **Variable values from the export (fixed 2026-09-23)**: the export's
   Variables list carries each variable's configured value (351 in ALEX
   v01, e.g. `$hyperparameterEveningEndHour = 22`). The simulator used to
@@ -287,7 +293,9 @@ keep working until phase E swaps the wiring.
   only makes r-105 true if the participation counter increments *after*
   DAILY BASIS runs. That implies DAILY BASIS runs before the day counter
   increments, or the counter starts at a different base. Nothing in the
-  repo documents which. Until this is known, r-105's branch never runs in
+  repo documents which, and the PMCP docs only say "Number of days the
+  participant has been involved in the coaching program. Example Output:
+  25" (Variables page), with no base or increment moment given. Until this is known, r-105's branch never runs in
   the sim and `$currentDaySlot` stays stale. **Needs**: a PMCP doc
   reference, or a real participant snapshot (`.pmcp` import) showing
   both variables' values at a known time of day.

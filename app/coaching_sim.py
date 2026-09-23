@@ -108,6 +108,25 @@ def _parse_hhmm(text) -> int | None:
     return hour * 60 + minute
 
 
+_DATE_MOD_RE = re.compile(r"(\$[A-Za-z_][A-Za-z0-9_]*)\{#d\}")
+
+
+def _apply_date_modifiers(text: str, variables: dict) -> str:
+    """`$var{#d}` -> the variable's date in PMCP's fixed system format,
+    dd.mm.yyyy (PMCP docs 6.0, Rules §3.5.1 / "format modifiers": "$var{#d}
+    Date in fixed system format (dd.mm.yyyy)"). ALEX v01 relies on it to
+    zero-pad the $today it builds from unpadded system parts. Values that
+    aren't a parseable date pass through as-is. The other documented
+    modifiers ({#D}, {#t}, {#T}, {%.2f}) aren't handled yet."""
+    def repl(m):
+        if m.group(1) not in variables:
+            return m.group(0)  # unset: leave it to the caller's own substitution
+        raw = _fmt(variables[m.group(1)])
+        d = _parse_date(raw)
+        return _fmt_date(d) if d else raw
+    return _DATE_MOD_RE.sub(repl, text)
+
+
 _ALLOWED_AST = (
     ast.Expression, ast.BinOp, ast.UnaryOp, ast.Add, ast.Sub, ast.Mult,
     ast.Div, ast.FloorDiv, ast.Mod, ast.Pow, ast.USub, ast.UAdd, ast.Constant,
@@ -118,6 +137,7 @@ _ALLOWED_AST = (
 def _eval_arith(expr: str, variables: dict) -> str:
     """Substitute ``$vars`` and evaluate a numeric expression. Falls back to the
     substituted string (used by ``create text``) when it isn't arithmetic."""
+    expr = _apply_date_modifiers(expr, variables)
     substituted = VARIABLE_RE.sub(
         lambda m: _fmt(variables.get(m.group(0), "")) or "0", expr
     )
@@ -720,7 +740,7 @@ class Simulator:
             return ""
         return VARIABLE_RE.sub(
             lambda m: _fmt(variables[m.group(0)]) if m.group(0) in variables else m.group(0),
-            text,
+            _apply_date_modifiers(text, variables),
         )
 
     def _stamp(self, state: dict) -> str:
