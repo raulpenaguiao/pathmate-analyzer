@@ -273,6 +273,24 @@ keep working until phase E swaps the wiring.
   own `$today` comparisons (r-010/r-014 date diffs, r-097/r-098
   `text value equals`). **Open**: what `{#d}` does in PMCP. Don't guess;
   it needs a doc reference or a live precedent.
+- **Variable values from the export (fixed 2026-09-23)**: the export's
+  Variables list carries each variable's configured value (351 in ALEX
+  v01, e.g. `$hyperparameterEveningEndHour = 22`). The simulator used to
+  start with empty vars, so the day-slot gates compared against "".
+  Bundle simulations now seed `vars` from `CoachingModel.variable_defaults`.
+- **`$participantParticipationInDays` is PMCP-provided and not simulated
+  (OPEN)**: it isn't in the Variables list and no rule writes it. ALEX v01
+  gates all of PERIODIC BASIS's normal branch (r-105, including the
+  day-slot rules 125-132) on `$participantParticipationInDays equals
+  $dailyTasksPerformedToday`. DAILY BASIS r-101 sets
+  `$dailyTasksPerformedToday = $participantParticipationInDays + 1`, which
+  only makes r-105 true if the participation counter increments *after*
+  DAILY BASIS runs. That implies DAILY BASIS runs before the day counter
+  increments, or the counter starts at a different base. Nothing in the
+  repo documents which. Until this is known, r-105's branch never runs in
+  the sim and `$currentDaySlot` stays stale. **Needs**: a PMCP doc
+  reference, or a real participant snapshot (`.pmcp` import) showing
+  both variables' values at a known time of day.
 - Coverage of `_CMP_OPS` vs operators actually appearing in `ruleTree`
   captions → tally distinct operator phrases in
   `rules_stage3_ALEX_v01.json`.
