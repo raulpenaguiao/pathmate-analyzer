@@ -1,0 +1,217 @@
+{
+  "coaching": {
+    "name": "Synthetic bundle sample",
+    "languages": ["en-GB"],
+    "scrapedAt": "2026-09-01T00:00:00+0000"
+  },
+  "microDialogs": [
+    {
+      "uid": "md-000",
+      "name": "Greeting",
+      "folderPath": [],
+      "isFolder": false,
+      "nodeCount": 2,
+      "nodeUids": ["md-000#000", "md-000#001"],
+      "missingRows": [],
+      "textResolved": true
+    },
+    {
+      "uid": "md-001",
+      "name": "Subtree root with its own quit-check",
+      "folderPath": [],
+      "isFolder": true,
+      "nodeCount": 1,
+      "nodeUids": ["md-001#000"],
+      "missingRows": [],
+      "textResolved": true
+    },
+    {
+      "uid": "md-002",
+      "name": "Empty placeholder dialog",
+      "folderPath": [],
+      "isFolder": false,
+      "missingRows": [],
+      "textResolved": true
+    }
+  ],
+  "nodes": [
+    {
+      "uid": "md-000#000",
+      "microDialogUid": "md-000",
+      "order": 0,
+      "type": "message",
+      "rawType": "Message",
+      "comment": "Ask how the patient is doing",
+      "channel": "👤 App/partner message to participant",
+      "answerType": "single choice",
+      "resultVariable": "$feelingOk",
+      "randomisationGroup": "r_greeting",
+      "textByLang": {"en-GB": "How are you feeling today?"},
+      "answerOptionsByLang": {"en-GB": "yes:Good\nno:Not great"},
+      "commandByLang": {},
+      "triggerExprs": [],
+      "mediaFile": "",
+      "branches": []
+    },
+    {
+      "uid": "md-000#001",
+      "microDialogUid": "md-000",
+      "order": 1,
+      "type": "decision",
+      "rawType": "DECISION POINT",
+      "comment": "Route on the answer",
+      "channel": "",
+      "answerType": "",
+      "resultVariable": "",
+      "randomisationGroup": "",
+      "textByLang": {},
+      "answerOptionsByLang": {},
+      "commandByLang": {},
+      "triggerExprs": ["$feelingOk text value equals no"],
+      "mediaFile": "",
+      "branches": [
+        {
+          "condition": "$feelingOk text value equals no",
+          "comment": "Jump to the concern dialog when the patient isn't doing well",
+          "writesVar": null,
+          "stopMicroDialog": false,
+          "leaveDecisionPoint": true,
+          "jumpDialog": "Subtree root with its own quit-check",
+          "cascadeDialog": null,
+          "supported": true
+        }
+      ]
+    },
+    {
+      "uid": "md-001#000",
+      "microDialogUid": "md-001",
+      "order": 0,
+      "type": "decision",
+      "rawType": "DECISION POINT",
+      "comment": "Quit dialog if debug mode",
+      "channel": "",
+      "answerType": "",
+      "resultVariable": "",
+      "randomisationGroup": "",
+      "textByLang": {},
+      "answerOptionsByLang": {},
+      "commandByLang": {},
+      "triggerExprs": ["$debugMode calculated value equals 1"],
+      "mediaFile": "",
+      "branches": [
+        {
+          "condition": "$debugMode calculated value equals 1",
+          "comment": "",
+          "writesVar": null,
+          "stopMicroDialog": true,
+          "leaveDecisionPoint": false,
+          "jumpDialog": null,
+          "cascadeDialog": null,
+          "supported": true
+        }
+      ]
+    }
+  ],
+  "variables": [],
+  "enrich": {"reportHtml": "Report_sample.html", "dialogsMerged": 2, "emptyDialogs": 1, "dialogsUnresolved": 0, "unresolved": []},
+  "rules": {
+    "sections": ["DAILY BASIS", "PERIODIC BASIS"],
+    "ruleTree": [
+      {
+        "uid": "r-000",
+        "section": "DAILY BASIS",
+        "depth": 1,
+        "order": 1,
+        "parentUid": null,
+        "kind": "condition",
+        "icon": "rule-icon-small.png",
+        "caption": "✅ Onboarding done check: $onboardingDone calculated value equals 1",
+        "expr": {
+          "kind": "cmp",
+          "phrase": "calculated value equals",
+          "lhs": "$onboardingDone",
+          "rhs": "1",
+          "comment": "✅ Onboarding done check",
+          "raw": "✅ Onboarding done check: $onboardingDone calculated value equals 1"
+        },
+        "treeIndex": 1
+      },
+      {
+        "uid": "r-001",
+        "section": "DAILY BASIS",
+        "depth": 2,
+        "order": 2,
+        "parentUid": "r-000",
+        "kind": "condition",
+        "icon": "rule-icon-small.png",
+        "caption": "mark today: $systemDayOfMonth create text but result is always true → $today",
+        "expr": {
+          "kind": "assign",
+          "lhs": "$systemDayOfMonth",
+          "target": "$today",
+          "result": true,
+          "comment": "mark today",
+          "raw": "mark today: $systemDayOfMonth create text but result is always true → $today"
+        },
+        "treeIndex": 2
+      },
+      {
+        "uid": "r-002",
+        "section": "DAILY BASIS",
+        "depth": 2,
+        "order": 3,
+        "parentUid": "r-000",
+        "kind": "sender",
+        "icon": "message-icon-small.png",
+        "caption": "💬 Send the greeting: $feelingOk calculated value equals 0",
+        "expr": {
+          "kind": "cmp",
+          "phrase": "calculated value equals",
+          "lhs": "$feelingOk",
+          "rhs": "0",
+          "comment": "💬 Send the greeting",
+          "raw": "💬 Send the greeting: $feelingOk calculated value equals 0"
+        },
+        "treeIndex": 3
+      },
+      {
+        "uid": "r-003",
+        "section": "PERIODIC BASIS",
+        "depth": 1,
+        "order": 4,
+        "parentUid": null,
+        "kind": "condition",
+        "icon": "rule-icon-small.png",
+        "caption": "legacy JS check: //+ some legacy JS snippet that isn't declarative",
+        "expr": {"kind": "unsupported", "comment": "", "raw": "legacy JS check: //+ some legacy JS snippet that isn't declarative"},
+        "treeIndex": 4
+      }
+    ],
+    "sendingRules": [
+      {
+        "comment": "Send the greeting",
+        "ruleExpr": null,
+        "actions": ["start_micro_dialog"],
+        "primaryAction": "start_micro_dialog",
+        "microDialogToStart": null,
+        "microDialogPath": ["Greeting"],
+        "messageGroup": null,
+        "sendHourVariable": "$userSetTimeOfGreeting",
+        "sendHourLiteral": null,
+        "sendHourClock": "08:00",
+        "notAnsweredTimeoutMinutes": 120,
+        "notAnsweredTimeoutText": "0 days, 2 hours, 0 minutes",
+        "storeResultVariable": null,
+        "doesAnswerRules": [],
+        "doesNotAnswerRules": [],
+        "modalCaption": "Edit rule:",
+        "uid": "r-002",
+        "caption": "💬 Send the greeting: $feelingOk calculated value equals 0",
+        "section": "DAILY BASIS",
+        "parentChain": []
+      }
+    ]
+  },
+  "validation": {"ok": true, "metrics": {}},
+  "run": {}
+}

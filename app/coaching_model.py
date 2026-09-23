@@ -11,6 +11,7 @@ Parsing reuses the balanced-tag scanner in :mod:`app.pmcp_html`.
 """
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Iterable
@@ -20,6 +21,12 @@ from app.pmcp_html import (
     find_matching_close,
     iter_blocks,
     section_div,
+)
+from app.rule_grammar import (
+    ASSIGN_FALSE as _RULE_ASSIGN_FALSE,
+    ASSIGN_TRUE as _RULE_ASSIGN_TRUE,
+    DATE_ADD as _RULE_DATE_ADD,
+    DATE_DIFF as _RULE_DATE_DIFF,
 )
 
 # ---------------------------------------------------------------------------
@@ -131,6 +138,18 @@ class Rule:
     is_js_snippet: bool
     supported: bool
 
+    # -- bundle-only fields (Stage 4, docs/stage4_chat_engine_plan.md Phase A)
+    # populated by `parse_bundle`; stay at their defaults on the HTML path.
+    uid: str | None = None
+    kind: str | None = None  # 'condition' | 'sender'
+    parent_uid: str | None = None
+    expr: dict | None = None  # structured {kind, lhs, op/phrase, rhs, target, ...}
+    micro_dialog_path: list[str] = field(default_factory=list)
+    send_hour_variable: str | None = None
+    not_answered_timeout_minutes: int | None = None
+    does_answer_rules: list = field(default_factory=list)
+    does_not_answer_rules: list = field(default_factory=list)
+
     @property
     def anchor(self) -> str:
         return f"rule-{self.i}"
@@ -172,6 +191,11 @@ class Node:
     jump_msg_true: str = ""
     jump_msg_false: str = ""
 
+    # -- bundle-only fields (Stage 4 Phase A), see `Rule` above
+    uid: str | None = None
+    order: int = 0
+    randomisation_group: str = ""
+
     def anchor(self, dialog_i: int) -> str:
         return f"dlg-{dialog_i}-node-{self.n}"
 
@@ -190,6 +214,7 @@ class MicroDialog:
     name: str
     comment: str
     nodes: list[Node] = field(default_factory=list)
+    uid: str | None = None  # bundle-only (Stage 4 Phase A)
 
     @property
     def anchor(self) -> str:
@@ -510,6 +535,181 @@ def _build_variable_index(
             read(reads, ref)
 
     return index
+
+
+# ---------------------------------------------------------------------------
+# Bundle (coaching.json) parsing — Stage 4, docs/stage4_chat_engine_plan.md
+# Phase A. Additive: does not touch the HTML `parse_model` path above, which
+# every other tab keeps using. `export_coaching.py` already parses each
+# Rules-tree caption into a structured `expr` dict via
+# `app.rule_grammar.parse_rule_caption` (Phase 0, done) - `raw`/`comment` in
+# that dict still carry the *caption's* comment prefix, so `raw_expr` here is
+# rebuilt bare (comment-free) from the structured fields to match the HTML
+# path's convention and stay directly evaluable by `coaching_sim.eval_expr`.
+# ---------------------------------------------------------------------------
+
+def _bare_expr_from_parsed(e: dict) -> str:
+    kind = e.get("kind")
+    if kind == "cmp":
+        return f'{e["lhs"]} {e["phrase"]} {e["rhs"]}'
+    if kind == "assign":
+        phrase = _RULE_ASSIGN_TRUE[0] if e.get("result") else _RULE_ASSIGN_FALSE[0]
+        s = f'{e["lhs"]} {phrase}'
+        if e.get("target"):
+            s += f' {_ARROW} {e["target"]}'
+        return s
+    if kind == "date_diff":
+        s = f'{e["lhs"]} {_RULE_DATE_DIFF} {e["rhs"]}'
+        if e.get("target"):
+            s += f' {_ARROW} {e["target"]}'
+        return s
+    if kind == "date_add":
+        s = f'{e["lhs"]} {_RULE_DATE_ADD} {e["rhs"]}'
+        if e.get("target"):
+            s += f' {_ARROW} {e["target"]}'
+        return s
+    return e.get("raw") or ""  # unsupported (JS snippet / regex / ...)
+
+
+def _bundle_rule(r: dict, idx: int, sender_by_uid: dict) -> Rule:
+    e = r.get("expr") or {}
+    kind = e.get("kind")
+    supported = kind in ("cmp", "assign", "date_diff", "date_add")
+    target = e.get("target") if kind in ("assign", "date_diff", "date_add") else None
+
+    rule = Rule(
+        i=idx,
+        context=r.get("section") or "DAILY BASIS",
+        depth=r.get("depth", 0),
+        raw_expr=_bare_expr_from_parsed(e),
+        comment=_norm_comment(e.get("comment") or ""),
+        writes_var=_var_or_none(target or ""),
+        sends_message=(r.get("kind") == "sender"),
+        stops_intervention=False,  # not exported yet - Stage 4 open gap
+        is_js_snippet=(kind == "unsupported"),
+        supported=supported,
+        uid=r.get("uid"),
+        kind=r.get("kind"),
+        parent_uid=r.get("parentUid"),
+        expr=e,
+    )
+    sr = sender_by_uid.get(rule.uid)
+    if sr:
+        rule.micro_dialog_path = [p for p in (sr.get("microDialogPath") or []) if p]
+        rule.send_hour_variable = sr.get("sendHourVariable")
+        rule.not_answered_timeout_minutes = sr.get("notAnsweredTimeoutMinutes")
+        rule.does_answer_rules = sr.get("doesAnswerRules") or []
+        rule.does_not_answer_rules = sr.get("doesNotAnswerRules") or []
+    return rule
+
+
+def _parse_bundle_rules(rules_data: dict) -> list[Rule]:
+    tree = sorted(
+        rules_data.get("ruleTree") or [],
+        key=lambda r: r.get("treeIndex", r.get("order", 0)),
+    )
+    sender_by_uid = {
+        sr["uid"]: sr for sr in (rules_data.get("sendingRules") or []) if sr.get("uid")
+    }
+    return [_bundle_rule(r, idx, sender_by_uid) for idx, r in enumerate(tree)]
+
+
+def _bundle_node(n: dict, position: int) -> Node:
+    node = Node(
+        n=position,
+        type=n.get("type") or "message",
+        comment=_norm_comment(n.get("comment") or ""),
+        channel=n.get("channel") or "",
+        writes_var=_var_or_none(n.get("resultVariable") or ""),
+        text_by_lang=dict(n.get("textByLang") or {}),
+        answer_type=n.get("answerType") or "",
+        answer_options_by_lang=dict(n.get("answerOptionsByLang") or {}),
+        command_by_lang=dict(n.get("commandByLang") or {}),
+        media_file=n.get("mediaFile") or "",
+        trigger_exprs=list(n.get("triggerExprs") or []),
+        uid=n.get("uid"),
+        order=n.get("order", position),
+        randomisation_group=n.get("randomisationGroup") or "",
+    )
+    for b in n.get("branches") or []:
+        node.branches.append(
+            DecisionBranch(
+                expr=b.get("condition") or "",
+                comment=_norm_comment(b.get("comment") or ""),
+                writes_var=_var_or_none(b.get("writesVar") or ""),
+                stop_micro_dialog=bool(b.get("stopMicroDialog")),
+                leave_decision_point=bool(b.get("leaveDecisionPoint")),
+                jump_dialog=b.get("jumpDialog") or None,
+                cascade_dialog=b.get("cascadeDialog") or None,
+                supported=bool(b.get("supported", True)),
+            )
+        )
+    return node
+
+
+def _parse_bundle_dialogs(micro_dialogs: list[dict], nodes: list[dict]) -> list[MicroDialog]:
+    by_dialog: dict[str, list[dict]] = {}
+    for n in nodes:
+        by_dialog.setdefault(n.get("microDialogUid"), []).append(n)
+    for lst in by_dialog.values():
+        lst.sort(key=lambda n: n.get("order", 0))
+
+    # `isFolder` marks a dialog with children *nested under it* in the Micro
+    # Dialogs tree - it can still carry its own nodes directly (e.g. a
+    # top-of-subtree "quit if debug mode" decision point), so it is not "no
+    # real content" and must not be filtered out - every node's
+    # `microDialogUid` resolves to exactly one entry here, folder or not.
+    dialogs: list[MicroDialog] = []
+    for i, md in enumerate(micro_dialogs):
+        dialog = MicroDialog(i=i, name=md.get("name") or "(unnamed)", comment="", uid=md.get("uid"))
+        for n_json in by_dialog.get(md.get("uid"), []):
+            dialog.nodes.append(_bundle_node(n_json, len(dialog.nodes)))
+        dialogs.append(dialog)
+    return dialogs
+
+
+def parse_bundle(data: dict) -> CoachingModel:
+    """`coaching.json` (the Stage-3 export) -> `CoachingModel`. The pure-function
+    counterpart to `parse_model`, and the only input the Stage-4 chat engine
+    is allowed to use - see docs/stage4_chat_engine_plan.md section 1.
+
+    Message groups aren't in the export schema yet (Stage-3 gap, not this
+    phase's problem to fix): `CoachingModel.message_groups` is always `[]`
+    on this path.
+    """
+    rules = _parse_bundle_rules(data.get("rules") or {})
+    dialogs = _parse_bundle_dialogs(data.get("microDialogs") or [], data.get("nodes") or [])
+    groups: list[MessageGroup] = []
+    variables = _build_variable_index(rules, dialogs, groups)
+    languages = list((data.get("coaching") or {}).get("languages") or []) or ["en-GB"]
+
+    return CoachingModel(
+        rules=rules,
+        micro_dialogs=dialogs,
+        message_groups=groups,
+        variables=variables,
+        languages=languages,
+    )
+
+
+_BUNDLE_CACHE: dict[tuple[str, float], CoachingModel] = {}
+
+
+def load_bundle_model(coaching_id: str) -> CoachingModel | None:
+    """Like `load_model`, but always from the attached `coaching.json` bundle,
+    never the HTML - the only entry point the Stage-4 chat engine may use.
+    `None` if no bundle is attached to this coaching."""
+    from app import storage  # lazy: avoids import cycle at app startup
+
+    path = storage.coaching_bundle_path(coaching_id)
+    if path is None or not path.exists():
+        return None
+    key = (coaching_id, path.stat().st_mtime)
+    if key not in _BUNDLE_CACHE:
+        _BUNDLE_CACHE.clear()
+        data = json.loads(path.read_text(encoding="utf-8"))
+        _BUNDLE_CACHE[key] = parse_bundle(data)
+    return _BUNDLE_CACHE[key]
 
 
 # ---------------------------------------------------------------------------
