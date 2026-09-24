@@ -232,6 +232,10 @@ class MicroDialog:
     comment: str
     nodes: list[Node] = field(default_factory=list)
     uid: str | None = None  # bundle-only (Stage 4 Phase A)
+    # bundle-only: full menu path ("Folder / Sub / Name"). Unlike `uid`
+    # (a position in one export's sweep, renumbered when dialogs are added
+    # or moved), this is the stable way to name a dialog across exports.
+    path: str | None = None
 
     @property
     def anchor(self) -> str:
@@ -692,7 +696,8 @@ def _parse_bundle_dialogs(micro_dialogs: list[dict], nodes: list[dict]) -> list[
     # `microDialogUid` resolves to exactly one entry here, folder or not.
     dialogs: list[MicroDialog] = []
     for i, md in enumerate(micro_dialogs):
-        dialog = MicroDialog(i=i, name=md.get("name") or "(unnamed)", comment="", uid=md.get("uid"))
+        dialog = MicroDialog(i=i, name=md.get("name") or "(unnamed)", comment="", uid=md.get("uid"),
+                             path=md.get("path") or None)
         for n_json in by_dialog.get(md.get("uid"), []):
             dialog.nodes.append(_bundle_node(n_json, len(dialog.nodes)))
         dialogs.append(dialog)

@@ -46,6 +46,20 @@ def _rgroup_pick_index(seed, dialog_key, group: str, call_index: int, n: int) ->
     return int.from_bytes(digest[:8], "big") % n
 
 
+def _model_fingerprint(model) -> str | None:
+    """Short hash of what the state's indices and uids point into: each
+    dialog's path/name and node count in order, and each rule's uid and
+    expression. It changes whenever a re-export renumbers anything."""
+    if model is None:
+        return None
+    h = hashlib.sha256()
+    for d in model.micro_dialogs:
+        h.update(f"d|{d.path or d.name}|{len(d.nodes)}\n".encode())
+    for r in model.rules:
+        h.update(f"r|{r.uid}|{r.raw_expr}\n".encode())
+    return h.hexdigest()[:16]
+
+
 BASE_DATE = date(2026, 1, 1)
 DAY_SLOTS = (6, 12, 18, 22)  # hour boundaries for the "advance to next slot" button
 _MAX_TRANSCRIPT = 500
@@ -223,6 +237,10 @@ class Simulator:
             # chat must never be continued by the other engine. None when
             # there's no model (a bare participant-import snapshot).
             "engine": self.model.source if self.model else None,
+            # state refers to dialogs by index and to rules by uid, both
+            # positions in one export. A chat must only be continued on a
+            # model with the same fingerprint (see _model_fingerprint).
+            "model_fingerprint": _model_fingerprint(self.model),
             # auto_periodic: every clock move also runs PERIODIC BASIS
             # (the pre-Phase-E behaviour). Off, PERIODIC BASIS only runs on
             # an explicit `run_periodic` step; DAILY BASIS, due-sender
@@ -662,7 +680,8 @@ class Simulator:
                         call_index = calls.get(key, 0)
                         calls[key] = call_index + 1
                         pick = _rgroup_pick_index(
-                            state.get("seed", 0), dialog.uid or dialog.i, group, call_index, run_len
+                            state.get("seed", 0), dialog.path or dialog.uid or dialog.i,
+                            group, call_index, run_len,
                         )
                         resolved_groups[key] = run_start + pick
                         if run_len > 1:
@@ -868,4 +887,7 @@ class Simulator:
 
     def _dialog_ref(self, dialog_i: int) -> dict:
         d = self.model.micro_dialogs[dialog_i]
-        return {"dialog_i": d.i, "dialog_uid": d.uid, "dialog_name": d.name}
+        # dialog_i / dialog_uid are only valid within this export; use
+        # dialog_menu_path to refer to the dialog anywhere else
+        return {"dialog_i": d.i, "dialog_uid": d.uid, "dialog_name": d.name,
+                "dialog_menu_path": d.path or d.name}

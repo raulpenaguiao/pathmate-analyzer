@@ -404,6 +404,21 @@ class SenderRuleTest(unittest.TestCase):
         state = sim.step(state, {"type": "run_periodic"})
         self.assertEqual(state["vars"]["$participantOpenQuestions"], "1")
 
+    def test_model_fingerprint_tracks_export_layout(self):
+        a = Simulator(self._model()).initial_state()["model_fingerprint"]
+        self.assertEqual(a, Simulator(self._model()).initial_state()["model_fingerprint"])
+        moved = self._model()
+        moved.micro_dialogs[0].path = "Other folder / Evening check"
+        self.assertNotEqual(a, Simulator(moved).initial_state()["model_fingerprint"])
+
+    def test_events_carry_stable_menu_path(self):
+        model = self._model()
+        model.micro_dialogs[0].path = "Folder / Evening check"
+        sim, state = self._start(model)
+        state = self._tick_to(sim, state, 21, 30)
+        [launch] = self._events(state, "launch")
+        self.assertEqual(launch["dialog_menu_path"], "Folder / Evening check")
+
     def test_pending_timeout_at(self):
         sim, state = self._start(self._model(timeout=90))
         state = self._tick_to(sim, state, 21, 30)
