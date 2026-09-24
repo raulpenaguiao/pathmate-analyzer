@@ -368,6 +368,7 @@ class Simulator:
                          **self._dialog_ref(pending["dialog_i"]), "node_idx": pending["node_idx"]})
         state["pending"] = None
         state["open_dialog"] = None
+        state["_cascade_stack"] = []  # the whole walk is abandoned, callers included
         if rule.does_not_answer_rules:
             self._log(
                 state, "system",
@@ -591,6 +592,7 @@ class Simulator:
             "origin_rule_uid": rule.uid if rule is not None else None,
         }
         state["pending"] = None
+        state["_cascade_stack"] = []
         self._log(state, "system", f'▶ Micro dialog "{dialog.name}"')
         self._advance(state)
 
@@ -631,8 +633,8 @@ class Simulator:
             dialog = self.model.micro_dialogs[od["dialog_i"]]
             if od["node_idx"] >= len(dialog.nodes):
                 self._log(state, "system", f'■ End of "{dialog.name}"')
-                state["open_dialog"] = None
-                return
+                self._end_dialog(state)
+                continue
 
             node = dialog.nodes[od["node_idx"]]
             variables = state["vars"]
@@ -706,6 +708,13 @@ class Simulator:
                 od["node_idx"] += 1
 
     def _run_decision(self, state, dialog, node) -> None:
+        """PMCP 6.0 docs (Micro Dialogs §5.4): a decision point's rules "are
+        processed from top to bottom", and may "define new calculated
+        variables". Every rule is evaluated and its assignment applied. The
+        first TRUE rule carrying a jump / cascade / stop acts on it (those
+        are all "...if TRUE" settings); otherwise the walk falls through to
+        the next node. Jump-to-message-if-TRUE/FALSE isn't in coaching.json
+        yet, so it can't be honoured here."""
         od = state["open_dialog"]
         variables = state["vars"]
         for branch in node.branches:
@@ -723,6 +732,12 @@ class Simulator:
                     od["node_idx"] += 1
                     return
                 self._log(state, "system", f'decision {verb} to "{target}"')
+                if branch.cascade_dialog and not branch.jump_dialog:
+                    # docs §5.4.3.2: "After the cascaded dialogue finishes,
+                    # execution returns to the original dialogue" - resume
+                    # just after this decision point
+                    state.setdefault("_cascade_stack", []).append(
+                        {**od, "node_idx": od["node_idx"] + 1})
                 state["open_dialog"] = {
                     "dialog_i": idx, "node_idx": 0,
                     "origin_rule_uid": od.get("origin_rule_uid"),
@@ -730,13 +745,24 @@ class Simulator:
                 return
             if branch.stop_micro_dialog:
                 self._log(state, "system", f'decision stops "{dialog.name}"')
-                state["open_dialog"] = None
+                self._end_dialog(state)
                 return
-            od["node_idx"] += 1
-            return
-        od["node_idx"] += 1  # no branch matched -> fall through
+        od["node_idx"] += 1  # no rule redirected -> fall through
 
     # -- helpers ------------------------------------------------------
+    def _end_dialog(self, state: dict) -> None:
+        """The current dialog is done: resume the dialog that cascaded into
+        it, if any (docs §5.4.3.2), else close. ASSUMPTION: a stop inside a
+        cascaded dialog ends only that dialog, like reaching its end.
+        Nothing in the docs says whether it also stops the caller."""
+        stack = state.get("_cascade_stack") or []
+        if stack:
+            state["open_dialog"] = stack.pop()
+            parent = self.model.micro_dialogs[state["open_dialog"]["dialog_i"]]
+            self._log(state, "system", f'↩ back to "{parent.name}"')
+        else:
+            state["open_dialog"] = None
+
     def _node_at(self, dialog_i: int, node_idx: int):
         dialog = self.model.micro_dialogs[dialog_i]
         return dialog.nodes[node_idx] if node_idx < len(dialog.nodes) else None
@@ -748,10 +774,17 @@ class Simulator:
             line = line.strip()
             if not line:
                 continue
+            # PMCP 6.0 docs (Micro Dialogs, input formats): "Display
+            # Label:Transmitted Value", e.g. "First answer option:1". Split on
+            # the LAST colon so a label may itself contain one. A "! " prefix
+            # marks an exclusive Select-Many option and isn't displayed.
             if ":" in line:
-                value, label = line.split(":", 1)
+                label, value = line.rsplit(":", 1)
             else:
                 value = label = line
+            label = label.strip()
+            if label.startswith("! "):
+                label = label[2:]
             opts.append({"value": value.strip(), "label": label.strip()})
         return opts or [{"value": "ok", "label": "OK"}]
 

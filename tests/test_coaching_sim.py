@@ -237,7 +237,7 @@ class SenderRuleTest(unittest.TestCase):
 
         question = Node(n=0, type="message", comment="", channel="", writes_var="$mood",
                         text_by_lang={"en-GB": "How was your day?"},
-                        answer_options_by_lang={"en-GB": "1:good\n2:bad"})
+                        answer_options_by_lang={"en-GB": "good:1\nbad:2"})
         dialog = MicroDialog(i=0, name="Evening check", comment="", nodes=[question], uid="md-000")
         sender = Rule(
             i=1, context="DAILY BASIS", depth=0,
@@ -339,7 +339,7 @@ class SenderRuleTest(unittest.TestCase):
         model = self._model()
         second_q = Node(n=0, type="message", comment="", channel="", writes_var="$sleep",
                         text_by_lang={"en-GB": "How did you sleep?"},
-                        answer_options_by_lang={"en-GB": "1:well\n2:badly"})
+                        answer_options_by_lang={"en-GB": "well:1\nbadly:2"})
         model.micro_dialogs.append(
             MicroDialog(i=1, name="Sleep check", comment="", nodes=[second_q], uid="md-001"))
         model.rules.append(Rule(
@@ -454,6 +454,72 @@ class SenderRuleTest(unittest.TestCase):
             state = self._tick_to(sim, state, h, 45)
         warnings = [l for l in state["transcript"] if "no resolvable target" in l["text"]]
         self.assertEqual(len(warnings), 1)
+
+
+
+class DialogWalkerTest(unittest.TestCase):
+    """Answer-option format and decision-point semantics, per the PMCP 6.0
+    docs (Micro Dialogs §5.4 and input formats)."""
+
+    def _msg(self, n, text, **kw):
+        from app.coaching_model import Node
+        return Node(n=n, type="message", comment="", channel="", text_by_lang={"en-GB": text},
+                    writes_var=kw.pop("writes_var", None), **kw)
+
+    def _decision(self, n, *branches):
+        from app.coaching_model import DecisionBranch, Node
+        return Node(n=n, type="decision", comment="", channel="", writes_var=None,
+                    branches=[DecisionBranch(**{
+                        "expr": e, "comment": "", "writes_var": None, "stop_micro_dialog": False,
+                        "leave_decision_point": False, "jump_dialog": None, "cascade_dialog": None,
+                        "supported": True, **kw}) for e, kw in branches])
+
+    def _sim(self, *dialogs):
+        from app.coaching_model import CoachingModel, MicroDialog
+        mds = [MicroDialog(i=i, name=name, comment="", nodes=nodes, uid=f"md-{i:03}")
+               for i, (name, nodes) in enumerate(dialogs)]
+        return Simulator(CoachingModel(rules=[], micro_dialogs=mds, message_groups=[],
+                                       variables={}, languages=["en-GB"]))
+
+    def _coach(self, state):
+        return [l["text"] for l in state["transcript"] if l["kind"] == "coach"]
+
+    def test_options_are_label_then_value(self):
+        q = self._msg(0, "Took it?", writes_var="$ans",
+                      answer_options_by_lang={"en-GB": "Yes:1\nNo:0\nTime: later:9\n! None:5"})
+        sim = self._sim(("Q", [q]))
+        state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual(state["pending"]["options"], [
+            {"label": "Yes", "value": "1"}, {"label": "No", "value": "0"},
+            {"label": "Time: later", "value": "9"}, {"label": "None", "value": "5"},
+        ])
+
+    def test_decision_evaluates_every_rule_and_later_stop_applies(self):
+        # shape of ALEX v02 md-049 node 5: assignment rule, then assignment + stop
+        d = self._decision(
+            1,
+            ("1 calculate value but result is always true → $done", {}),
+            ("0 calculate value but result is always true → $engaged", {"stop_micro_dialog": True}),
+        )
+        sim = self._sim(("D", [self._msg(0, "Thanks"), d, self._msg(2, "No worries")]))
+        state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual((state["vars"]["$done"], state["vars"]["$engaged"]), ("1", "0"))
+        self.assertEqual(self._coach(state), ["Thanks"])
+        self.assertIsNone(state["open_dialog"])
+
+    def test_cascade_returns_to_caller(self):
+        d = self._decision(1, ("1 calculated value equals 1", {"cascade_dialog": "Child"}))
+        sim = self._sim(("Parent", [self._msg(0, "p-before"), d, self._msg(2, "p-after")]),
+                        ("Child", [self._msg(0, "child")]))
+        state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual(self._coach(state), ["p-before", "child", "p-after"])
+
+    def test_jump_does_not_return(self):
+        d = self._decision(1, ("1 calculated value equals 1", {"jump_dialog": "Other"}))
+        sim = self._sim(("Start", [self._msg(0, "s"), d, self._msg(2, "never")]),
+                        ("Other", [self._msg(0, "other")]))
+        state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual(self._coach(state), ["s", "other"])
 
 
 if __name__ == "__main__":
