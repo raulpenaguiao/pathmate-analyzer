@@ -46,7 +46,7 @@ def _rgroup_pick_index(seed, dialog_key, group: str, call_index: int, n: int) ->
     return int.from_bytes(digest[:8], "big") % n
 
 
-def _model_fingerprint(model) -> str | None:
+def model_fingerprint(model) -> str | None:
     """Short hash of what the state's indices and uids point into: each
     dialog's path/name and node count in order, and each rule's uid and
     expression. It changes whenever a re-export renumbers anything."""
@@ -58,6 +58,9 @@ def _model_fingerprint(model) -> str | None:
     for r in model.rules:
         h.update(f"r|{r.uid}|{r.raw_expr}\n".encode())
     return h.hexdigest()[:16]
+
+
+_model_fingerprint = model_fingerprint  # old private name, kept for existing imports
 
 
 BASE_DATE = date(2026, 1, 1)
@@ -240,7 +243,7 @@ class Simulator:
             # state refers to dialogs by index and to rules by uid, both
             # positions in one export. A chat must only be continued on a
             # model with the same fingerprint (see _model_fingerprint).
-            "model_fingerprint": _model_fingerprint(self.model),
+            "model_fingerprint": model_fingerprint(self.model),
             # auto_periodic: every clock move also runs PERIODIC BASIS
             # (the pre-Phase-E behaviour). Off, PERIODIC BASIS only runs on
             # an explicit `run_periodic` step; DAILY BASIS, due-sender

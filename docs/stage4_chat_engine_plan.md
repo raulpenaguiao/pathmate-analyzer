@@ -198,6 +198,15 @@ keep working until phase E swaps the wiring.
 - Gate the Chat tab on the coaching having a `.json` attached.
 - **Acceptance:** click through a full ACQ reminder → answer → completion in
   the browser, matching a hand-trace of the rules.
+- **Status (2026-09-24): DONE.** Smith wired the routes and UI; the engine
+  side is `state["engine"]`, `pending["timeout_at"]`, structured events,
+  `settings.auto_periodic`, and `state["model_fingerprint"]` for stale
+  chats. Acceptance walks pass in the browser on the depth- and
+  jump-enriched 0917 ALEX export (Smith): the ACQ reminder → answers →
+  questionnaire completion (the user sets the `$acq_*` variables, since
+  questionnaire bindings aren't exported) → score, and the next daily run
+  advances `$dateOfNextACQ`. The medication (v02) dialog's Yes and No
+  paths also pass. All match hand-traces.
 
 ### Phase F — patient-model hook  *(design only in this workstream)*
 - Refactor `answer` so a headless `PatientModel.respond(pending, clock) ->
