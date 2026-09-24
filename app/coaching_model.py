@@ -184,6 +184,10 @@ class DecisionBranch:
     # these to the node uids above.
     jump_message_if_true: dict[str, str] = field(default_factory=dict)
     jump_message_if_false: dict[str, str] = field(default_factory=dict)
+    # nesting inside the decision point (PMCP 6.0 docs, Rules §2.2: "AND
+    # logic (child rules), OR logic (same hierarchy level)"). The Report
+    # draws it as a 20px-per-level left border on the rule's <th>.
+    depth: int = 0
 
 
 @dataclass
@@ -381,6 +385,7 @@ def _parse_branches(rules_td: str) -> tuple[list[DecisionBranch], list[str]]:
         expr = clean_text(_row(rt, "Rule:")).replace("–", "-")
         exprs.append(expr)
         _, supported = _classify_expr(expr)
+        indent = re.search(r'<th style="border-left-width:\s*(\d+)px;?">Rule:</th>', rt)
         branches.append(
             DecisionBranch(
                 expr=expr,
@@ -397,6 +402,7 @@ def _parse_branches(rules_td: str) -> tuple[list[DecisionBranch], list[str]]:
                 supported=supported,
                 jump_message_if_true=_lang_map(_row(rt, "Micro Dialog Message to jump to when TRUE:")),
                 jump_message_if_false=_lang_map(_row(rt, "Micro Dialog Message to jump to when FALSE:")),
+                depth=int(indent.group(1)) // 20 if indent else 0,
             )
         )
     return branches, exprs
@@ -666,6 +672,7 @@ def _bundle_node(n: dict, position: int) -> Node:
                 supported=bool(b.get("supported", True)),
                 jump_msg_true=b.get("jumpMessageIfTrue") or None,
                 jump_msg_false=b.get("jumpMessageIfFalse") or None,
+                depth=int(b.get("depth") or 0),
             )
         )
     return node

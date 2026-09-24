@@ -521,6 +521,23 @@ class DialogWalkerTest(unittest.TestCase):
         self.assertEqual(self._coach(state), ["Thanks"])
         self.assertIsNone(state["open_dialog"])
 
+    def test_nested_rule_runs_only_under_true_parents(self):
+        # ALEX md-054#037: cond > child cond > child assignment (Rules §2.2)
+        d = self._decision(
+            0,
+            ("$start calculated value equals 0", {}),
+            ("$newTime text value not equals -99", {"depth": 1}),
+            ("1 calculate value but result is always true → $requested", {"depth": 2}),
+            ("1 calculate value but result is always true → $sibling", {}),
+        )
+        sim = self._sim(("D", [d]))
+        for start, new_time, expected in (("1", "10", None), ("0", "-99", None), ("0", "10", "1")):
+            state = sim.initial_state()
+            state["vars"].update({"$start": start, "$newTime": new_time})
+            state = sim.step(state, {"type": "launch_dialog", "dialog_i": 0})
+            self.assertEqual(state["vars"].get("$requested"), expected, (start, new_time))
+            self.assertEqual(state["vars"]["$sibling"], "1")  # top-level sibling always runs
+
     def test_cascade_returns_to_caller(self):
         d = self._decision(1, ("1 calculated value equals 1", {"cascade_dialog": "Child"}))
         sim = self._sim(("Parent", [self._msg(0, "p-before"), d, self._msg(2, "p-after")]),

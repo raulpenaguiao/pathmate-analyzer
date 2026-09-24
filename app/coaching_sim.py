@@ -724,8 +724,17 @@ class Simulator:
         precedence over its message jump. The docs don't say."""
         od = state["open_dialog"]
         variables = state["vars"]
+        # rules nest (Rules §2.2: child rules = AND): a rule only runs when
+        # every ancestor was TRUE, the same depth stack as _run_context
+        stack: list[tuple[int, bool]] = []
         for branch in node.branches:
+            while stack and stack[-1][0] >= branch.depth:
+                stack.pop()
+            if any(not active for _d, active in stack):
+                stack.append((branch.depth, False))
+                continue
             result, assignment = eval_expr(branch.expr, variables)
+            stack.append((branch.depth, bool(result)))
             if assignment:
                 variables[assignment[0]] = assignment[1]
             if result is None:
