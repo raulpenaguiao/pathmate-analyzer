@@ -713,15 +713,22 @@ class Simulator:
         variables". Every rule is evaluated and its assignment applied. The
         first TRUE rule carrying a jump / cascade / stop acts on it (those
         are all "...if TRUE" settings); otherwise the walk falls through to
-        the next node. Jump-to-message-if-TRUE/FALSE isn't in coaching.json
-        yet, so it can't be honoured here."""
+        the next node. A rule's "Jump to dialog message if TRUE / FALSE"
+        (§5.4.2: "the dialogue will immediately continue at the selected
+        target message") redirects within the dialog. ASSUMPTION: a
+        dialog-level jump/cascade/stop on the same TRUE rule takes
+        precedence over its message jump. The docs don't say."""
         od = state["open_dialog"]
         variables = state["vars"]
         for branch in node.branches:
             result, assignment = eval_expr(branch.expr, variables)
             if assignment:
                 variables[assignment[0]] = assignment[1]
+            if result is None:
+                continue  # unsupported rule: neither its TRUE nor its FALSE path is known
             if not result:
+                if self._jump_to_message(state, dialog, branch.jump_msg_false):
+                    return
                 continue
             if branch.jump_dialog or branch.cascade_dialog:
                 target = branch.jump_dialog or branch.cascade_dialog
@@ -747,7 +754,29 @@ class Simulator:
                 self._log(state, "system", f'decision stops "{dialog.name}"')
                 self._end_dialog(state)
                 return
+            if branch.leave_decision_point:
+                # not defined in the PMCP 6.0 docs, and no live precedent yet
+                self._log(state, "system", "⚠️ 'leave decision point' is set on a TRUE rule, "
+                          "but its meaning is unknown, so it's ignored")
+            if self._jump_to_message(state, dialog, branch.jump_msg_true):
+                return
         od["node_idx"] += 1  # no rule redirected -> fall through
+
+    def _jump_to_message(self, state, dialog, target) -> bool:
+        """Redirect the walk to another node of the same dialog. False (and
+        the walk carries on) when there's no target or it can't be found."""
+        if not target:
+            return False
+        idx = None
+        if isinstance(target, str):
+            idx = next((k for k, n in enumerate(dialog.nodes) if n.uid == target), None)
+        if idx is None:
+            shown = target.get("raw") if isinstance(target, dict) else target
+            self._log(state, "system", f"⚠️ decision jumps to unknown message {shown!r}, ignored")
+            return False
+        self._log(state, "system", f"decision jumps to message {idx} of \"{dialog.name}\"")
+        state["open_dialog"]["node_idx"] = idx
+        return True
 
     # -- helpers ------------------------------------------------------
     def _end_dialog(self, state: dict) -> None:

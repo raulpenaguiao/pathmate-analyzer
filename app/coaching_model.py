@@ -173,6 +173,12 @@ class DecisionBranch:
     jump_dialog: str | None
     cascade_dialog: str | None
     supported: bool
+    # bundle-only (Warden's exporter, agreed 2026-09-24): "Jump to dialog
+    # message if TRUE / FALSE" per rule. A target node uid ("md-049#006"),
+    # {"raw": ..., "unresolved": True} when the exporter couldn't resolve
+    # it, or None when unset.
+    jump_msg_true: str | dict | None = None
+    jump_msg_false: str | dict | None = None
 
 
 @dataclass
@@ -651,6 +657,8 @@ def _bundle_node(n: dict, position: int) -> Node:
                 jump_dialog=b.get("jumpDialog") or None,
                 cascade_dialog=b.get("cascadeDialog") or None,
                 supported=bool(b.get("supported", True)),
+                jump_msg_true=b.get("jumpMessageIfTrue") or None,
+                jump_msg_false=b.get("jumpMessageIfFalse") or None,
             )
         )
     return node

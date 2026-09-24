@@ -514,6 +514,29 @@ class DialogWalkerTest(unittest.TestCase):
         state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
         self.assertEqual(self._coach(state), ["p-before", "child", "p-after"])
 
+    def test_jump_to_message_if_false(self):
+        # ALEX v02 md-049 shape: question, "answer == 1?" decision whose FALSE
+        # path jumps past the Yes branch to the No message
+        q = self._msg(0, "Took it?", writes_var="$ans", answer_options_by_lang={"en-GB": "Yes:1\nNo:0"})
+        branch = self._decision(1, ("$ans calculated value equals 1", {"jump_msg_false": "md-000#004"}))
+        stop = self._decision(3, ("1 calculated value equals 1", {"stop_micro_dialog": True}))
+        nodes = [q, branch, self._msg(2, "Thanks"), stop, self._msg(4, "No worries")]
+        for k, node in enumerate(nodes):
+            node.uid = f"md-000#{k:03}"
+        sim = self._sim(("Dose", nodes))
+        for value, expected in (("1", "Thanks"), ("0", "No worries")):
+            state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
+            state = sim.step(state, {"type": "answer", "value": value})
+            self.assertEqual(self._coach(state), ["Took it?", expected])
+
+    def test_unresolved_message_jump_warns_and_falls_through(self):
+        d = self._decision(1, ("1 calculated value equals 1",
+                               {"jump_msg_true": {"raw": "Some message", "unresolved": True}}))
+        sim = self._sim(("D", [self._msg(0, "a"), d, self._msg(2, "b")]))
+        state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual(self._coach(state), ["a", "b"])
+        self.assertTrue(any("unknown message 'Some message'" in l["text"] for l in state["transcript"]))
+
     def test_jump_does_not_return(self):
         d = self._decision(1, ("1 calculated value equals 1", {"jump_dialog": "Other"}))
         sim = self._sim(("Start", [self._msg(0, "s"), d, self._msg(2, "never")]),
