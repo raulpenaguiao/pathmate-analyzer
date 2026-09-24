@@ -179,6 +179,11 @@ class DecisionBranch:
     # it, or None when unset.
     jump_msg_true: str | dict | None = None
     jump_msg_false: str | dict | None = None
+    # HTML path: the same targets as the Report shows them, i.e. the target
+    # message's text per language (no node id). enrich_bundle.py resolves
+    # these to the node uids above.
+    jump_message_if_true: dict[str, str] = field(default_factory=dict)
+    jump_message_if_false: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -390,6 +395,8 @@ def _parse_branches(rules_td: str) -> tuple[list[DecisionBranch], list[str]]:
                     _row_text(rt, "Micro Dialog to cascade to when TRUE:")
                 ),
                 supported=supported,
+                jump_message_if_true=_lang_map(_row(rt, "Micro Dialog Message to jump to when TRUE:")),
+                jump_message_if_false=_lang_map(_row(rt, "Micro Dialog Message to jump to when FALSE:")),
             )
         )
     return branches, exprs
