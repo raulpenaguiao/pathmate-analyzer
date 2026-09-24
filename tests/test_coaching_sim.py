@@ -379,6 +379,31 @@ class SenderRuleTest(unittest.TestCase):
         state["vars"]["$hyperparameterEveningEndHour"] = "23"
         self.assertEqual(model.variable_defaults["$hyperparameterEveningEndHour"], "22")
 
+    def test_participation_days_lags_during_daily_run(self):
+        # modelling assumption (see _refresh_system_vars): the 00:00 DAILY
+        # run still sees the previous day, the rest of the day sees the new one
+        from app.coaching_model import Rule
+        snapshot = Rule(
+            i=0, context="DAILY BASIS", depth=0,
+            raw_expr="$participantParticipationInDays+1 calculate value but result is always true → $dailyTasksPerformedToday",
+            comment="", writes_var="$dailyTasksPerformedToday", sends_message=False,
+            stops_intervention=False, is_js_snippet=False, supported=True,
+        )
+        sim, state = self._start(self._model(extra_rules=[snapshot]))  # -> day 1 00:00
+        self.assertEqual(state["vars"]["$dailyTasksPerformedToday"], "1")
+        self.assertEqual(state["vars"]["$participantParticipationInDays"], "1")
+        self.assertEqual(Simulator(self._model()).initial_state()["vars"]["$participantParticipationInDays"], "0")
+
+    def test_documented_system_vars(self):
+        sim, state = self._start(self._model())  # day 1 00:00 = Fri 02.01.2026
+        state = self._tick_to(sim, state, 14, 35)
+        v = state["vars"]
+        self.assertEqual((v["$systemDayInWeek"], v["$systemMinuteOfHour"]), ("5", "35"))
+        self.assertEqual(v["$participantOpenQuestions"], "0")
+        state = sim.step(state, {"type": "launch_dialog", "dialog_i": 0})
+        state = sim.step(state, {"type": "run_periodic"})
+        self.assertEqual(state["vars"]["$participantOpenQuestions"], "1")
+
     def test_pending_timeout_at(self):
         sim, state = self._start(self._model(timeout=90))
         state = self._tick_to(sim, state, 21, 30)

@@ -319,7 +319,12 @@ class Simulator:
         self._check_pending_timeout(state)
 
         for _ in range(max(0, crossed_midnights)):
+            # $participantParticipationInDays still reads the previous day
+            # during the 00:00 DAILY run and bumps right after it - see
+            # _refresh_system_vars for why (a modelling assumption).
+            state["vars"]["$participantParticipationInDays"] = str(clock["day"] - 1)
             self._run_context(state, "DAILY BASIS")
+            state["vars"]["$participantParticipationInDays"] = str(clock["day"])
         if state.get("settings", {}).get("auto_periodic", True):
             self._run_context(state, "PERIODIC BASIS")
         self._check_due_senders(state)
@@ -386,6 +391,12 @@ class Simulator:
             "$systemMonth": str(today.month),
             "$systemYear": str(today.year),
             "$systemDayOfWeek": str(today.isoweekday()),
+            # same ISO weekday under the name the PMCP docs' Rules example
+            # uses ("$systemDayInWeek calculated value equals 1" = Monday),
+            # and the one ALEX v01 reads (r-025, r-090)
+            "$systemDayInWeek": str(today.isoweekday()),
+            # docs 6.0 Variables: "the minute component of the current hour"
+            "$systemMinuteOfHour": str(clock["minute"]),
             "$systemHour": str(clock["hour"]),
             "$systemMinute": str(clock["minute"]),
             # The real ALEX v01 export's own rules never reference
@@ -399,11 +410,25 @@ class Simulator:
             # use the other one - found no evidence either way.
             "$systemHourOfDay": str(clock["hour"]),
             "$systemDecimalMinuteOfHour": _fmt(clock["minute"] / 60),
+            # PMCP-provided, documented only as "Number of days the
+            # participant has been involved in the coaching program" (docs
+            # 6.0, Variables). Modelled as the sim's day index (0 on the
+            # registration day), except during the 00:00 DAILY run, where it
+            # still reads the previous day (see _tick). That's an ASSUMPTION
+            # chosen by Raul 2026-09-24 because ALEX v01 depends on it: r-101
+            # writes $dailyTasksPerformedToday = P+1 at 00:00, and r-105
+            # needs P == $dailyTasksPerformedToday for the rest of the day.
+            # Revisit against a real participant snapshot.
+            "$participantParticipationInDays": str(clock["day"]),
         })
 
     # -- rule execution ----------------------------------------------
     def _run_context(self, state: dict, context: str) -> None:
         rules = [r for r in self.model.rules if r.context == context]
+        # docs 6.0 Variables: "Open questions for the participant". The
+        # engine allows one open question at a time (plan §1), so it's 0/1.
+        # Refreshed per rule pass, since answers and launches change it.
+        state["vars"]["$participantOpenQuestions"] = "1" if state.get("pending") else "0"
         if not rules:
             return
         variables = state["vars"]

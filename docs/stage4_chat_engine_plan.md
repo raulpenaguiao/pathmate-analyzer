@@ -284,21 +284,30 @@ keep working until phase E swaps the wiring.
   v01, e.g. `$hyperparameterEveningEndHour = 22`). The simulator used to
   start with empty vars, so the day-slot gates compared against "".
   Bundle simulations now seed `vars` from `CoachingModel.variable_defaults`.
-- **`$participantParticipationInDays` is PMCP-provided and not simulated
-  (OPEN)**: it isn't in the Variables list and no rule writes it. ALEX v01
-  gates all of PERIODIC BASIS's normal branch (r-105, including the
-  day-slot rules 125-132) on `$participantParticipationInDays equals
-  $dailyTasksPerformedToday`. DAILY BASIS r-101 sets
-  `$dailyTasksPerformedToday = $participantParticipationInDays + 1`, which
-  only makes r-105 true if the participation counter increments *after*
-  DAILY BASIS runs. That implies DAILY BASIS runs before the day counter
-  increments, or the counter starts at a different base. Nothing in the
-  repo documents which, and the PMCP docs only say "Number of days the
-  participant has been involved in the coaching program. Example Output:
-  25" (Variables page), with no base or increment moment given. Until this is known, r-105's branch never runs in
-  the sim and `$currentDaySlot` stays stale. **Needs**: a PMCP doc
-  reference, or a real participant snapshot (`.pmcp` import) showing
-  both variables' values at a known time of day.
+- **`$participantParticipationInDays`: modelled by ASSUMPTION (Raul,
+  2026-09-24)**. The docs only say "Number of days the participant has been
+  involved in the coaching program. Example Output: 25". ALEX v01's r-101
+  writes `$dailyTasksPerformedToday = P+1` at 00:00, and r-105 (the whole
+  normal PERIODIC branch, including the day slots) needs `P ==
+  $dailyTasksPerformedToday` afterwards. So the sim uses the day index (0
+  on the registration day), which still reads the previous day during the
+  00:00 DAILY run and bumps right after it. Revisit against a real
+  participant snapshot.
+- **More documented system variables the sim was missing** (docs 6.0,
+  Variables / Rules): `$systemMinuteOfHour` (ALEX r-113),
+  `$systemDayInWeek` (ISO, 1 = Monday per the Rules example; ALEX r-025 and
+  r-090 are Monday-only), and `$participantOpenQuestions` (0/1 under the
+  engine's one-open-question model; ALEX v02 "Gate 5" on all spiro and
+  medication senders). Still unset: `$participantDeactivatedOpenQuestions`
+  (undocumented, used in 7 dialogs' node conditions), plus a few
+  undocumented `$participant*` fields.
+- **Why senders didn't launch in a fresh sim, after the above**: every
+  ALEX v01 DAILY sender sits under `$onboardingDone == 1` (default 0), and
+  the spiro and medication senders need the patient's dose/measurement
+  times (defaults `-99`). That's correct behaviour: a simulated patient
+  has to complete onboarding or have those variables set. With
+  `$onboardingDone=1`, `$userSetBedtime` and one dose time set, 8 simulated
+  days give one launch per sender per day, plus the Monday incentive.
 - Coverage of `_CMP_OPS` vs operators actually appearing in `ruleTree`
   captions → tally distinct operator phrases in
   `rules_stage3_ALEX_v01.json`.
