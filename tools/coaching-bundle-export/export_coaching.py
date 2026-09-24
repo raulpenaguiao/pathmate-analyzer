@@ -122,7 +122,7 @@ async def _widen_for_menubar(page, cdp, wid) -> None:
              "session, or set PMCP_WIDE higher.")
 
 
-async def sweep_micro_dialogs(page) -> tuple[list[dict], list[dict]]:
+async def sweep_micro_dialogs(page, cdp, wid) -> tuple[list[dict], list[dict]]:
     if not await M.ensure_micro_dialogs(page):
         sys.exit("Micro Dialogs menu not on screen — open the coaching's Edit "
                  "view, deactivate Monitoring, then rerun.")
@@ -134,7 +134,14 @@ async def sweep_micro_dialogs(page) -> tuple[list[dict], list[dict]]:
         name = " / ".join(t["labels"])
         md_uid = f"md-{seq:03d}"
         try:
-            await M.navigate_and_select(page, t["labels"])
+            try:
+                await M.navigate_and_select(page, t["labels"])
+            except M.MenuOverflowError as e:
+                # the bar collapsed mid-run (see MenuOverflowError): re-widen
+                # and retry once rather than lose this and every later dialog
+                print(f"  [{seq}] {name}  {e} — re-widening, retrying once")
+                await _widen_for_menubar(page, cdp, wid)
+                await M.navigate_and_select(page, t["labels"])
             await M.wait_round_trip(page)
             total, seen, missing = await M.sweep_table(page)
         except Exception as e:  # noqa: BLE001
@@ -258,6 +265,19 @@ def coherence_check(bundle: dict, report_html: str | None) -> dict:
     cur = _metrics(bundle)
     warnings: list[str] = []
     ok = True
+
+    # Dialogs the sweep failed to open. Checked first and named explicitly:
+    # on 2026-09-18 30 of them failed, and the only warnings were "nodesTotal
+    # down 33%" etc., which read like a content change rather than a partial
+    # export. That export then got used downstream.
+    failed = [m for m in bundle.get("microDialogs", []) if m.get("error")]
+    if failed:
+        ok = False
+        warnings.append(
+            f"PARTIAL EXPORT: {len(failed)} micro dialog(s) failed to sweep "
+            f"({failed[0]['uid']}..{failed[-1]['uid']}; first error: "
+            f"{failed[0]['error'][:120]}) — their nodes are missing, the "
+            f"metric drops below are a consequence, not a content change")
 
     html_vs_sweep = None
     if report_html:
@@ -417,7 +437,7 @@ async def main() -> int:
                 print("--- phase 1: micro dialogs ---")
                 t = time.monotonic()
                 await _widen_for_menubar(page, cdp, wid)
-                md, nodes = await sweep_micro_dialogs(page)
+                md, nodes = await sweep_micro_dialogs(page, cdp, wid)
                 bundle["microDialogs"] = md
                 bundle["nodes"] = nodes
                 timings["phase1_dialogs"] = time.monotonic() - t
@@ -463,6 +483,9 @@ async def main() -> int:
     bundle["run"] = {"seconds": round(elapsed, 1),
                      "phaseSeconds": {k: round(v, 1) for k, v in timings.items()},
                      "finishedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+    if not explicit_out and any(m.get("error") for m in bundle["microDialogs"]):
+        # make a partial export obvious to anyone who picks the file up later
+        out_path = out_path.with_name(out_path.stem + "_PARTIAL.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(bundle, indent=2, ensure_ascii=False))
     m = bundle["validation"]["metrics"]

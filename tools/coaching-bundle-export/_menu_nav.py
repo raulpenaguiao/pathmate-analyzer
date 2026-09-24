@@ -131,6 +131,32 @@ class WrongMenuError(RuntimeError):
     error pointed at the wrong thing entirely)."""
 
 
+class MenuOverflowError(RuntimeError):
+    """A top-level item wasn't on the bar AND the bar ends in the `►`
+    overflow item: the MenuBar collapsed its tail. That's a window-width
+    problem, not a missing label. The fix is to re-widen and retry, never to
+    skip the dialog. Seen 2026-09-18: the ALEX export lost md-060..md-089
+    (30 dialogs, ~340 nodes) to `top ... not found` after the up-front
+    `_widen_for_menubar` had passed. Overflow is the suspected cause; this
+    error exists to confirm or rule that out on the next occurrence."""
+
+
+async def _raise_missing_top(page, label: str, what: str = "top"):
+    bar = await bar_loc(page)
+    n = await bar.count()
+    last = ""
+    if n:
+        try:
+            last = (await bar.nth(n - 1).inner_text()).strip()
+        except Exception:  # noqa: BLE001
+            pass
+    if last == "►":
+        raise MenuOverflowError(
+            f"{what} {label!r} not found - the menubar has collapsed into a `►` "
+            f"overflow ({n} items shown); the window is too narrow, re-widen")
+    raise RuntimeError(f"{what} {label!r} not found")
+
+
 async def _require_micro_dialogs(page) -> None:
     """Every navigation entry point below calls this FIRST, unconditionally
     - a caller can never skip the check by forgetting to call
@@ -157,7 +183,7 @@ async def open_folder_path(page, labels: list[str]) -> int:
             top = bar.nth(i)
             break
     if top is None:
-        raise RuntimeError(f"top {labels[0]!r} not found")
+        await _raise_missing_top(page, labels[0])
     # Vaadin MenuBar: from a closed state a top item opens on CLICK, not hover
     # (hover only switches between already-open top menus). Nudge the virtual
     # mouse first so the click definitely dispatches a fresh move. Retry: a
@@ -270,7 +296,7 @@ async def navigate_and_select(page, labels: list[str]):
             if await caption(bar.nth(i)) == labels[0]:
                 await bar.nth(i).click(timeout=8000)
                 return
-        raise RuntimeError(f"top item {labels[0]!r} not found")
+        await _raise_missing_top(page, labels[0], "top item")
     # reuse the folder-opening logic, then click the leaf in the deepest popup
     await open_folder_path(page, labels[:-1])
     depth = len(labels) - 1
@@ -430,6 +456,33 @@ def _trim_trailing_blanks(total: int, seen: dict[int, list[str]]) -> int:
         del seen[trimmed - 1]
         trimmed -= 1
     return trimmed
+
+
+HEADERS_JS = (
+    "() => [...document.querySelectorAll("
+    "'.v-table .v-table-header-cell .v-table-caption-container')]"
+    ".map(e => e.textContent.trim())"
+)
+
+
+async def read_table_dense(page):
+    """Headers + every row of the current `.v-table`, as a DENSE list ordered
+    by logical row index (a never-rendered/missing row is `[]`) — the shape
+    callers that do positional row access (row k, "is the row above also in
+    this group") want.
+
+    Built on `sweep_table`'s own scrollable-aware GRAB_JS + trailing-blank
+    trim, so any caller doing its own scroll-and-accumulate against
+    `.v-table` (the virtualization-over-read bug class: treating an
+    unscrollable table's `scrollHeight / rowHeight` estimate as real,
+    inflating `total` past the actual row count) should call this instead of
+    reinventing that sweep - see rgroup_apply.py's original TABLE_JS, which
+    had exactly this gap and caused a flaky retry before being ported to
+    this function."""
+    headers = await page.evaluate(HEADERS_JS)
+    total, seen, _ = await sweep_table(page)
+    rows = [seen.get(i, []) for i in range(total)]
+    return headers, rows
 
 
 async def all_targets(page) -> list[dict]:

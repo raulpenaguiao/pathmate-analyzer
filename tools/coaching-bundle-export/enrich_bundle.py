@@ -45,6 +45,39 @@ def report_dialog_counts(report_html: Path) -> dict[str, int]:
     return {d.name: len(d.nodes) for d in m.micro_dialogs}
 
 
+def _resolve_jump_target(target: dict | None, dialog_nodes: list[dict]):
+    """A decision branch's 'Jump to dialog message if TRUE/FALSE' target, as
+    the Report HTML gives it (the target message's text per language), ->
+    that node's uid when exactly one node in the same dialog carries that
+    exact text. Otherwise `{"raw", "candidates", "unresolved": True}`: the
+    Report names the target only by its text, so empty "[not set]" anchor
+    messages and duplicate-text messages can't be told apart from it
+    (verified 2026-09-24 on ALEX v01: 22/36 unique, 14 not). The editor's own
+    filterselect shows comments and could resolve those, but that needs a
+    live pass."""
+    if not target:
+        return None
+    hits = [n["uid"] for n in dialog_nodes if (n.get("textByLang") or {}) == target]
+    if len(hits) == 1:
+        return hits[0]
+    return {"raw": target, "candidates": hits, "unresolved": True}
+
+
+def _nest_branches(branches: list[dict]) -> None:
+    """Give each decision-point branch its `parentIndex` (index into the same
+    list, None at top level) from its `depth`. PMCP docs (Rules §2.2):
+    decision points use "AND logic (child rules)" and "OR logic (same
+    hierarchy level)", so the rules form a tree. The Report prints them flat
+    in pre-order, with the nesting only as each row's indentation (see
+    DecisionBranch.depth), so a depth stack rebuilds the parent links."""
+    stack: list[int] = []  # index of the open ancestor at each depth
+    for i, br in enumerate(branches):
+        d = br.get("depth") or 0
+        del stack[d:]
+        br["parentIndex"] = stack[-1] if stack else None
+        stack.append(i)
+
+
 def enrich_dict(bundle: dict, report_html: Path) -> dict:
     """Join Report-HTML text/branches into an in-memory bundle dict, in place.
     Returns the same dict (with an `enrich` summary block added)."""
@@ -89,7 +122,17 @@ def enrich_dict(bundle: dict, report_html: Path) -> dict:
                     "leaveDecisionPoint": b.leave_decision_point,
                     "jumpDialog": b.jump_dialog, "cascadeDialog": b.cascade_dialog,
                     "supported": b.supported,
+                    # raw per-language text for now; resolved below, once
+                    # every node in this dialog has its textByLang
+                    "jumpMessageIfTrue": getattr(b, "jump_message_if_true", None) or None,
+                    "jumpMessageIfFalse": getattr(b, "jump_message_if_false", None) or None,
+                    "depth": getattr(b, "depth", 0),
                 } for b in rn.branches]
+        for bn in bnodes:
+            for br in bn.get("branches") or ():
+                for key in ("jumpMessageIfTrue", "jumpMessageIfFalse"):
+                    br[key] = _resolve_jump_target(br[key], bnodes)
+            _nest_branches(bn.get("branches") or [])
 
     bundle["enrich"] = {"reportHtml": Path(report_html).name,
                         "dialogsMerged": merged, "emptyDialogs": empty,
