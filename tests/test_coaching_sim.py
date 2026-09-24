@@ -494,6 +494,20 @@ class DialogWalkerTest(unittest.TestCase):
             {"label": "Time: later", "value": "9"}, {"label": "None", "value": "5"},
         ])
 
+    def test_questionnaire_button_is_one_blocking_option(self):
+        # PMCP 6.0 docs, Questionnaires 7.1 (ALEX md-054 node 25 shape)
+        q = self._msg(0, "", answer_options_by_lang={
+            "en-GB": "open-component:questionnaire\nacq-$acq_id:Start questionnaire"})
+        sim = self._sim(("ACQ", [q, self._msg(1, "after")]))
+        state = sim.initial_state()
+        state["vars"]["$acq_id"] = "1700000000"
+        state = sim.step(state, {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual(state["pending"]["options"], [{
+            "label": "Start questionnaire", "value": "completed",
+            "component": "questionnaire", "questionnaire_id": "acq-1700000000"}])
+        state = sim.step(state, {"type": "answer", "value": "completed"})
+        self.assertEqual(self._coach(state), ["after"])
+
     def test_decision_evaluates_every_rule_and_later_stop_applies(self):
         # shape of ALEX v02 md-049 node 5: assignment rule, then assignment + stop
         d = self._decision(

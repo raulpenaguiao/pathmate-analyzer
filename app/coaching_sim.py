@@ -127,6 +127,10 @@ def _apply_date_modifiers(text: str, variables: dict) -> str:
     return _DATE_MOD_RE.sub(repl, text)
 
 
+# the docs' form has a space before the ID; ALEX's export shows a line break
+_QUESTIONNAIRE_BUTTON_RE = re.compile(r"^\s*open-component:questionnaire\s+(\S+?):(.+)$", re.S)
+
+
 _ALLOWED_AST = (
     ast.Expression, ast.BinOp, ast.UnaryOp, ast.Add, ast.Sub, ast.Mult,
     ast.Div, ast.FloorDiv, ast.Mod, ast.Pow, ast.USub, ast.UAdd, ast.Constant,
@@ -680,7 +684,7 @@ class Simulator:
                     pending = {
                         "dialog_i": od["dialog_i"],
                         "node_idx": od["node_idx"],
-                        "options": self._options(node),
+                        "options": self._options(node, variables),
                     }
                     # timeout_at: absolute minutes (same unit as
                     # _abs_minutes), None when no not-answered timeout applies
@@ -796,8 +800,19 @@ class Simulator:
         dialog = self.model.micro_dialogs[dialog_i]
         return dialog.nodes[node_idx] if node_idx < len(dialog.nodes) else None
 
-    def _options(self, node) -> list[dict]:
+    def _options(self, node, variables: dict | None = None) -> list[dict]:
         raw = self._pick(node.answer_options_by_lang) or ""
+        m = _QUESTIONNAIRE_BUTTON_RE.match(raw)
+        if m:
+            # PMCP 6.0 docs (Channels > Questionnaires, 7.1): "open-component:
+            # questionnaire [Questionnaire ID]:[Button Title]", a single button,
+            # and "the chat will remain blocked until the participant
+            # completes the Questionnaire". Its answers reach coaching
+            # variables only via PMCMS bindings, which aren't in coaching.json,
+            # so the user sets them (set_var) before answering "completed".
+            qid = self._render_text(m.group(1), variables or {})
+            return [{"label": m.group(2).strip(), "value": "completed",
+                     "component": "questionnaire", "questionnaire_id": qid}]
         opts = []
         for line in raw.splitlines():
             line = line.strip()
