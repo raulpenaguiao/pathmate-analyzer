@@ -215,6 +215,21 @@ keep working until phase E swaps the wiring.
   ALEX_v02_simulator_scope.md` had the fuller spec for this, but that file
   is gitignored/stale and may not be present; don't block on finding it,
   treat this bullet as the seam's actual spec if it's missing.
+- **Status (2026-09-24): seam DONE** (Kart's decision: engine-only, no
+  behaviour). `app/patient_sim.py` provides a `PatientModel` protocol,
+  `respond(pending, clock) -> value | LATER | None`, and a headless
+  `run(model, patient, days, tick_minutes=, seed=, set_vars=, state=)`.
+  `AlwaysAnswers` is a test double. There was no need to refactor
+  `answer`: `Simulator.step` is already HTTP-free. `LATER` is a sentinel
+  object, not the string "later", because a real option value can be
+  "later". `None` means never answer, so the question stays open until
+  the engine's timeout.
+- **OPEN, workstream 5 (no owner yet):** how a stored patient model's
+  fields (`adherence_*_pct`, `notification_response_minutes`,
+  `sleep_start/end`, `completion_after_engagement_pct`,
+  `reschedule_acceptance_pct`, ...) map to `respond()`. That includes
+  which answer, when (LATER / response delay), and whether at all
+  (None). It's deliberately not decided here.
 
 ---
 
