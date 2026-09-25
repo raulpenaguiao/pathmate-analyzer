@@ -14,16 +14,16 @@ Raul, 2026-09-25. Ranks and re-entry openers handle collisions when they happen.
 
 | Rule | Value | Where it applies |
 |---|---|---|
-| Minimum gap between any two scheduled reminders | 60 min *(D10, proposed)* | onboarding, and any later change of preferred times |
-| Spirometry not within **5 h after** a medication dose | 5 h (`$hyperparameterSpiroAfterMedHours`) | onboarding, postponing spirometry, postponing a dose, and at firing time |
+| Minimum gap between any two scheduled reminders | 30 min *(D10)* | onboarding, and any later change of preferred times |
+| Spirometry not within **5 h after** a medication dose (advice, D12b) | 5 h (`$hyperparameterSpiroAfterMedHours`) | onboarding, postponing spirometry, postponing a dose, and at firing time |
 | When spirometry and a dose are due together, **spirometry goes first** | — | tie-break between the two rank-1 reminders |
 
-The 60-minute gap is chosen so that an ignored reminder (which steps aside after 30 minutes, D1) can never delay the next scheduled one.
+With a 30-minute gap and the 30-minute idle timeout (D1), an ignored reminder delays the next scheduled one by at most about 30 minutes.
 
 ## What the patient sees
 
-**At onboarding.** The patient chose spirometry at 11:00 and medication at 08:00 and 20:00.
-> ALEX: One small thing about your schedule. Spirometry works best *before* your medication, or at least 5 hours after it. 11:00 is only 3 hours after your morning dose. Would 07:00 work for your spirometry instead?  **[07:00 is fine] [Keep 11:00] [Choose another time]**
+**At onboarding** (D11: ALEX adjusts and tells). The patient chose spirometry at 11:00 and medication at 08:00 and 20:00.
+> ALEX: One small thing: spirometry works best *before* your medication, or at least 5 hours after it. 11:00 is only 3 hours after your morning dose, so I've set your spirometry to 07:30. You can change it any time.  **[OK] [Change it]**
 
 **On postponing spirometry.** The patient taps "remind me later" at 07:40 and picks 09:00, but their dose is at 08:00.
 > ALEX: At 09:00 your spirometry would come just after your medication, which can affect the result. We can do it right now, before your dose, or I can remind you at 13:00. Which do you prefer?
@@ -31,7 +31,7 @@ The 60-minute gap is chosen so that an ignored reminder (which steps aside after
 **On postponing a dose when spirometry hasn't been done yet.** It's 07:50, spirometry is due at 08:15, and the patient wants to take the dose now instead of at 08:30.
 > ALEX: Before you take it: your spirometry isn't done yet today. If you'd like, let's do it now, since after your medication it has to wait about 5 hours.  *(behaviour: D12)*
 
-**The patient has the final say** *(D11)*. If they keep a tight or clinically awkward time, ALEX respects it. The firing-time safety net below still stops spirometry from asking inside a post-dose window.
+**ALEX adjusts, and the patient can still override** (D11, D12b). The 5-hour rule is advice. If the patient changes the time back, or insists on one inside a post-dose window, ALEX explains once and then respects it (`$spiroAfterMedOverride = 1`, which lifts the firing-time gate).
 
 ---
 
@@ -42,15 +42,15 @@ The 60-minute gap is chosen so that an ignored reminder (which steps aside after
 **P1. Onboarding schedule check.** A new step at the end of "🤝 Welcome", after all times are collected. It uses decision-point branches:
 - for each pair of reminder times closer than the minimum gap, set `$scheduleConflict = 1` and compute a suggested time (the nearest time that satisfies every rule);
 - if `$userSetDesiredSpirometryTime` falls inside `(doseTime_i, doseTime_i + 5)` for any dose i, set the spirometry conflict and suggest `doseTime_1 − 1` (an hour before the first dose, respecting the minimum gap) or `doseTime_i + 5`, whichever is valid and before bedtime;
-- if there's a conflict, ask the confirm question shown above. The answer overwrites the time or keeps it.
+- if there's a conflict, overwrite the time with the suggestion and tell the patient (D11). "Change it" leads to a time picker; a time inside a post-dose window gets one explanation, then is accepted with `$spiroAfterMedOverride = 1`.
 
 **P2. The same check whenever preferred times change later.** This covers the `personal-data-edited` intent and the "Modification of reminder preferences" dialog, which is still a stub.
 
 **P3. Postponement validation.** After each "remind me later" time answer:
-- for spirometry: if the new time falls in a post-dose window, explain and offer the two nearest valid times;
+- for spirometry: if the new time falls in a post-dose window, explain and offer the two nearest valid times; if the patient keeps theirs, accept it (advice, D12b);
 - for a dose: if spirometry is not yet done today and the new dose time is before the spirometry time, offer spirometry first (D12).
 
-**P4. Firing-time safety net.** When a dose is confirmed, record `$lastDoseTakenAt = $timeDecimal`. Reset it daily. Add one gate to the spirometry firing rule: `$timeDecimal ≥ $lastDoseTakenAt + $hyperparameterSpiroAfterMedHours`. This protects spirometry even when a dose is taken at an unexpected time.
+**P4. Firing-time safety net.** When a dose is confirmed, record `$lastDoseTakenAt = $timeDecimal`. Reset it daily. Add one gate to the spirometry firing rule: `$timeDecimal ≥ $lastDoseTakenAt + $hyperparameterSpiroAfterMedHours` OR `$spiroAfterMedOverride == 1`. This protects spirometry even when a dose is taken at an unexpected time, unless the patient chose otherwise (D12b).
 
 **P5. Tie-break.** In the PERIODIC rule order, the spirometry firing rule sits **above** the medication firing rules. When both are due in the same pass, spirometry starts first.
 

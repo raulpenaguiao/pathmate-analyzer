@@ -1,16 +1,16 @@
 # A day with the new rules
 
-One patient, one ordinary Wednesday, showing every rule from [priority.md](priority.md) and [interruptions.md](interruptions.md) in action. The timings use the defaults recommended in [decisions.md](decisions.md). Where a moment depends on an open decision, it says so.
+One patient, one ordinary Wednesday, showing every rule from [priority.md](priority.md) and [interruptions.md](interruptions.md) in action. The timings follow the decisions in [decisions.md](decisions.md), which are referenced by number (D1–D13) where they matter.
 
 **The patient's settings:** spirometry at 08:00; controller medication twice a day, 08:30 and 20:30 (no third dose); bedtime 22:00. The ACQ is due today at 18:00. Educational content is due this week, today at 17:00.
 
 ## Before the first day: planning ahead
 
-At onboarding the patient chose spirometry at 11:00 and medication at 08:30. ALEX's schedule check flagged it: 11:00 is only 2½ hours after the dose, and spirometry needs 5 hours after medication.
-> ALEX: One small thing about your schedule. Spirometry works best *before* your medication, or at least 5 hours after it. Would 07:30 work for your spirometry instead?
-> Patient: 07:30 is too early for me. **08:00?**
+At onboarding the patient chose spirometry at 11:00 and medication at 08:30. ALEX's schedule check flagged it: 11:00 is only 2½ hours after the dose, and spirometry should come before medication or at least 5 hours after it. ALEX adjusts it and tells the patient (D11):
+> ALEX: One small thing: spirometry works best before your medication, or at least 5 hours after it, so I've set your spirometry to 08:00. You can change it any time.
+> Patient: **OK**
 
-08:00 is before the dose, so it satisfies the 5-hour rule, although it's only 30 minutes before medication. The patient has the final say (D11), so 08:00 it is. The day below shows what that costs: an ignored 08:00 spirometry question, and a dose that has to wait for it.
+08:00 is 30 minutes before the dose, exactly the minimum gap (D10).
 
 ## Morning
 
@@ -24,11 +24,11 @@ The patient is making breakfast and doesn't answer.
 
 **08:30 · Spirometry counts as ignored.** It has gone unanswered for 30 minutes (D1), so it steps aside. It isn't finished, though: it has one re-ask left (D2).
 
-**08:31 · Medication dose 1 is next, but spirometry isn't done yet.** Spirometry isn't allowed for 5 hours after a dose, so ALEX first offers spirometry *(planning ahead, D12)*:
+**08:31 · Medication dose 1 is next, but spirometry isn't done yet.** Spirometry shouldn't happen within 5 hours after a dose (advice, D12b), so ALEX first offers spirometry *(planning ahead, D12)*:
 > ALEX: Earlier today I reminded you about your spirometry measurement. We didn't get to it, so let's start again from the top. After your medication it has to wait about 5 hours; would you like to do it now?  **[Yes, now] [Later]**
 > Patient: **Yes, now**
 
-This offer comes from the medication reminder itself (D12, still open), so the usual 30-minute spacing before a re-ask doesn't apply. It uses up spirometry's one re-ask, and it comes through the re-entry opener: the patient is told what this is and why it's back. The patient measures, and spirometry is done for the day. *(Without D12, spirometry's re-ask would come no sooner than 09:00, and the 5-hour post-dose rule would then hold it until 13:40, after its window closes at 11:00. Spirometry would be missed for the day. This is the strongest argument for D12 = A.)*
+This offer comes from the medication reminder itself (D12), so the usual 30-minute spacing before a re-ask doesn't apply. It uses up spirometry's one re-ask, and it comes through the re-entry opener: the patient is told what this is and why it's back. The patient measures, and spirometry is done for the day. *(Without this offer, spirometry's re-ask would come no sooner than 09:00, and the 5-hour post-dose rule would then hold it until 13:40, after its window closes at 11:00. Spirometry would be missed for the day. That's why D12 offers spirometry first.)*
 
 **08:40 · Medication dose 1 asks.**
 > ALEX: Quick reminder: it's time for your medication!
@@ -85,6 +85,6 @@ The patient ticks the checklist. Done.
 | Checkpoint → doesn't come back | 08:40 medication, 17:12 education |
 | Ignored → steps aside, then one re-ask with context | 08:30 → 08:31 spirometry |
 | Expiry | 00:00 reset |
-| Planning ahead | onboarding: spirometry moved before the dose; 08:31: spirometry offered before the dose |
+| Planning ahead | onboarding: ALEX moves spirometry before the dose; 08:31: spirometry offered before the dose |
 
 **Compared with v01:** in v01, the ignored 08:00 spirometry question would still have been sitting open at 18:00 and 20:30. The v01 transition dialogs would have parked it and resumed it afterwards ("we had previously stopped somewhere else…"). The patient would have met a morning question in the evening, mid-conversation, with nothing saying what it was about or where to pick up.

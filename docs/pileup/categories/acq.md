@@ -11,7 +11,7 @@
 - *After the patient picked a new time:* it continues at that time.
 - *After the survey:* it doesn't come back.
 
-**Open items.** Reminder pattern, rank.
+**Open items.** Reminder pattern, rank. **Ask the advisor:** the sandbox has `$hyperparameterNumberOfDaysBetweenACQs = 1`, which looks like a test value, since the dialog says biweekly. Use 14 on the workbench unless told otherwise.
 
 ---
 *Implementation (today):* DAILY BASIS, when `$today == $dateOfNextACQ`, sent at `$userSetTimeOfTheDayForACQ`. The next date advances by `$hyperparameterNumberOfDaysBetweenACQs`. Rescheduling runs from PERIODIC BASIS via `$userRequestedNewTimeForACQ` / `$newTimeForACQ`. No open-question check.

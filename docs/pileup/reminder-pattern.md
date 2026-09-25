@@ -4,7 +4,7 @@ Every dialog that asks the patient to *do* something today (measure, inhale, pre
 
 ## In plain words
 
-1. **A window, not a moment.** The reminder may first appear at the patient's chosen time (the *soft start*). It stops nagging after a set grace period, currently 3 hours for both spirometry and medication, and never later than the end of the part of the day it belongs to (morning / midday / evening / night).
+1. **A window, not a moment.** The reminder first appears at the patient's chosen time (the *soft start*) or as soon as the way is clear. If other dialogs keep it waiting, it may still make its first appearance until its expiry (end of day, D4). The **window**, a grace period of currently 3 hours and never later than the end of its part of the day, limits the one re-ask.
 2. **It steps aside, asks once more, then closes itself.** If ignored for 30 minutes it steps aside. It asks once more later inside the window, with its re-entry opener (D2). If that is ignored too, it says a short goodbye ("No worries, we'll check in again tomorrow") instead of lingering.
 3. **One at a time.** At most one copy of a reminder is ever open. If the patient asks to be reminded later, the same reminder simply moves to the new time; no second one is created.
 4. **It respects rank.** It only starts if nothing equally or more important is open ([priority.md](priority.md)). If it gets interrupted, the rules in [interruptions.md](interruptions.md) apply.

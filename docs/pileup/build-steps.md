@@ -47,7 +47,7 @@ Do these for each dialog, in the order from [rollout.md](rollout.md). Category-s
 **C1. Variables:** `$X_started` (number, 0), `$X_resumeMode` (number, 0), `$X_reasked` (0/1, 0) and `$X_reaskNotBefore` (number, 0). Reminders reuse their existing `…ReminderStage` as `started`.
 
 **C2. Firing rule** (PERIODIC BASIS; place it in rank order among the other firing rules). Nested gates, top to bottom:
-1. X's own "is due" conditions: date, time, the reminder window (for reminders, both the first showing and the re-ask must fall inside it). These are the existing gates, e.g. spirometry's gates 1–4.
+1. X's own "is due" conditions: date and time, from the soft start. The first showing may happen any time until expiry (D4); **the re-ask must fall inside the reminder window** (gate: `$X_reasked == 0` OR `$timeDecimal < window end`). These are the existing gates, e.g. spirometry's gates 1–4, with gate 3 relaxed accordingly.
    - plus `$timeDecimal` *is bigger than* `$X_reaskNotBefore` (the re-ask spacing, D2).
 2. `$X_resumeMode` *not equal* `1`
 3. `$openDialogName` *text value not equal* `X`
@@ -112,7 +112,7 @@ Steps P1–P5 in [planning-ahead.md](planning-ahead.md#implementation):
 - the `$lastDoseTakenAt` gate on spirometry firing;
 - spirometry ordered above medication.
 
-New variables: `$lastDoseTakenAt` (number, reset daily), `$hyperparameterSpiroAfterMedHours` (5), `$hyperparameterMinGapMinutes` (60, D10), `$scheduleConflict` (0/1).
+New variables: `$lastDoseTakenAt` (number, reset daily), `$hyperparameterSpiroAfterMedHours` (5), `$hyperparameterMinGapMinutes` (30, D10), `$scheduleConflict` (0/1), `$spiroAfterMedOverride` (0/1: the patient insisted on a spirometry time inside a post-dose window, D12b).
 
 ## Also carried into the workbench build
 

@@ -54,7 +54,7 @@ Rule of thumb: a daily task expires at the end of the day, a weekly or occasiona
 
 ## Reminders keep their short window
 
-Each reminder has two timers. The **window** (e.g. 3 h after the scheduled spirometry time, see [reminder-pattern.md](reminder-pattern.md)) is how late it may still make its *first* appearance. The **expiry** (end of day or week) is how long it may *come back after an interruption*. A reminder kept waiting by other dialogs until its window closes, never having started, is skipped for today *(D4, Mason's recommendation)*.
+Each reminder has two timers. The **window** (e.g. 3 h after the scheduled spirometry time, see [reminder-pattern.md](reminder-pattern.md)) is how late it may still make its *first* appearance. The **expiry** (end of day or week) is how long it may *come back after an interruption*. A reminder kept waiting by other dialogs until its window closes, never having started, **may still start later, until its expiry** (D4). So the window only limits the re-ask. Planning ahead (D10, D11) keeps late first appearances rare.
 
 ---
 ## Implementation
