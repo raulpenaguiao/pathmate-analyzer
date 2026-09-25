@@ -4,8 +4,9 @@ answer options. These come from the coaching's *Report HTML* export, which the
 analyzer already knows how to parse (app/coaching_model.py).
 
 Join key: (micro-dialog leaf name, node order). A dialog is merged only when
-exactly one Report dialog matches by name AND node count - otherwise its nodes
-are left text-unresolved and listed for follow-up.
+exactly one same-name, same-size Report dialog ALSO agrees with the swept grid
+text (see _pick_report_dialog) - otherwise its nodes are left text-unresolved
+and listed, with a reason, for follow-up.
 
 Usable as a module (`export_coaching.py` calls `enrich_dict()`) or standalone:
 
@@ -16,6 +17,7 @@ Writes  <OUT_DIR>/coaching.bundle.v2.json
 from __future__ import annotations
 
 import json
+import re
 import os
 import sys
 from collections import defaultdict
@@ -63,6 +65,53 @@ def _resolve_jump_target(target: dict | None, dialog_nodes: list[dict]):
     return {"raw": target, "candidates": hits, "unresolved": True}
 
 
+def _grid_en(grid_text: str) -> str:
+    """The en-GB part of a grid cell ('en-GB: ... / ro-RO: ...'), normalised
+    for a prefix comparison (the grid truncates long texts)."""
+    g = re.sub(r"\s+", " ", grid_text or "").strip().lower()
+    m = re.match(r"en-gb:\s*(.*?)(?:\s*/\s*ro-ro:.*)?$", g)
+    return (m.group(1) if m else g).rstrip(".…").strip()
+
+
+def _text_agreement(bnodes: list[dict], rd) -> tuple[int, int]:
+    """(agreeing, comparable) nodes between the sweep's grid text and a Report
+    dialog's en-GB text, position by position."""
+    agree = comparable = 0
+    for bn, rn in zip(bnodes, rd.nodes):
+        g = _grid_en(bn.get("gridText", ""))
+        en = re.sub(r"\s+", " ", (rn.text_by_lang or {}).get("en-GB", "")).strip().lower()
+        if not g or not en or en == "[not set]":
+            continue
+        comparable += 1
+        agree += g[:30] in en
+    return agree, comparable
+
+
+def _pick_report_dialog(bnodes: list[dict], same_size: list):
+    """Choose the Report dialog whose text matches the swept rows. Matching
+    on leaf name + node count alone was wrong twice on the 2026-09-25 export:
+    (1) two "Good Compliance" dialogs (spirometry / nighttime) have the same
+    name and size, so the first one won and nighttime nodes got spirometry
+    text; (2) a stale table read (Timeless Greetings swept with Hello's rows)
+    had the right count, so the wrong rows got merged. Returns (dialog, None)
+    or (None, reason)."""
+    if not same_size:
+        return None, "no Report dialog with this name and node count"
+    scored = [(c, *_text_agreement(bnodes, c)) for c in same_size]
+    comparable = max(n for _, _, n in scored)
+    if comparable == 0:  # nothing to compare (no message text) - count only
+        return (same_size[0], None) if len(same_size) == 1 else \
+            (None, f"{len(same_size)} same-size Report dialogs, no text to tell apart")
+    good = [c for c, a, n in scored if n and a / n >= 0.8]
+    if len(good) == 1:
+        return good[0], None
+    if not good:
+        best = max(scored, key=lambda s: s[1])
+        return None, (f"grid text disagrees with the Report ({best[1]}/{best[2]} "
+                      f"rows match) - likely a stale table read")
+    return None, f"{len(good)} Report dialogs match equally"
+
+
 def _nest_branches(branches: list[dict]) -> None:
     """Give each decision-point branch its `parentIndex` (index into the same
     list, None at top level) from its `depth`. PMCP docs (Rules §2.2):
@@ -107,12 +156,13 @@ def enrich_dict(bundle: dict, report_html: Path) -> dict:
             empty += 1
             continue
         cands = by_name.get(md["name"], [])
-        rd = next((c for c in cands if len(c.nodes) == len(bnodes)), None)
+        rd, why = _pick_report_dialog(bnodes, [c for c in cands if len(c.nodes) == len(bnodes)])
         if rd is None:
             md["textResolved"] = False
             unresolved.append({"name": " / ".join(md["folderPath"] + [md["name"]]),
                                "bundleNodes": len(bnodes),
-                               "reportCandidates": [len(c.nodes) for c in cands]})
+                               "reportCandidates": [len(c.nodes) for c in cands],
+                               "reason": why})
             continue
         md["textResolved"] = True
         merged += 1

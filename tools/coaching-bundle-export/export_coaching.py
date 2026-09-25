@@ -305,6 +305,16 @@ def coherence_check(bundle: dict, report_html: str | None) -> dict:
         warnings.append(f"ROWS MISSING in {len(holes)} dialog(s): "
                         + "; ".join(f"{k} {v[:6]}" for k, v in holes.items()))
 
+    # enrich refused a dialog because the swept rows' text doesn't match the
+    # Report's: the sweep read the wrong table (see enrich._pick_report_dialog)
+    mism = [u for u in (bundle.get("enrich") or {}).get("unresolved", [])
+            if "disagrees" in (u.get("reason") or "")]
+    if mism:
+        ok = False
+        warnings.append(f"TEXT != REPORT in {len(mism)} dialog(s) - swept rows "
+                        f"belong to another dialog: "
+                        + "; ".join(f"{u['name']} ({u['reason'].split(' - ')[0]})" for u in mism))
+
     html_vs_sweep = None
     if report_html:
         rc = enrich_bundle.report_dialog_counts(Path(report_html))
