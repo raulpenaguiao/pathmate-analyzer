@@ -16,6 +16,9 @@
 | [priority.md](priority.md) | Which dialog wins when two collide |
 | [interruptions.md](interruptions.md) | What happens to the one that lost |
 | [reminder-pattern.md](reminder-pattern.md) | The building block every reminder uses |
+| [walkthrough.md](walkthrough.md) | One patient's day, showing every rule in action |
+| [decisions.md](decisions.md) | **Open questions for Raul**, each with options and a recommendation |
+| [build-steps.md](build-steps.md) | Step-by-step build instructions for the workbench coaching |
 | [rollout.md](rollout.md) | What is live, what is next, in what order |
 | [categories/](categories/) | One page per coaching category: goal, what the patient sees, rank, status |
 | [archive/](archive/) | The original long spec and the v01 analysis, kept for reference |

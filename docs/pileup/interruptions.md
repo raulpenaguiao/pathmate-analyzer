@@ -48,7 +48,7 @@ Two shared markers record which dialog is open right now:
 |---|---|---|
 | `$openDialogName` | `""` | a ranked dialog starts (its own name); cleared when it ends |
 | `$openDialogRank` | `99` | a ranked dialog starts (its rank); set to `1` while the patient is actively answering (the protection rule in [priority.md](priority.md)); `99` when it ends |
-| `$openDialogSince` | — | a ranked dialog starts (`$timeDecimal`) |
+| `$openDialogStaleAt` | `0` | a ranked dialog starts, and again on every answer: `$timeDecimal` + the idle time. After this, an unanswered dialog counts as ignored. |
 
 Each ranked dialog X has its own:
 
@@ -64,8 +64,8 @@ X is due (its own schedule; for reminders: inside the reminder window on the fir
 AND $X_resumeMode != 1
 AND $openDialogName != "X"                 # not already open
 AND r < $openDialogRank                    # strictly more important than whatever is open (99 = nothing open)
-→ $openDialogName = "X", $openDialogRank = r, $openDialogSince = $timeDecimal
-→ start X
+→ start X    # X's opening step then sets $openDialogName = "X", $openDialogRank = r, $openDialogStaleAt
+             # (see build-steps.md C3)
 ```
 
 PERIODIC rules are ordered by rank, so when several dialogs are waiting, the most important one is tried first.
@@ -81,7 +81,7 @@ PERIODIC rules are ordered by rank, so when several dialogs are waiting, the mos
 
 ### Ignored dialogs, and expiry
 
-- **Ignored:** one cleanup rule per dialog. If `$openDialogName == "X"` and `$timeDecimal > $openDialogSince + timeout`, then set `$X_resumeMode = 1` and clear both markers. This also stops a forgotten marker from blocking every lower-ranked dialog.
+- **Ignored:** one cleanup rule per dialog. If `$openDialogName == "X"` and `$timeDecimal > $openDialogStaleAt`, then set `$X_resumeMode = 1` and clear both markers. This also stops a forgotten marker from blocking every lower-ranked dialog.
 - **Expiry** is simply the reset point. The DAILY BASIS reset at 00:00 sets `$X_started = 0` and `$X_resumeMode = 0` for end-of-day dialogs. A Monday-only reset (`$systemDayInWeek == 1`) does the same for end-of-week dialogs.
 
 ### Not yet verified (needs one test on the sandbox coaching, booked through Warden)
