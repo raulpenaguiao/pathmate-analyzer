@@ -105,7 +105,7 @@ PERIODIC rules are ordered by rank, so when several dialogs are waiting, the mos
 - **Ignored:** one cleanup rule per dialog. If `$openDialogName == "X"` and `$timeDecimal > $openDialogStaleAt`, then set `$X_resumeMode = 1` and clear both markers. This also stops a forgotten marker from blocking every lower-ranked dialog.
 - **Expiry** is simply the reset point. The DAILY BASIS reset at 00:00 sets `$X_started = 0` and `$X_resumeMode = 0` for end-of-day dialogs. A Monday-only reset (`$systemDayInWeek == 1`) does the same for end-of-week dialogs.
 
-### Not yet verified (needs one test on the sandbox coaching, booked through Warden)
+### Not yet verified (needs one test on the workbench coaching, booked through Warden)
 
 1. **The clear setting's effect.** The "clears the current dialog cascade" message setting is confirmed writable (Phase 3.1 log). What it *does* to an open question from another dialog has not been tested, and the PMCP docs don't describe it.
 2. **Within-pass visibility.** When one rule sets `$openDialogRank` during a PERIODIC pass, do later rules in the same pass see the new value? If not, two dialogs could start in the same pass.

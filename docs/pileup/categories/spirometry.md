@@ -1,6 +1,6 @@
 # Daily home spirometry
 
-**Rank 1** · **Comes back until:** end of day · **Status:** live on the reminder pattern; interrupt retrofit pending
+**Rank 1** · **Comes back until:** end of day · **Status:** prototyped on the sandbox (will be reset); to be rebuilt on the workbench
 
 **Goal.** The patient does their daily lung-function measurement with the home spirometer.
 
@@ -16,7 +16,7 @@
 
 **Open items.**
 - The Yes/No answer buttons render as raw text ("Yes:1 No:0"). The fix is queued.
-- Interrupt retrofit ([rollout.md](../rollout.md), step 1).
+- Rebuild on the workbench with the interrupt design ([rollout.md](../rollout.md), step 1).
 
 ---
 *Implementation:* dialog "Prompt patient to conduct daily spirometry / … (v02)". The PERIODIC firing rule has five gates (`$spiroMesDone`, window start/end, `$spiroReminderStage`, `$participantOpenQuestions==0`). Variables: [reminder-pattern.md](../reminder-pattern.md#implementation).

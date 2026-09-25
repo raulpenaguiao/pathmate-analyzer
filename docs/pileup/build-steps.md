@@ -16,7 +16,7 @@ The design depends on three behaviours the PMCP docs don't describe. Each test i
 | A2 | Does a variable set by one PERIODIC rule show up in a later rule in the same pass? | Rule 1 sets `$t=1`; rule 2 (below it) fires a test message only if `$t==1`. Reset `$t=0` daily. | The message fires on the same pass | Add a "one start per pass" flag, or rely on rank-order spacing (note it in interruptions.md) |
 | A3 | Do a sending rule's "does not answer" follow-up rules run when its question times out? | Test sender with a 1-minute timeout and one "does not answer" rule setting `$u=1`. Let it time out. | `$u == 1` in the participant's variables | Use the time-based cleanup rule (B5), which is the design default anyway |
 
-Log each result in `autochanges/`, then update [interruptions.md](interruptions.md#not-yet-verified-needs-one-test-on-the-sandbox-coaching-booked-through-warden).
+Log each result in `autochanges/`, then update [interruptions.md](interruptions.md#not-yet-verified-needs-one-test-on-the-workbench-coaching-booked-through-warden).
 
 ---
 
@@ -116,5 +116,5 @@ New variables: `$lastDoseTakenAt` (number, reset daily), `$hyperparameterSpiroAf
 
 ## Also carried into the workbench build
 
-- **Spirometry Yes/No buttons.** Rows 3–6 of the v02 dialog, plus row 15 (Loom's stray copy, which Loom will reuse for the "close by" variant, so leave it in place), store answer options on one line (`Yes:1 No:0`). Enter them as two lines (`Yes:1` newline `No:0`) when building on the workbench. The fix on the old sandbox was dropped (never applied).
+- **Spirometry Yes/No buttons.** Enter each Yes/No answer option on its own line (`Yes:1`, newline, `No:0`). The sandbox prototype stored them on one line, and the patient saw the raw text (D9).
 - **Remove v01's recall setting** from the FAQ and air-quality dialogs before wiring them up.

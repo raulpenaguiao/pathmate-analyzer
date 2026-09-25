@@ -24,13 +24,13 @@
 | [walkthrough.md](walkthrough.md) | One patient's day, showing every rule in action |
 | [decisions.md](decisions.md) | **Open questions for Raul**, each with options and a recommendation |
 | [build-steps.md](build-steps.md) | Step-by-step build instructions for the workbench coaching |
-| [rollout.md](rollout.md) | What is live, what is next, in what order |
+| [rollout.md](rollout.md) | Where things stand, what is next, in what order |
 | [categories/](categories/) | One page per coaching category: goal, what the patient sees, rank, status |
 | [archive/](archive/) | The original long spec and the v01 analysis, kept for reference |
 
 ## Status at a glance (2026-09-25)
 
-- **Live on the new pattern:** spirometry, medication. Both use the old "delete when interrupted" rule, which still needs updating to the restart design.
+- **Nothing is live.** Spirometry and medication were prototyped on the **sandbox** coaching, which will be reset. They get rebuilt on the new workbench coaching, with the restart design, from the start.
 - **Designed, not built:** everything else. See [rollout.md](rollout.md).
 
 A note on words: PMCP (the platform ALEX runs on) has no built-in priority setting. "Rank" here is our own design, and it is built out of ordinary rule conditions and variables.

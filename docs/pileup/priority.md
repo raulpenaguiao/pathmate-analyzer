@@ -34,4 +34,4 @@ Putting the device reminders at rank 1 means that up to five of them a day (spir
 ---
 ### Implementation
 
-PMCP has no priority setting, so rank is enforced by conditions in each dialog's firing rule. The only such condition live today, `$participantOpenQuestions==0` ("no question open at all"), cannot tell ranks apart. The replacement is described in [interruptions.md](interruptions.md#implementation): the currently open dialog's rank is kept in a variable, and each firing rule compares its own rank against it.
+PMCP has no priority setting, so rank is enforced by conditions in each dialog's firing rule. The only such condition built so far (in the sandbox prototype), `$participantOpenQuestions==0` ("no question open at all"), cannot tell ranks apart. The replacement is described in [interruptions.md](interruptions.md#implementation): the currently open dialog's rank is kept in a variable, and each firing rule compares its own rank against it.

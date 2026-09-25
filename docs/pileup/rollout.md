@@ -1,4 +1,4 @@
-# Rollout: what's live, what's next
+# Rollout: where things stand, what's next
 
 Detailed task tracking lives in `TASKS.md` (owned by Kart). This page is the design-level order and the reasoning behind it.
 
@@ -6,8 +6,8 @@ Detailed task tracking lives in `TASKS.md` (owned by Kart). This page is the des
 
 | Category | Rank | State |
 |---|---|---|
-| Spirometry | 1 | **Live** on the reminder pattern, but still with the old "delete when interrupted" rule and a rank-blind "nothing open" check. Known bug: the "Do you have your spirometer handy?" buttons render as raw text; the fix is queued. |
-| Medication (3 doses) | 1 | **Live**, same as spirometry |
+| Spirometry | 1 | **Prototyped on the sandbox coaching only** (which will be reset, so nothing here is kept): the reminder pattern, but still with the old "delete when interrupted" rule and a rank-blind "nothing open" check. Known bug: the "Do you have your spirometer handy?" buttons render as raw text; the fix is queued. |
+| Medication (3 doses) | 1 | **Prototyped on the sandbox only**, same as spirometry |
 | Everything else | 2–6 | Still v01: no window, no rank. Sleep quality, compliance coaching and misc also have **no working trigger at all**. |
 
 ## First release scope (Raul, D6)
@@ -24,9 +24,9 @@ The shared infrastructure and planning ahead are included too.
 
 ## Order
 
-**Step 0: three quick platform tests** (sandbox coaching, one browser session via Warden). These settle the unverified points in [interruptions.md](interruptions.md#not-yet-verified-needs-one-test-on-the-sandbox-coaching-booked-through-warden). They must come first, because the design depends on them.
+**Step 0: three quick platform tests** (workbench coaching, one browser session via Warden). These settle the unverified points in [interruptions.md](interruptions.md#not-yet-verified-needs-one-test-on-the-workbench-coaching-booked-through-warden). They must come first, because the design depends on them.
 
-**Step 1: retrofit spirometry and medication** to the new interrupt design:
+**Step 1: build spirometry and medication on the workbench**, reusing what the sandbox prototype proved (the reminder pattern, the gates, the build tooling), plus the new interrupt design:
 1. Add the shared markers (`$openDialogName`, `$openDialogRank`, `$openDialogStaleAt`) and each dialog's `…_resumeMode`.
 2. Firing rules: swap the "nothing open" check for the rank check, and set the markers when the dialog starts.
 3. Dialogs:
@@ -36,7 +36,7 @@ The shared infrastructure and planning ahead are included too.
    - At the end, clear the markers. On the first message, turn on the clear setting.
 4. Add the ignored-dialog cleanup rules, plus the daily reset of the new variables.
 5. Fix the latent issue Mirror found in the medication dialogs: the "is actively answering" flag isn't guarded by its answer check.
-6. Verify with a fresh export, Mirror's chat simulator, and a real-device test on the sandbox.
+6. Verify with a fresh export, Mirror's chat simulator, and a real-device test on the workbench.
 
 **Step 1b: planning ahead for spirometry and medication** ([planning-ahead.md](planning-ahead.md)): the onboarding schedule check, postponement validation, the `$lastDoseTakenAt` safety gate, and spirometry ordered above medication. This is done together with step 1, since it touches the same dialogs. The onboarding check grows as each later category is added.
 
@@ -56,4 +56,4 @@ The shared infrastructure and planning ahead are included too.
 
 Then a **full check**: every dialog ranked or explicitly outside the ladder, and no v01 recall settings left.
 
-Why this order: the design is proven on the two dialogs already live before it's copied, and after that each step follows rank. The most clinically important pieces are therefore protected first.
+Why this order: the design is proven first on the two dialogs already prototyped on the sandbox, and only then copied, and after that each step follows rank. The most clinically important pieces are therefore protected first.

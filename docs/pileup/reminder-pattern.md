@@ -15,7 +15,7 @@ Every dialog that asks the patient to *do* something today (measure, inhale, pre
 v01's reminders stayed open indefinitely. The window guarantees that a reminder the patient ignored gets out of the way, and in particular gives lower-ranked content its turn later in the day ([priority.md](priority.md#a-known-risk-and-what-keeps-it-in-check)).
 
 ---
-### Implementation (as built for spirometry; medication mirrors it per dose)
+### Implementation (as prototyped for spirometry on the sandbox; medication mirrors it per dose)
 
 | Piece | Variable(s) |
 |---|---|
@@ -27,7 +27,7 @@ v01's reminders stayed open indefinitely. The window guarantees that a reminder 
 | Day parts | `$currentDaySlot` from `$hyperparameterMorningEndHour` (11), `…MiddayEndHour` (17), `…EveningEndHour` (22) |
 
 - **Daily reset (00:00, DAILY BASIS):** done, stage and engaged go back to 0; the window end is recomputed.
-- **Firing (PERIODIC BASIS):** not done, now inside the window, not yet sent, nothing open. The last condition becomes the rank check from [interruptions.md](interruptions.md#implementation) in the retrofit.
+- **Firing (PERIODIC BASIS):** not done, now inside the window, not yet sent, nothing open. The last condition becomes the rank check from [interruptions.md](interruptions.md#implementation) in the workbench build.
 - **Expiry:** set on the message itself ("minutes after sending until message is handled as unanswered"). PMCP has no built-in goodbye-on-expiry message, so the goodbye is its own follow-up step.
 
 Medication uses `$myMedication_{doseTime,windowEnd,done,reminderStage,engaged}_i` for doses i = 1, 2, 3, also with a 180-minute grace. Build logs: `autochanges/2026-09-11…` to `2026-09-17…`.
