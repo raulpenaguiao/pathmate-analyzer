@@ -5,6 +5,41 @@ they grouped it. Status updated as work lands. For the dependency-ordered
 game plan and full detail on each item, see `README.md`'s "Roadmap: five
 workstreams" section — this file is the checklist, that's the writeup.
 
+## ▶ Raul's decisions + today's priorities (2026-09-25)
+
+**Standing rule: no writes to the live pathmate tool** until Raul sets up
+a new test workbench coaching (and an export of it). Until then, the
+current coaching is used only for testing tools. The live-write queue is
+dropped: Mason's spirometry Yes/No fix and Loom's Stage3 write.
+
+Due today:
+- [ ] **Clean export**, with a log that has zero errors (Warden, **top
+      priority**).
+- [ ] **r_ steps 0-3 rerun** (Loom): export .json → r_ table → LLM
+      requests → run the prompt. Step 4 (apply) is **test only**. Output:
+      the CSV for Raul's advisor. Needs Raul's API key.
+- [ ] **r_ tool explainer artifact** for the advisor (Herald, with facts
+      from Loom): what the tool creates, the CSV columns, current status,
+      and the ro-RO duplicate flag.
+- [ ] **Chat test with Raul** on a locally running portal (Smith). This
+      unblocks workstream 5.
+
+Also queued:
+- [ ] **One Question at a Time**: a detailed flow walk-through plus
+      implementation steps, with the scope questions inside it for Raul
+      (Herald owns the artifact, Mason supplies the design; tighter
+      Raul↔Mason loop).
+- [ ] **ro-RO duplicate wording**: it's in the **existing v01 content**,
+      not LLM output. "within reach" and "nearby" are both "Este
+      spirometrul la îndemână?", and "handy" is near-identical (md-020
+      #011/#014/#016). Flag it for the advisor, and add a no-duplicates
+      check to the expand prompt and output (Loom).
+- Owners set by Raul:
+  - workstream 5 → **Mirror**, blocked until Raul has tested the chat
+  - "what info to collect" → **Mirror**
+  - questionnaire `multiSubmit` → **Warden**, blocked until we have
+    access to the real ALEX coaching
+
 ## r_ task
 
 - [x] Identify all r_ entries and create a .md report with all of these
