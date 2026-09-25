@@ -37,6 +37,20 @@ Accept the whole table, or name the exceptions.
 - **A ★ Strict.** Equal ranks never interrupt each other. With D1 = 30 min, the worst case is a 30-minute delay.
 - B An idle rank-1 reminder may be interrupted by another rank-1 reminder. Faster, but two morning reminders can then bounce each other.
 
+**D10. Minimum gap between scheduled reminders** (checked at onboarding, [planning-ahead.md](planning-ahead.md)).
+- A 30 minutes.
+- **B ★ 60 minutes.** With D1 = 30 min, an ignored reminder can never delay the next scheduled one.
+- C 90 minutes.
+
+**D11. When the onboarding check finds a conflict, who decides?**
+- **A ★ ALEX suggests a concrete time, and the patient accepts or keeps their own.** The spirometry-after-medication gate still protects the measurement at firing time.
+- B ALEX shifts the time automatically and tells the patient.
+
+**D12. A dose is moved (or taken) before spirometry is done that day.** What happens to spirometry?
+- **A ★ Offer spirometry first** ("let's do it now, before your medication"). If the patient declines, spirometry waits until 5 h after the dose, if that's still before bedtime; otherwise it's skipped for the day.
+- B Spirometry simply waits 5 h after the dose; no offer.
+- C Clinical input needed. Is the 5 h rule a hard constraint, or advice?
+
 ## Scope
 
 **D6. What goes into the first v02 release on the workbench?**
@@ -62,6 +76,8 @@ Question: will you or the clinical team supply N, M and K?
 **D9. The spirometry Yes/No buttons.** On the old sandbox they show raw text, and the live fix was dropped. ★ Fix it as part of the workbench build ([build-steps.md](build-steps.md#also-carried-into-the-workbench-build)). Nothing to do before then.
 
 ## Already decided (for reference)
+
+- **Planning ahead:** check the schedule at onboarding for tight packing; respect spacing on postponement; **spirometry not within 5 h after medication** (rule of thumb); spirometry is fine before medication.
 
 - **The ladder:** 0 safety; 1 spirometry / medication / night prep; 2 ACQ / compliance; 3 sleep quality; 4 education and health literacy; 5 gamification; 6 misc.
 - **Outside the ladder:** patient-started conversations, onboarding, greetings, the well-being check-in (never restarted).

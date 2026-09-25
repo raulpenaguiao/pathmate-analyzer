@@ -26,6 +26,8 @@ Detailed task tracking lives in `TASKS.md` (owned by Kart). This page is the des
 5. Fix the latent issue Mirror found in the medication dialogs: the "is actively answering" flag isn't guarded by its answer check.
 6. Verify with a fresh export, Mirror's chat simulator, and a real-device test on the sandbox.
 
+**Step 1b: planning ahead for spirometry and medication** ([planning-ahead.md](planning-ahead.md)): the onboarding schedule check, postponement validation, the `$lastDoseTakenAt` safety gate, and spirometry ordered above medication. This is done together with step 1, since it touches the same dialogs. The onboarding check grows as each later category is added.
+
 **Step 2: nighttime monitoring (sleep-prep)**, rank 1, end of day. The smartwatch-battery prompt folds into it. Window: 10 min before bedtime → bedtime + grace.
 
 **Step 3: rank 2.**

@@ -96,6 +96,17 @@ Do these for each dialog, in the order from [rollout.md](rollout.md). Category-s
 
 \* proposed, see [decisions.md](decisions.md) D3.
 
+## Phase E: planning ahead
+
+Steps P1–P5 in [planning-ahead.md](planning-ahead.md#implementation):
+- the onboarding schedule check;
+- the same check on later edits;
+- postponement validation;
+- the `$lastDoseTakenAt` gate on spirometry firing;
+- spirometry ordered above medication.
+
+New variables: `$lastDoseTakenAt` (number, reset daily), `$hyperparameterSpiroAfterMedHours` (5), `$hyperparameterMinGapMinutes` (60, D10), `$scheduleConflict` (0/1).
+
 ## Also carried into the workbench build
 
 - **Spirometry Yes/No buttons.** Rows 3–6 of the v02 dialog store answer options on one line (`Yes:1 No:0`). Enter them as two lines (`Yes:1` newline `No:0`) when building on the workbench. The fix on the old sandbox was dropped (never applied).

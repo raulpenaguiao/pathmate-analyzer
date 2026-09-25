@@ -24,7 +24,8 @@ Set by Raul, 2026-09-23/25. **A lower number means more important.**
 1. **Higher beats lower.** A dialog may interrupt an open dialog only if it is *strictly* more important.
 2. **Equals wait.** Two dialogs of the same rank never interrupt each other; whichever started first finishes first. This matters most at rank 1, which holds several daily reminders.
 3. **Lower waits, then checks again.** A less important dialog waits until the way is clear, then checks whether it is still relevant (its window or expiry) before starting.
-4. **An active conversation is protected.** Once the patient has answered something in a dialog, that dialog counts as rank 1 until it ends, so a newly due reminder can't yank it away mid-answer. Only safety (rank 0) can still interrupt it.
+4. **Tie-break inside rank 1: spirometry before medication.** When both are due, spirometry goes first, because after a dose spirometry has to wait about 5 hours ([planning-ahead.md](planning-ahead.md)).
+5. **An active conversation is protected.** Once the patient has answered something in a dialog, that dialog counts as rank 1 until it ends, so a newly due reminder can't yank it away mid-answer. Only safety (rank 0) can still interrupt it.
 
 ## A known risk, and what keeps it in check
 

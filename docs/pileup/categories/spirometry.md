@@ -8,6 +8,8 @@
 
 **Timing.** From the patient's chosen time, the reminder nags for up to 3 hours, and never past the end of that part of the day.
 
+**Spacing.** Never within 5 hours after a medication dose; before the dose is fine. When both are due together, spirometry goes first ([planning-ahead.md](../planning-ahead.md)).
+
 **If interrupted.**
 - *Before the measurement:* it comes back and starts over.
 - *After the measurement:* it doesn't come back. Only "thanks" or feedback was left.

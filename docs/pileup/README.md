@@ -4,6 +4,8 @@
 
 **The defining change in v02:** an interrupted dialog comes back **from the beginning**, through a **re-entry opener** written for that dialog. The opener tells the patient what this is about and why it's back, and never assumes they remember. → [interruptions.md](interruptions.md)
 
+**Planning ahead, the first line of defence:** at onboarding ALEX checks the whole day's schedule and suggests spacing where reminders are packed too tightly. Every postponement respects the spacing rules, including *no spirometry within 5 hours after medication*. → [planning-ahead.md](planning-ahead.md)
+
 **Three mechanisms v01 already has, organized better:**
 
 1. **Priority, made explicit.** Every dialog has a rank. A more important dialog may interrupt a less important one, never the other way round, and equal ranks don't interrupt each other. → [priority.md](priority.md)
@@ -18,6 +20,7 @@
 | [priority.md](priority.md) | Which dialog wins when two collide |
 | [interruptions.md](interruptions.md) | What happens to the one that lost |
 | [reminder-pattern.md](reminder-pattern.md) | The building block every reminder uses |
+| [planning-ahead.md](planning-ahead.md) | Spacing the schedule at onboarding and on postponement, so collisions don't happen |
 | [walkthrough.md](walkthrough.md) | One patient's day, showing every rule in action |
 | [decisions.md](decisions.md) | **Open questions for Raul**, each with options and a recommendation |
 | [build-steps.md](build-steps.md) | Step-by-step build instructions for the workbench coaching |

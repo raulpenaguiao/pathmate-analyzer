@@ -8,6 +8,8 @@
 
 **Timing.** Each dose nags for up to 3 hours after its chosen time.
 
+**Spacing.** A confirmed dose starts a 5-hour window in which spirometry won't ask. If a dose is moved before spirometry is done, ALEX offers spirometry first (D12, [planning-ahead.md](../planning-ahead.md)).
+
 **If interrupted.**
 - *Before answering:* that dose's reminder comes back and starts over.
 - *Once answered:* it doesn't come back.
