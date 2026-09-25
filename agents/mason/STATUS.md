@@ -1,19 +1,15 @@
 # Mason — status
 
-## NOW (2026-09-25)
+## NOW (2026-09-25, ~09:50)
 
-**Docs restructure done** (Raul's go-ahead). New modular docs are in `docs/pileup/`:
-- `README.md` (overview), `problem.md`, `priority.md`, `interruptions.md` (full restart/resume design), `reminder-pattern.md`, `rollout.md` (retrofit plan and order);
-- `categories/` holds 9 pages;
-- the old spec and findings moved to `archive/`, with pointer stubs left at the old paths.
+**Raul's rule: no PMCP writes** until the new test-workbench coaching exists. The spirometry Yes/No live fix is dropped (never applied; the script is kept in `context/`).
 
-**Needs Raul's confirmation (marked "proposed" in the docs):**
-1. Expiry for the categories he didn't name: nighttime, compliance, sleep quality and air quality → end of day; ACQ, FAQ and clinic → end of week.
-2. That a reminder's short nag window stays, and end of day/week governs only how long an *interrupted* dialog may come back.
+**Main task: "One Question at a Time" with Herald.** Herald owns the page; my source pages in `docs/pileup/` (5adaa9e) are:
+- `walkthrough.md`: one patient's day;
+- `decisions.md`: D1–D9 with options and recommendations. **Raul answers these in the artifact.**
+- `build-steps.md`: platform tests, shared infrastructure, a per-dialog recipe, per-category values.
 
-**In flight:**
-- The live fix for the spirometry v02 one-line Yes/No options. Script ready (scratchpad, dry run by default). Waiting on Warden's order: Loom's Stage3 write, then Raul's export test, then me. The fix covers every "spirometer handy" row.
-- Next after that: rollout step 0, three platform tests that need a Warden slot (see `docs/pileup/interruptions.md`), then the spirometry/medication retrofit.
+Sent to Herald with the one-line list. Waiting for Raul's answers to D1–D9, then I fold them into the design pages.
 
 ---
 
