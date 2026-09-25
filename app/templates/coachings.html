@@ -50,8 +50,14 @@
 		<tbody>
 			{% for c in coachings %}
 			{% set s = c.get('stats', {}) %}
+			{% set bs = c.get('bundle', {}).get('summary', {}) %}
 			<tr>
-				<td><a href="{{ url_for('main.coaching_view', coaching_id=c.id) }}">{{ c.name }}</a></td>
+				<td>
+					<a href="{{ url_for('main.coaching_view', coaching_id=c.id) }}">{{ c.name }}</a>
+					{% if bs.get('coherenceOk') == false %}
+					<span class="chip chip-danger" title="Attached coaching.json failed its coherence check">&#9888; export/JSON mismatch</span>
+					{% endif %}
+				</td>
 				<td>{% if c.tag %}<span class="tag">{{ c.tag }}</span>{% endif %}</td>
 				<td>{{ c.uploaded_at[:19] }}</td>
 				<td>{{ (c.size_bytes / 1024) | round(1) }} KB</td>

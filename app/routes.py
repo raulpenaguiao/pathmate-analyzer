@@ -14,8 +14,8 @@ from flask import (
 
 from app import rgroups_tool, storage
 from app.auth import login_required
-from app.coaching_model import load_model
-from app.coaching_sim import Simulator
+from app.coaching_model import load_bundle_model, load_model
+from app.coaching_sim import Simulator, model_fingerprint
 from app.coaching_stats import extract_rules_tree
 from app.participant_import import ParticipantImportError
 
@@ -121,15 +121,43 @@ def coaching_micro_dialogs(coaching_id):
 def coaching_chats_list(coaching_id):
     """Sidebar contents: every persisted chat (live or imported) for this
     coaching, most recently updated first."""
-    if storage.get_coaching(coaching_id) is None:
-        abort(404)
+    _require_bundle(coaching_id)
     return jsonify(chats=storage.list_chats(coaching_id))
 
 
+def _fingerprint_status(state, model):
+    """Chat states hold positional refs (dialog_i, rule uids) that only mean
+    something against the model they were built on - md-/node/rule uids are
+    per-export positions. "stale" when the attached bundle has since been
+    re-exported differently, "unknown" for bundle chats from before the
+    fingerprint existed, else "ok"."""
+    if state.get("engine") != "bundle":
+        return "ok"
+    built_on = state.get("model_fingerprint")
+    if built_on is None:
+        return "unknown"
+    return "ok" if built_on == model_fingerprint(model) else "stale"
+
+
+def _chat_model(coaching_id, state):
+    """The model a chat must be stepped with, from the engine its state was
+    built by - a chat is never continued by the other engine. States from
+    before the engine tag existed are HTML-sim chats; a model-less import
+    snapshot (engine None) is bound to the bundle engine on first use."""
+    engine = state.get("engine", "html")
+    if engine == "html":
+        return load_model(coaching_id)
+    return load_bundle_model(coaching_id)
+
+
+# The Chat tab only exists once a coaching.json is attached, so the routes
+# that run a simulation are gated the same way (rename/delete stay open so
+# existing chats can still be cleaned up after a bundle is detached).
 @bp.route("/coachings/<coaching_id>/chats/new", methods=["POST"])
 @login_required
 def coaching_chat_new(coaching_id):
-    model = load_model(coaching_id)
+    _require_bundle(coaching_id)
+    model = load_bundle_model(coaching_id)
     if model is None:
         abort(404)
     name = f"Chat {len(storage.list_chats(coaching_id)) + 1}"
@@ -140,12 +168,15 @@ def coaching_chat_new(coaching_id):
 @bp.route("/coachings/<coaching_id>/chats/<chat_id>")
 @login_required
 def coaching_chat_get(coaching_id, chat_id):
+    _require_bundle(coaching_id)
     chat = storage.get_chat(coaching_id, chat_id)
     if chat is None:
         abort(404)
-    model = load_model(coaching_id)
+    model = _chat_model(coaching_id, chat["state"])
     return jsonify(
         chat=chat,
+        engine=chat["state"].get("engine", "html"),
+        fingerprint=_fingerprint_status(chat["state"], model) if model else "ok",
         dialogs=[{"i": d.i, "name": d.name} for d in model.micro_dialogs] if model else [],
         groups=[{"i": g.i, "name": g.name} for g in model.message_groups] if model else [],
         languages=model.languages if model else ["en-GB"],
@@ -155,11 +186,12 @@ def coaching_chat_get(coaching_id, chat_id):
 @bp.route("/coachings/<coaching_id>/chats/<chat_id>/step", methods=["POST"])
 @login_required
 def coaching_chat_step(coaching_id, chat_id):
-    model = load_model(coaching_id)
-    if model is None:
-        abort(404)
+    _require_bundle(coaching_id)
     existing = storage.get_chat(coaching_id, chat_id)
     if existing is None:
+        abort(404)
+    model = _chat_model(coaching_id, existing["state"])
+    if model is None:
         abort(404)
     payload = request.get_json(silent=True) or {}
     action = payload.get("action") or {}
@@ -171,6 +203,15 @@ def coaching_chat_step(coaching_id, chat_id):
     else:
         sim = Simulator(model, lang=payload.get("lang"))
         state = existing["state"]
+        if state.get("engine", "html") is None:
+            state["engine"] = model.source
+            state["model_fingerprint"] = model_fingerprint(model)
+        if action.get("type") != "reset" and _fingerprint_status(state, model) == "stale":
+            # stepping would silently run against different dialogs/rules;
+            # a reset rebuilds from the current bundle, so that stays allowed
+            return jsonify(error="This chat was built on a different export of the "
+                           "coaching.json. Reset it or start a new chat.",
+                           fingerprint="stale"), 409
         try:
             state = sim.step(state, action)
         except Exception as exc:  # keep a bad rule from 500-ing the whole run
@@ -290,8 +331,7 @@ def coaching_participant_import_upload(coaching_id):
     listed in the Chat tab sidebar alongside any live/simulated chats,
     seeded with that participant's real variable state and reconstructed
     event history, immediately explorable and continuable."""
-    if storage.get_coaching(coaching_id) is None:
-        abort(404)
+    _require_bundle(coaching_id)
     upload = request.files.get("participant_import")
     if not upload or not upload.filename:
         flash("Choose a .pmcp file.", "error")

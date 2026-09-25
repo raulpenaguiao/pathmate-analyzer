@@ -15,7 +15,7 @@
 	var chats = [];
 	var activeId = null;
 	var state = null;
-	var meta = { dialogs: [], groups: [], languages: [] };
+	var meta = { dialogs: [], groups: [], languages: [], engine: null };
 	var varFilter = "";
 
 	var el = {
@@ -25,6 +25,19 @@
 		vars: document.querySelector("#sim-vars tbody"),
 		launchSelect: document.getElementById("sim-launch-select"),
 		chatList: document.getElementById("chat-list"),
+		legacy: document.getElementById("sim-legacy"),
+		stale: document.getElementById("sim-stale"),
+		unknown: document.getElementById("sim-unknown"),
+		autoPeriodic: document.getElementById("sim-auto-periodic"),
+	};
+
+	// Structured engine events (Stage 4): a transcript line may carry
+	// `event`; `text` stays the fallback, so this only adds a label.
+	var EVENT_LABELS = {
+		launch: "launched",
+		timeout: "not answered",
+		suppressed: "suppressed",
+		unresolved_target: "unresolved dialog",
 	};
 
 	function urlFor(base, id) {
@@ -56,6 +69,8 @@
 					dialogs: data.dialogs || [],
 					groups: data.groups || [],
 					languages: data.languages || ["en-GB"],
+					engine: data.engine,
+					fingerprint: data.fingerprint || "ok",
 				};
 				populateLaunch();
 				render();
@@ -70,7 +85,16 @@
 			body: JSON.stringify({ action: action, lang: meta.languages[0] }),
 		})
 			.then(function (r) { return r.json(); })
-			.then(function (data) { state = data.state; render(); });
+			.then(function (data) {
+				if (data.fingerprint === "stale") {  // refused: built on another export
+					meta.fingerprint = "stale";
+					render();
+					return;
+				}
+				state = data.state;
+				if (action.type === "reset") meta.fingerprint = "ok";
+				render();
+			});
 	}
 
 	function populateLaunch() {
@@ -115,17 +139,26 @@
 			el.transcript.innerHTML = '<p class="muted">Select a chat on the left, start a new one, or import a .pmcp.</p>';
 			el.pending.hidden = true;
 			el.vars.innerHTML = "";
+			el.legacy.hidden = true;
+			el.stale.hidden = true;
+			el.unknown.hidden = true;
 			return;
 		}
+		el.legacy.hidden = meta.engine !== "html";
+		el.stale.hidden = meta.fingerprint !== "stale";
+		el.unknown.hidden = meta.fingerprint !== "unknown";
+		el.autoPeriodic.checked = !state.settings || state.settings.auto_periodic !== false;
 		var c = state.clock;
 		el.clock.textContent =
 			"day " + c.day + ", " + pad(c.hour) + ":" + pad(c.minute);
 
 		el.transcript.innerHTML = (state.transcript || [])
 			.map(function (m) {
+				var ev = m.event && EVENT_LABELS[m.event.type];
 				return (
-					'<div class="bubble b-' + m.kind + '">' +
-					'<span class="b-t">' + escapeHtml(m.t || "") + "</span>" +
+					'<div class="bubble b-' + m.kind + (ev ? " b-ev b-ev-" + m.event.type : "") + '">' +
+					'<span class="b-t">' + escapeHtml(m.t || "") +
+					(ev ? ' <span class="b-ev-label">' + ev + "</span>" : "") + "</span>" +
 					escapeHtml(m.text) +
 					"</div>"
 				);
@@ -136,6 +169,8 @@
 		if (state.pending && state.pending.options) {
 			el.pending.hidden = false;
 			el.pending.innerHTML =
+				questionnaireNote(state.pending.options) +
+				timeoutLabel(state.pending) +
 				'<span class="muted">answer:</span> ' +
 				state.pending.options
 					.map(function (o) {
@@ -190,6 +225,15 @@
 			return;
 		}
 
+		if (b && b.dataset.varFilter !== undefined) {
+			var vfIn = document.getElementById("sim-var-filter");
+			vfIn.value = b.dataset.varFilter;
+			varFilter = b.dataset.varFilter.toLowerCase();
+			render();
+			vfIn.focus();
+			return;
+		}
+
 		if (!b || !state) return;
 		if (b.dataset.tick) post({ type: "tick", minutes: +b.dataset.tick });
 		else if (b.dataset.slot) post({ type: "tick", to: "next-slot" });
@@ -206,7 +250,38 @@
 	root.addEventListener("change", function (e) {
 		var input = e.target.closest(".sim-var-in");
 		if (input) post({ type: "set_var", name: input.dataset.name, value: input.value });
+		else if (e.target === el.autoPeriodic) {
+			post({ type: "set_setting", name: "auto_periodic", value: el.autoPeriodic.checked });
+		}
 	});
+
+	// An open-component:questionnaire button opens an in-app questionnaire
+	// whose answers reach coaching variables through PMCMS bindings that
+	// aren't exported, so the sim can't fill them - the user sets them first.
+	function questionnaireNote(options) {
+		var q = options.filter(function (o) { return o.component === "questionnaire"; })[0];
+		if (!q) return "";
+		var prefix = String(q.questionnaire_id || "").split("-")[0];
+		return (
+			'<p class="sim-questionnaire">📋 In the app this opens questionnaire <code>' +
+			escapeHtml(q.questionnaire_id || "?") + "</code>. Its answers aren't in the export, so set the " +
+			"variables it would write in the inspector before answering." +
+			(prefix ? ' <button type="button" class="secondary" data-var-filter="' + escapeHtml(prefix) +
+				'">Show $' + escapeHtml(prefix) + "* variables</button>" : "") +
+			"</p>"
+		);
+	}
+
+	// Minutes left before the pending question counts as not answered
+	// (`timeout_at` is absolute minutes, same unit as the clock below).
+	function timeoutLabel(pending) {
+		if (pending.timeout_at == null) return "";
+		var c = state.clock;
+		var left = pending.timeout_at - (c.day * 1440 + c.hour * 60 + c.minute);
+		var txt = left <= 0 ? "timeout due" :
+			"times out in " + (left >= 60 ? Math.floor(left / 60) + "h " : "") + (left % 60) + "m";
+		return '<span class="sim-timeout">⏳ ' + txt + "</span> ";
+	}
 
 	var vf = document.getElementById("sim-var-filter");
 	if (vf) vf.addEventListener("input", function () {

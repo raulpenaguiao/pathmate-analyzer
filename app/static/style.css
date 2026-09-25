@@ -160,6 +160,19 @@ button.link-button {
 .chip-neutral { background: var(--sunken); color: var(--muted); }
 .tag-danger { background: var(--danger-soft); color: var(--danger); }
 
+/* ---- page-level banners ---------------------------------------------- */
+
+.page-banner {
+	background: var(--warn-soft);
+	color: var(--warn);
+	border-radius: var(--radius-sm);
+	padding: var(--sp-3) var(--sp-4);
+	font-size: 0.9rem;
+	margin-bottom: var(--sp-4);
+}
+.page-banner.is-danger { background: var(--danger-soft); color: var(--danger); }
+.page-banner a { color: inherit; text-decoration: underline; }
+
 .muted { color: var(--muted); }
 .plain-list { list-style: none; padding: 0; }
 .plain-list li { padding: var(--sp-2) 0; border-bottom: 1px solid var(--border); }
@@ -211,7 +224,7 @@ code, .mono { font-family: var(--mono); font-size: 0.86em; }
 	border-bottom: 1px solid var(--border-strong);
 	overflow-x: auto;
 	position: sticky;
-	top: 53px;
+	top: var(--topbar-h, 53px); /* set from the real topbar height in coaching_tabs.js */
 	background: var(--bg);
 	z-index: 10;
 }
@@ -427,6 +440,9 @@ code, .mono { font-family: var(--mono); font-size: 0.86em; }
 }
 .sim-inspector h3 { margin-top: 0; }
 .sim-inspector .data-table td { padding: var(--sp-1) var(--sp-2); }
+/* fixed layout so long var names wrap instead of squeezing the value inputs to ~1 char */
+#sim-vars { table-layout: fixed; width: 100%; }
+#sim-vars td:first-child { width: 58%; overflow-wrap: anywhere; }
 .sim-var-in {
 	width: 100%; font-family: var(--mono); font-size: 0.8rem;
 	border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px;
@@ -460,6 +476,15 @@ code, .mono { font-family: var(--mono); font-size: 0.86em; }
 .sim-pending { margin-top: var(--sp-3); }
 button.answer { background: var(--accent-soft); color: #274bb0; margin: 2px; }
 .sim-controls { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+.sim-toggle { display: flex; align-items: center; gap: var(--sp-1); font-size: 0.85rem; color: var(--fg-soft); }
+.sim-legacy { background: var(--sunken); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); font-size: 0.85rem; color: var(--muted); margin: 0 0 var(--sp-2); }
+.sim-timeout { color: var(--warn); font-size: 0.85rem; margin-right: var(--sp-2); }
+/* structured engine events (launch / timeout / suppressed / unresolved_target) */
+.b-ev-label { font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; margin-left: var(--sp-1); }
+.b-ev-launch { background: var(--accent-soft); color: var(--accent); }
+.b-ev-timeout { background: var(--warn-soft); color: var(--warn); }
+.b-ev-suppressed { background: var(--sunken); color: var(--muted); border: 1px dashed var(--border-strong); }
+.b-ev-unresolved_target { background: var(--danger-soft); color: var(--danger); }
 .sim-launch { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); }
 .sim-launch select { flex: 1; min-width: 0; padding: var(--sp-2); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font: inherit; }
 
@@ -556,5 +581,8 @@ dialog.tree-dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
 @media (max-width: 720px) {
 	.container { padding: var(--sp-4); }
 	.two-col { flex-direction: column; }
-	.tabbar { top: 49px; }
+	.tabbar { top: var(--topbar-h, 49px); }
 }
+.sim-questionnaire { background: var(--accent-soft); border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); font-size: 0.85rem; margin: 0 0 var(--sp-2); }
+.sim-questionnaire button { margin-left: var(--sp-2); padding: 2px var(--sp-2); font-size: 0.8rem; }
+.sim-stale { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }

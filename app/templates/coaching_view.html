@@ -18,6 +18,17 @@
 </div>
 <p class="coaching-sub">uploaded {{ coaching.uploaded_at[:19] }} &middot; {{ coaching.original_filename }}</p>
 
+{% set bundle = coaching.get('bundle') %}
+{% if bundle and bundle.get('summary', {}).get('coherenceOk') == false %}
+<div class="page-banner is-danger">
+	&#9888; <strong>Export/JSON mismatch.</strong> This coaching's attached
+	<code>coaching.json</code> failed its coherence check (live sweep vs
+	Report HTML / baseline drifted) &mdash; the Chat and Randomisation
+	groups tabs may be working from stale or incomplete data.
+	{% if model %}<a href="#tab-stats" data-goto-tab="stats">See details in Statistics &rarr;</a>{% endif %}
+</div>
+{% endif %}
+
 {% if not model %}
 <div class="panel"><p class="muted">This coaching export could not be parsed into the analysis model. The raw file is still available below.</p></div>
 <iframe class="coaching-frame" src="{{ url_for('main.coaching_raw', coaching_id=coaching.id) }}"></iframe>
@@ -220,7 +231,7 @@
 			Simplified model of this coaching's <strong>declarative</strong> rules. JS-snippet
 			rules and a few operators are skipped (shown as <em>skipped unsupported rule</em>).
 			This is not the real PMCP engine &mdash; use it to explore flow, not to certify behaviour.
-			<br><span class="muted">A <code>coaching.json</code> is attached; the bundle-driven engine (Stage 4) will use it once wired in.</span>
+			<br><span class="muted">New chats run on this coaching's attached <code>coaching.json</code> (Stage 4 engine): sender rules launch their dialogs and not-answered timeouts fire as the clock moves.</span>
 		</div>
 		<div class="sim"
 			data-list-url="{{ url_for('main.coaching_chats_list', coaching_id=coaching.id) }}"
@@ -242,6 +253,9 @@
 			</aside>
 			<div class="sim-main">
 				<div class="sim-clock">🕒 <span id="sim-clock">&hellip;</span></div>
+				<p class="sim-legacy sim-stale" id="sim-stale" hidden>&#9888; This chat was built on a different export of the <code>coaching.json</code>. Its dialog and rule references are positions within that export, so it can't be continued. Click <strong>reset</strong> or start a <strong>+ New chat</strong>.</p>
+				<p class="sim-legacy" id="sim-unknown" hidden>This chat predates export fingerprints, so it can't be checked against the attached <code>coaching.json</code>. If that file was replaced since, its dialog references may be off. <strong>reset</strong> to be sure.</p>
+				<p class="sim-legacy" id="sim-legacy" hidden>This chat was started with the old HTML-based simulator and keeps using it. Start a <strong>+ New chat</strong> to use the <code>coaching.json</code> engine.</p>
 				<div class="sim-transcript" id="sim-transcript"></div>
 				<div class="sim-pending" id="sim-pending" hidden></div>
 				<div class="sim-controls">
@@ -251,6 +265,9 @@
 					<button type="button" data-slot="1" class="secondary">next slot</button>
 					<button type="button" data-periodic="1" class="secondary">run periodic rules</button>
 					<button type="button" data-reset="1" class="secondary">reset</button>
+					<label class="sim-toggle" title="Off: PERIODIC BASIS only runs when you click &quot;run periodic rules&quot;. Daily rules, due senders and timeouts follow the clock either way.">
+						<input type="checkbox" id="sim-auto-periodic" checked> auto-run periodic rules
+					</label>
 				</div>
 				<div class="sim-launch">
 					<select id="sim-launch-select"></select>

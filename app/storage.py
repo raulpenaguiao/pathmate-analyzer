@@ -161,6 +161,10 @@ def save_coaching_bundle(coaching_id: str, file_bytes: bytes) -> dict:
     stored = f"{coaching_id}.bundle.json"
     with open(Config.COACHING_FILES_DIR / stored, "wb") as f:
         f.write(file_bytes)
+    if meta.get("bundle"):
+        # replacing a bundle: the r_ group CSVs carry nodeUids, which are
+        # positions within one export's sweep - meaningless against another
+        _delete_rgroups_files(coaching_id)
 
     meta["bundle"] = {
         "stored_filename": stored,

@@ -1,5 +1,14 @@
 "use strict";
 (function () {
+	// The sticky tabbar has to sit exactly under the sticky topbar, whose
+	// height depends on the font stack and on nav wrapping at narrow widths.
+	var topbar = document.querySelector(".topbar");
+	function syncTopbarHeight() {
+		if (topbar) document.documentElement.style.setProperty("--topbar-h", topbar.offsetHeight + "px");
+	}
+	syncTopbarHeight();
+	window.addEventListener("resize", syncTopbarHeight);
+
 	function activateTab(name) {
 		document.querySelectorAll(".coaching-tabs .tab").forEach(function (t) {
 			t.classList.toggle("is-active", t.dataset.tab === name);
@@ -128,6 +137,13 @@
 			t.addEventListener("click", function () {
 				activateTab(t.dataset.tab);
 				history.replaceState(null, "", "#tab-" + t.dataset.tab);
+			});
+		});
+		document.querySelectorAll("[data-goto-tab]").forEach(function (a) {
+			a.addEventListener("click", function (e) {
+				e.preventDefault();
+				activateTab(a.dataset.gotoTab);
+				history.replaceState(null, "", "#tab-" + a.dataset.gotoTab);
 			});
 		});
 
