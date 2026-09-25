@@ -259,3 +259,17 @@ decisions listed above, with no new information, so no third push sent.
    said yes, and Mirror is waiting on your confirmation. And
    `$participantParticipationInDays` semantics still need checking
    against a real participant.
+
+## 2026-09-25 — IN FLIGHT: commit round + one push (Raul's request)
+
+- Mailed all 6 agents at 08:25: commit only their own files, by explicit
+  path (`git commit -- <paths>`), no pull, no push, then reply with the
+  hash or "nothing to commit".
+- Mine are done: `4d77620` (shared agents/ infra, `.gitignore`,
+  `.claude/settings.json`, removal of the old `context/` and `mailbox/`)
+  and `d9b1570` (TASKS.md + agents/kart/).
+- Waiting on replies from: herald, loom, mason, mirror, smith, warden.
+- **Once all 6 have replied**: check `git status` for leftovers, then
+  `git pull --ff-only`, then `git push`, then tell everyone.
+- Not being committed: `docs/coaching_categories_table.md`, pending
+  Raul's call on deleting it.
