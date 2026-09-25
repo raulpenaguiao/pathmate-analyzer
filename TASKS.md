@@ -32,7 +32,13 @@ Also queued:
 - [ ] **One Question at a Time**: a detailed flow walk-through plus
       implementation steps, with the scope questions inside it for Raul
       (Herald owns the artifact, Mason supplies the design; tighter
-      Raul↔Mason loop).
+      Raul↔Mason loop). **Changed 09-25 (Raul, via Herald):** the pile-up
+      strategy isn't ready for advisor-facing material yet. **Raul and
+      Mason settle it first**, working directly in `docs/pileup/`, and
+      all pile-up artifact work is stopped.
+      - [ ] Herald's next pile-up task: a couple of example chat
+            interactions for the advisor showing v02 resolving the
+            pile-up. **Blocked until Mason comes to Herald.**
 - [ ] **ro-RO duplicate wording**: it's in the **existing v01 content**,
       not LLM output. "within reach" and "nearby" are both "Este
       spirometrul la îndemână?", and "handy" is near-identical (md-020
