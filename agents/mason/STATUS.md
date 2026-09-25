@@ -2,6 +2,8 @@
 
 ## NOW (2026-09-25, ~10:20)
 
+**One Question at a Time is Mason's now** (dev-facing, per Raul): https://claude.ai/artifact/7A3MteX2HR3nDoEWL1XcCQ, v9 holds the 7 open decisions. Herald has been told not to publish to it; Herald does only the later advisor-facing piece.
+
 **Strategy first (Raul):** Herald has paused all pile-up artifacts. I pin the strategy down with Raul directly. When it's settled, I mail Herald to start the advisor chat examples. Until then, no Herald syncs on doc changes.
 
 **Strategy state** (`docs/pileup/`, latest 49da338):
