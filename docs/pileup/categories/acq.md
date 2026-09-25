@@ -1,6 +1,6 @@
 # Asthma Control Questionnaire (ACQ)
 
-**Rank 2** · **Comes back until:** end of week *(proposed)* · **Status:** v01 ([rollout.md](../rollout.md), step 3)
+**Rank 2** · **Comes back until:** end of week · **Status:** v01 ([rollout.md](../rollout.md), step 3)
 
 **Goal.** The patient fills in the ACQ every two weeks. The questionnaire itself is a survey; this dialog is the reminder that leads to it.
 

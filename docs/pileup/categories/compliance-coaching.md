@@ -1,6 +1,6 @@
 # Compliance coaching
 
-**Rank 2** · **Comes back until:** end of day *(proposed)* · **Status:** content exists but is not wired up
+**Rank 2** · **Comes back until:** end of day · **Status:** content exists but is not wired up
 
 **Goal.** Re-engage patients who start missing measurements or doses, with praise when they're consistent. In extreme cases, escalate to parents or caregivers by SMS or email.
 

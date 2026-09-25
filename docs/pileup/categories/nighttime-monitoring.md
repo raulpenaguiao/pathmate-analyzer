@@ -1,6 +1,6 @@
 # Nighttime asthma monitoring (night preparation)
 
-**Rank 1** · **Comes back until:** end of day *(proposed)* · **Status:** v01, next to build ([rollout.md](../rollout.md), step 2)
+**Rank 1** · **Comes back until:** end of day · **Status:** v01, next to build ([rollout.md](../rollout.md), step 2)
 
 **Goal.** Before bed, the patient puts on the smartwatch, puts the phone on its charger and places it near the bed, so the night can be monitored. The smartwatch-battery check is part of this.
 

@@ -23,7 +23,7 @@ In v02 a returning dialog takes a separate path, the **re-entry path**. That pat
 | ACQ, after a new time was picked *(continue)* | "You asked me to remind you about your asthma questionnaire at this time. Here it is." |
 | Educational content | "Before we were interrupted, I wanted to share some material about asthma with you." |
 
-The wording is a draft for Raul (decisions.md D8). The Romanian versions need a native speaker.
+Approved by Raul (D8). Each opener is built as an `r_` randomisation group named `r_ReEntry_<Dialog>` (e.g. `r_ReEntry_Spirometry`). Loom's r_ pipeline then generates further variants in English and Romanian automatically, so a returning patient doesn't see the identical line every time.
 
 Two further rules keep comebacks from piling up. A dialog only comes back when nothing equally or more important is open ([priority.md](priority.md)), and it never comes back after its expiry.
 
@@ -41,16 +41,16 @@ Most short reminders only ever need the first two states. **Continue** only earn
 
 ## Ignored is not the same as interrupted
 
-If the patient simply **doesn't answer** and the dialog times out, it is *not* brought back. It is treated as given up for today (or this week). Otherwise an ignored reminder would come back again and again, which is exactly the pile-up.
+If the patient simply **doesn't answer**, the dialog steps aside after 30 minutes (D1), so it never blocks anything for long. It then gets **exactly one re-ask** (D2), no sooner than 30 minutes later and still inside its window. Because the patient has already seen it once, the re-ask comes through the re-entry opener. If that is ignored too, it is done for today (or this week). Interrupted dialogs, by contrast, keep coming back until their expiry: the patient didn't choose to leave them.
 
 ## Expiry per category
 
 | Expiry | Categories |
 |---|---|
-| **End of day** | Spirometry, medication *(Raul)*; nighttime monitoring, compliance coaching, sleep quality, air-quality warnings *(proposed)* |
-| **End of week** | Educational content incl. health literacy, gamification *(Raul)*; ACQ, FAQ, clinic-visit reminder *(proposed)* |
+| **End of day** | Spirometry, medication *(Raul)*; nighttime monitoring, compliance coaching, sleep quality, air-quality warnings *(Raul, D3)* |
+| **End of week** | Educational content incl. health literacy, gamification *(Raul)*; ACQ, FAQ, clinic-visit reminder *(Raul, D3)* |
 
-The *proposed* rows are Mason's defaults, following the same logic (daily task → day, weekly/occasional → week). **Raul to confirm.**
+Rule of thumb: a daily task expires at the end of the day, a weekly or occasional one at the end of the week.
 
 ## Reminders keep their short window
 

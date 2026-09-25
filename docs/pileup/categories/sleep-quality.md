@@ -1,6 +1,6 @@
 # Sleep quality inquiry
 
-**Rank 3** · **Comes back until:** end of day *(proposed)* · **Status:** content exists but nothing triggers it
+**Rank 3** · **Comes back until:** end of day · **Status:** content exists but nothing triggers it
 
 **Goal.** Ask about last night's sleep, **only** when the night's monitoring data is missing or shows very poor sleep.
 

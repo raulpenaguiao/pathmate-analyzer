@@ -10,6 +10,18 @@ Detailed task tracking lives in `TASKS.md` (owned by Kart). This page is the des
 | Medication (3 doses) | 1 | **Live**, same as spirometry |
 | Everything else | 2–6 | Still v01: no window, no rank. Sleep quality, compliance coaching and misc also have **no working trigger at all**. |
 
+## First release scope (Raul, D6)
+
+Everything with a working trigger today:
+- **Rank 1:** spirometry, medication, night preparation
+- **Rank 2:** ACQ
+- **Rank 4:** educational content
+- **Rank 5:** gamification
+
+The shared infrastructure and planning ahead are included too.
+
+**Later**, once each has a trigger: compliance coaching (needs D7), sleep quality, health literacy, and misc (FAQ, air quality, clinic).
+
 ## Order
 
 **Step 0: three quick platform tests** (sandbox coaching, one browser session via Warden). These settle the unverified points in [interruptions.md](interruptions.md#not-yet-verified-needs-one-test-on-the-sandbox-coaching-booked-through-warden). They must come first, because the design depends on them.
@@ -30,16 +42,18 @@ Detailed task tracking lives in `TASKS.md` (owned by Kart). This page is the des
 
 **Step 2: nighttime monitoring (sleep-prep)**, rank 1, end of day. The smartwatch-battery prompt folds into it. Window: 10 min before bedtime → bedtime + grace.
 
-**Step 3: rank 2.**
-- ACQ: pattern plus rank; it already has a reschedule flag.
-- Compliance coaching: the rule exists but points at an empty dialog, so this needs a real trigger and content wiring.
+**Step 3: ACQ** (rank 2). The reminder pattern plus rank. It already has a reschedule flag; it needs the "continue" split.
 
-**Step 4: ranks 3–6 in order.**
-- Sleep quality: needs a trigger on "night data missing or poor".
-- Education plus health literacy.
-- Gamification: the weekly-status dialog is an empty stub.
-- Misc: the FAQ and air-quality dialogs still use v01's recall setting and must be rebuilt without it.
+**Step 4: educational content (rank 4), then gamification (rank 5).** Education needs the "continue" split, and an idle timeout long enough for its longest video (D13 note). Gamification's weekly-status dialog is an empty stub; build it, or ship only the Monday announcement.
 
-**Step 5: full check.** Every dialog is ranked or explicitly outside the ladder; no v01 recall settings remain. Simulate a busy day to confirm that rank-1 reminders don't starve lower-ranked content ([priority.md](priority.md#a-known-risk-and-what-keeps-it-in-check)).
+**Step 5: first-release check.** Every first-release dialog is ranked; the onboarding schedule check covers all their times. Simulate a busy day to confirm that rank-1 reminders don't starve the ACQ, education or gamification ([priority.md](priority.md#a-known-risk-and-what-keeps-it-in-check)).
+
+**Later releases, in rank order:**
+- Compliance coaching (rank 2): needs D7, a real trigger, and wiring to its existing content.
+- Sleep quality (rank 3): needs a trigger on "night data missing or poor".
+- Health literacy (rank 4): no trigger today.
+- Misc (rank 6): the FAQ and air-quality dialogs still use v01's recall setting and must be rebuilt without it.
+
+Then a **full check**: every dialog ranked or explicitly outside the ladder, and no v01 recall settings left.
 
 Why this order: the design is proven on the two dialogs already live before it's copied, and after that each step follows rank. The most clinically important pieces are therefore protected first.

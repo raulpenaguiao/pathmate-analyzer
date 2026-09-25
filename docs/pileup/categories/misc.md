@@ -1,6 +1,6 @@
 # Misc: FAQ, air quality, clinic visits
 
-**Rank 6** · **Comes back until:** FAQ and clinic end of week, air quality end of day *(all proposed)* · **Status:** content exists but nothing triggers it
+**Rank 6** · **Comes back until:** FAQ and clinic end of week, air quality end of day · **Status:** content exists but nothing triggers it
 
 | Item | Goal | What the patient sees |
 |---|---|---|

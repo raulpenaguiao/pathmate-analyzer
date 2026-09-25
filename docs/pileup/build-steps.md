@@ -44,17 +44,18 @@ Log each result in `autochanges/`, then update [interruptions.md](interruptions.
 
 Do these for each dialog, in the order from [rollout.md](rollout.md). Category-specific values are in the table under Phase D.
 
-**C1. Variables:** `$X_started` (number, 0) and `$X_resumeMode` (number, 0). Reminders reuse their existing `…ReminderStage` as `started`.
+**C1. Variables:** `$X_started` (number, 0), `$X_resumeMode` (number, 0), `$X_reasked` (0/1, 0) and `$X_reaskNotBefore` (number, 0). Reminders reuse their existing `…ReminderStage` as `started`.
 
 **C2. Firing rule** (PERIODIC BASIS; place it in rank order among the other firing rules). Nested gates, top to bottom:
-1. X's own "is due" conditions: date, time, the reminder window on the first showing. These are the existing gates, e.g. spirometry's gates 1–4.
+1. X's own "is due" conditions: date, time, the reminder window (for reminders, both the first showing and the re-ask must fall inside it). These are the existing gates, e.g. spirometry's gates 1–4.
+   - plus `$timeDecimal` *is bigger than* `$X_reaskNotBefore` (the re-ask spacing, D2).
 2. `$X_resumeMode` *not equal* `1`
 3. `$openDialogName` *text value not equal* `X`
 4. `$openDialogRank` *is bigger than* `r`. This replaces the old `$participantOpenQuestions == 0` gate.
 5. Sender: start dialog X. Keep the rule's own "not answered" timeout at least as long as `$hyperparameterIdleMinutes`.
 
 **C3. Opening decision point** (new first row of dialog X), flat branches in this order:
-1. If `$X_started == 1`: jump to the **re-entry opener**, one or two plain message rows written for this dialog (wording in [interruptions.md](interruptions.md#the-idea-come-back-with-context), D8), which then continue into the dialog's first question.
+1. If `$X_started == 1`: jump to the **re-entry opener**, one or two plain message rows written for this dialog (wording in [interruptions.md](interruptions.md#the-idea-come-back-with-context), D8), which then continue into the dialog's first question. Tag the opener rows with the randomisation group `r_ReEntry_X`, so that Loom's pipeline can add English and Romanian variants.
 2. If `$X_resumeMode == 2`: jump to dialog "X, part 2". Only for dialogs that have one (C5).
 3. Assign `$X_started = 1`.
 4. Assign `$openDialogName = "X"` (create text), `$openDialogRank = r`, `$openDialogOwnRank = r`, `$openDialogStaleAt = $timeDecimal + $hyperparameterIdleMinutes/60`.
@@ -69,13 +70,14 @@ Do these for each dialog, in the order from [rollout.md](rollout.md). Category-s
 - At every normal stop: assign `$X_resumeMode = 1`, `$openDialogName = ""`, `$openDialogRank = 99`, `$openDialogOwnRank = 99`.
 - Put the condition and its assignments as **children** of the answer check, not beside it. Flat siblings are OR'd; this is the latent issue Mirror found in the medication dialogs.
 
-**C7. Ignored-dialog cleanup** (PERIODIC BASIS, above the firing rules):
-`$openDialogName == "X"` AND `$timeDecimal is bigger than $openDialogStaleAt` → assign `$X_resumeMode = 1`, `$openDialogName = ""`, `$openDialogRank = 99`.
-*(With D2 = "one re-ask": for reminders, set `…ReminderStage = 2` instead of resumeMode 1, and allow one more firing while stage < 2.)*
+**C7. Ignored-dialog cleanup, with one re-ask** (PERIODIC BASIS, above the firing rules). Parent: `$openDialogName == "X"` AND `$timeDecimal is bigger than $openDialogStaleAt`. Children:
+- always: clear the markers (`$openDialogName = ""`, `$openDialogRank = 99`, `$openDialogOwnRank = 99`);
+- if `$X_reasked == 0` (first time ignored): assign `$X_reasked = 1` and `$X_reaskNotBefore = $timeDecimal + $hyperparameterIdleMinutes/60`. X stays unfinished, so its firing rule asks once more later, through the re-entry opener (`$X_started` is already 1);
+- if `$X_reasked == 1` (ignored again): assign `$X_resumeMode = 1`. Done for today/this week.
 
 **C7b. Protection ends** (one shared PERIODIC rule, above the firing rules): `$openDialogRank == 1` AND `$openDialogOwnRank > 1` AND `$timeDecimal is bigger than $openDialogProtectedUntil` → assign `$openDialogRank = $openDialogOwnRank`.
 
-**C8. Expiry resets.** End-of-day dialogs: add `$X_started = 0` and `$X_resumeMode = 0` to the daily reset (B2). End-of-week dialogs: add them to the weekly reset (B3).
+**C8. Expiry resets.** End-of-day dialogs: add `$X_started = 0`, `$X_resumeMode = 0`, `$X_reasked = 0` and `$X_reaskNotBefore = 0` to the daily reset (B2). End-of-week dialogs: add them to the weekly reset (B3).
 
 **C9. Verify** before moving to the next dialog:
 - A fresh export shows every node above. Check by dialog path, never by uid.
@@ -91,15 +93,15 @@ Do these for each dialog, in the order from [rollout.md](rollout.md). Category-s
 |---|---|---|---|---|---|
 | Spirometry | 1 | `$spiroMesTime` → +180 min | measurement done → 1 | no | day |
 | Medication dose i (×3) | 1 | `doseTime_i` → +180 min | dose answered → 1 | no | day |
-| Night preparation (incl. battery) | 1 | bedtime − 10 min → bedtime + grace (D-value needed) | checklist confirmed → 1 | no | day* |
-| ACQ | 2 | `$today == $dateOfNextACQ` | new time chosen → 2; survey done → 1 | **yes** | week* |
-| Compliance coaching | 2 | trigger to design (D7) | message delivered → 1 | no | day* |
-| Sleep quality | 3 | night data missing/poor (trigger to design) | answered → 1 | no | day* |
+| Night preparation (incl. battery) | 1 | bedtime − 10 min → bedtime + grace (D-value needed) | checklist confirmed → 1 | no | day |
+| ACQ | 2 | `$today == $dateOfNextACQ` | new time chosen → 2; survey done → 1 | **yes** | week |
+| Compliance coaching | 2 | trigger to design (D7) | message delivered → 1 | no | day |
+| Sleep quality | 3 | night data missing/poor (trigger to design) | answered → 1 | no | day |
 | Education + health literacy | 4 | `$today == $dateOfNextDisplayOfEducationalContents` | new time chosen → 2; material done → 1 | **yes** | week |
 | Gamification | 5 | Monday | announcement delivered → 1 | no | week |
-| FAQ / air quality / clinic | 6 | triggers to design | delivered → 1 | no | week / day / week* |
+| FAQ / air quality / clinic | 6 | triggers to design | delivered → 1 | no | week / day / week |
 
-\* proposed, see [decisions.md](decisions.md) D3.
+Expiries confirmed by Raul (D3).
 
 ## Phase E: planning ahead
 
