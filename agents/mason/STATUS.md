@@ -1,23 +1,17 @@
 # Mason — status
 
-## NOW (2026-09-25, ~10:20)
+## NOW (2026-09-25, ~10:40)
 
-**One Question at a Time is Mason's now** (dev-facing, per Raul): https://claude.ai/artifact/7A3MteX2HR3nDoEWL1XcCQ, v9 holds the 7 open decisions. Herald has been told not to publish to it; Herald does only the later advisor-facing piece.
+**All design decisions are answered (D1–D13, D12b).** The docs are in `docs/pileup/` (5ea4887). The dev-facing page is One Question at a Time v10 (https://claude.ai/artifact/7A3MteX2HR3nDoEWL1XcCQ), which Mason owns.
 
-**Strategy first (Raul):** Herald has paused all pile-up artifacts. I pin the strategy down with Raul directly. When it's settled, I mail Herald to start the advisor chat examples. Until then, no Herald syncs on doc changes.
+**Nothing is live.** Spirometry and medication are sandbox prototypes; the sandbox will be reset, and everything gets rebuilt on the workbench.
 
-**Strategy state** (`docs/pileup/`, latest 49da338):
-- The defining change: returning dialogs restart **with context** (per-dialog re-entry openers).
-- Planning ahead: onboarding schedule check, postponement spacing, spirometry not within 5 h after medication.
-- Ranks with a 1 h protection cap (D13); expiry; reminder windows.
+**For the advisor:** compliance thresholds M and K (placeholders of 2), the ACQ interval (the sandbox has 1, and 14 is assumed), and the 5 h number.
 
-**Raul answered (577f3c1):** D1 A, D2 B (one re-ask), D3 A, D5 A, D6 C (first release = rank 1 + ACQ + education + gamification), D8 A (openers as `r_ReEntry_*` groups; Loom told), D9 A.
-
-**Open:**
-- D4 (reworded), D7, D10–D13.
-- Whether the 5 h rule is a hard clinical constraint.
-
-**No PMCP writes** until the workbench coaching exists.
+**Next:**
+- Ask Raul whether the strategy counts as settled; if so, mail Herald to start the advisor chat examples.
+- Then wait for the workbench to exist before running Phase A (platform tests).
+- No PMCP writes.
 
 ---
 
