@@ -114,6 +114,25 @@ nothing about any agent is scattered elsewhere in the repo:
    file, commit, or artifact for detail rather than pasting large content
    in. Read a message, act on it (or note it in your own `context/`), move
    it to `read/`. Don't leave things sitting in `inbox/` unprocessed.
+6b. **Read and send mail ONLY through the scripts, in their plain form.
+   Never ask Raul before reading your mail.** (Raul, 2026-09-25.)
+   - List: `agents/checkmail.sh <slug>`
+   - Read + archive: `agents/checkmail.sh <slug> --read <file>`, one call
+     per message (parallel calls are fine)
+   - Send: `agents/mail.sh <to> "<subject>" "<body>"`, one call per
+     recipient
+
+   These exact forms are on the `.claude/settings.json` allow-list and
+   never prompt. **Don't** wrap them in `for` loops, `mv`, pipes,
+   `cd … &&` chains or heredocs. Those don't match the allow-list, so
+   every one becomes a permission prompt Raul has to click. The resulting
+   pile-up makes him skim the prompts that actually matter, which is
+   dangerous.
+
+   Reading mail is routine: just do it. If a command gets declined,
+   that's not a ban on the task. Switch to the plain allow-listed form
+   and carry on; don't sit idle re-asking. The same spirit applies to
+   every routine command: prefer the simplest allow-listed form.
 7. **Mail format**: filename starts with a timestamp,
    `YYMMDDHHMMSS_<name>.md`, followed by a name that actually describes
    the subject — not `update.md`. Body is markdown, not a text dump.

@@ -1,5 +1,8 @@
 # Agent journal: 2026-09-23 ~14:45 → 2026-09-25 ~08:45
 
+**Last digest: 2026-09-25 08:45.** The next one is due by 2026-09-26
+08:45, or on Kart's first wake after that time.
+
 Covers the time since the last agent-wide restart (2026-09-23 afternoon).
 Compiled by Kart from every `agents/*/STATUS.md`, the mail, and the git
 log. The next digest will cover what happened after this one.
