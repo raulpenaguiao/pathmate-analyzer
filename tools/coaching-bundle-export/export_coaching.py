@@ -45,6 +45,15 @@ imply skipping it; --no-variables skips it on an otherwise-full run.
 phase 4 opens ~25 "Edit rule:" modals; each dismiss commits a no-op re-save.
 Sandbox coachings only; add an autochanges/ entry.
 
+IDs ARE NOT STABLE NAMES. `md-NNN` / `md-NNN#MMM` uids are positions in
+this run's menu sweep and row order. They are valid only inside one export
+file. A dialog added or moved in PMCP renumbers everything after it (e.g.
+md-049 was v01 "second dose" on 09-14 and v02 "first dose" on 09-17). Use
+them to cross-reference within a file (jump targets, nodeUids, ...), never to
+name a dialog or node across exports, in docs, tests or saved state. Across
+exports, use `path` (the dialog's full menu path) plus the node's order or
+comment.
+
 Env: PMCP_CDP (default http://127.0.0.1:9222), PMCP_WIDE (default 12000).
 Exits non-zero if the coherence check fails (so it can gate a workflow).
 """
@@ -61,6 +70,8 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 import _menu_nav as M
+import _pmcp_safety as S
+import _run_diag as D
 import _report_fetch as RF
 import _rules_nav as R
 import _variables_nav as V
@@ -130,9 +141,11 @@ async def sweep_micro_dialogs(page, cdp, wid) -> tuple[list[dict], list[dict]]:
     print(f"  {len(targets)} menu targets "
           f"({sum(t['isFolder'] for t in targets)} folders)")
     micro_dialogs, nodes = [], []
+    n_errors = 0
     for seq, t in enumerate(targets):
         name = " / ".join(t["labels"])
         md_uid = f"md-{seq:03d}"
+        D.step(f"phase 1: dialog {seq}/{len(targets)} {name}")
         try:
             try:
                 await M.navigate_and_select(page, t["labels"])
@@ -146,7 +159,10 @@ async def sweep_micro_dialogs(page, cdp, wid) -> tuple[list[dict], list[dict]]:
             total, seen, missing = await M.sweep_table(page)
         except Exception as e:  # noqa: BLE001
             print(f"  [{seq}] {name}  ERROR {e!r}")
-            micro_dialogs.append({"uid": md_uid, "name": t["labels"][-1],
+            n_errors += 1
+            if n_errors <= 3:  # the first few say why; the rest repeat it
+                await D.snapshot(page, f"dialog{seq:03d}", repr(e))
+            micro_dialogs.append({"uid": md_uid, "path": name, "name": t["labels"][-1],
                                   "folderPath": t["labels"][:-1],
                                   "isFolder": t["isFolder"], "error": repr(e)})
             continue
@@ -158,7 +174,7 @@ async def sweep_micro_dialogs(page, cdp, wid) -> tuple[list[dict], list[dict]]:
             nuid = f"{md_uid}#{i:03d}"
             node_uids.append(nuid)
             nodes.append({
-                "uid": nuid, "microDialogUid": md_uid, "order": i,
+                "uid": nuid, "microDialogUid": md_uid, "dialogPath": name, "order": i,
                 "type": _TYPE.get(row["Type"], row["Type"].lower() or "message"),
                 "rawType": row["Type"], "comment": row["Comment"],
                 "gridText": row["Message Text / Events"], "channel": row["Channel"],
@@ -171,7 +187,8 @@ async def sweep_micro_dialogs(page, cdp, wid) -> tuple[list[dict], list[dict]]:
                           "containsRules": row["Contains Rules"]},
             })
         micro_dialogs.append({
-            "uid": md_uid, "name": t["labels"][-1], "folderPath": t["labels"][:-1],
+            "uid": md_uid, "path": name,
+            "name": t["labels"][-1], "folderPath": t["labels"][:-1],
             "isFolder": t["isFolder"], "nodeCount": total, "nodeUids": node_uids,
             "missingRows": missing,
         })
@@ -279,6 +296,15 @@ def coherence_check(bundle: dict, report_html: str | None) -> dict:
             f"{failed[0]['error'][:120]}) — their nodes are missing, the "
             f"metric drops below are a consequence, not a content change")
 
+    # Rows the table sweep knowingly skipped (virtualization gap) - printed
+    # as "MISSING [...]" during phase 1 but never failed the run before.
+    holes = {m["path"] if "path" in m else m["name"]: m["missingRows"]
+             for m in bundle.get("microDialogs", []) if m.get("missingRows")}
+    if holes:
+        ok = False
+        warnings.append(f"ROWS MISSING in {len(holes)} dialog(s): "
+                        + "; ".join(f"{k} {v[:6]}" for k, v in holes.items()))
+
     html_vs_sweep = None
     if report_html:
         rc = enrich_bundle.report_dialog_counts(Path(report_html))
@@ -328,8 +354,15 @@ def coherence_check(bundle: dict, report_html: str | None) -> dict:
                           if accepted.get(k) != v}
             html_vs_sweep["newDeltas"] = new_deltas
             if new_deltas:
-                warnings.append(f"{len(new_deltas)} per-dialog node-count "
-                                f"delta(s) not on the accepted baseline list")
+                # the Report's per-dialog node count is authoritative: a new
+                # mismatch means the sweep read the wrong/stale table (seen
+                # 2026-09-25: "Quit spirometry dialog" got 51 rows of another
+                # dialog, the Report says 7). Fail, and name them.
+                ok = False
+                warnings.append(
+                    f"NODE COUNT != REPORT in {len(new_deltas)} dialog(s) "
+                    f"(sweep, report) - likely a stale/wrong table read: "
+                    + "; ".join(f"{k} {v}" for k, v in new_deltas.items()))
     else:
         warnings.append("no coherence_baseline.json — run with "
                         "--update-baseline once against a known-good export")
@@ -383,6 +416,11 @@ async def main() -> int:
                     and "--dialogs-only" not in flags)
     auto_report = "--report" not in args and "--no-report" not in flags and do_dialogs
 
+    # timestamped log in data/logs/export/ + a stall heartbeat (see _run_diag)
+    log_path = D.start_run_log("export")
+    D.Heartbeat().__enter__()  # daemon thread, ends with the process
+    D.step("connect to CDP + login check")
+
     async with async_playwright() as pw:
         b = await pw.chromium.connect_over_cdp(CDP)
         ctx = b.contexts[0]
@@ -390,9 +428,14 @@ async def main() -> int:
                     ctx.pages[0])
         logged_in = await page.evaluate(
             "(()=>{if(document.querySelector('input[type=password]'))return false;"
+            # a dead session keeps the old page under a "Session expired!"
+            # banner - see start_pmcp.sh SESSION_EXPIRED_JS
+            "if([...document.querySelectorAll('.v-Notification')].some("
+            "n=>/session expired/i.test(n.textContent||'')))return false;"
             "const t=document.body?document.body.innerText:'';"
             "return /Coachings/.test(t)&&/Logout/.test(t);})()")
         if not logged_in:
+            await D.snapshot(page, "fail", "not logged in")
             sys.exit("not logged in to PMCP — run ../start_pmcp.sh first.")
         cdp = await ctx.new_cdp_session(page)
         wid = (await cdp.send("Browser.getWindowForTarget"))["windowId"]
@@ -414,6 +457,7 @@ async def main() -> int:
         try:
             if auto_report:
                 print("--- phase 0: fetch report html ---")
+                D.step("phase 0: fetch report html")
                 t = time.monotonic()
                 try:
                     fetched = await RF.fetch_report_html(page, ctx, name, out_dir)
@@ -422,6 +466,8 @@ async def main() -> int:
                     report = str(report_path)
                     print(f"  fetched -> {report_path}")
                     if not await RF.enter_edit_view(page, name):
+                        if await S.session_expired(page):
+                            sys.exit(f"fetched the Report, then {S.EXPIRED_HINT}.")
                         sys.exit(f"fetched the Report but could not re-enter {name!r}'s "
                                  f"Edit view afterward — rerun.")
                 except SystemExit:
@@ -429,12 +475,15 @@ async def main() -> int:
                 except Exception as e:  # noqa: BLE001
                     print(f"  ! auto-fetch failed ({e!r}) — continuing without a Report HTML")
                     if not await RF.enter_edit_view(page, name):
+                        if await S.session_expired(page):
+                            sys.exit(f"Report auto-fetch failed: {S.EXPIRED_HINT}.")
                         sys.exit(f"Report auto-fetch failed AND could not get back into "
                                  f"{name!r}'s Edit view — rerun.")
                 timings["phase0_report"] = time.monotonic() - t
 
             if do_dialogs:
                 print("--- phase 1: micro dialogs ---")
+                D.step("phase 1: micro dialogs")
                 t = time.monotonic()
                 await _widen_for_menubar(page, cdp, wid)
                 md, nodes = await sweep_micro_dialogs(page, cdp, wid)
@@ -446,6 +495,7 @@ async def main() -> int:
 
             if do_variables:
                 print("--- phase 2: variables ---")
+                D.step("phase 2: variables")
                 t = time.monotonic()
                 bundle["variables"] = await sweep_variables_phase(page)
                 timings["phase2_variables"] = time.monotonic() - t
@@ -454,12 +504,14 @@ async def main() -> int:
 
             if report and do_dialogs:
                 print("--- phase 3: enrich from Report HTML ---")
+                D.step("phase 3: enrich from Report HTML")
                 t = time.monotonic()
                 enrich_bundle.enrich_dict(bundle, Path(report))
                 timings["phase3_enrich"] = time.monotonic() - t
 
             if do_rules:
                 print("--- phase 4: rules ---")
+                D.step("phase 4: rules")
                 t = time.monotonic()
                 await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
                     "left": 0, "top": 0, "width": 2400, "height": 1600,
@@ -468,6 +520,12 @@ async def main() -> int:
                 bundle["rules"] = await sweep_rules(
                     page, open_modals="--no-modals" not in flags)
                 timings["phase4_rules"] = time.monotonic() - t
+        except SystemExit as e:
+            await D.snapshot(page, "fail", str(e.code))
+            raise
+        except Exception as e:  # noqa: BLE001
+            await D.snapshot(page, "fail", repr(e))
+            raise
         finally:
             await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": orig})
 
@@ -482,7 +540,8 @@ async def main() -> int:
     elapsed = time.monotonic() - t0
     bundle["run"] = {"seconds": round(elapsed, 1),
                      "phaseSeconds": {k: round(v, 1) for k, v in timings.items()},
-                     "finishedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+                     "finishedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                     "log": str(log_path)}
     if not explicit_out and any(m.get("error") for m in bundle["microDialogs"]):
         # make a partial export obvious to anyone who picks the file up later
         out_path = out_path.with_name(out_path.stem + "_PARTIAL.json")

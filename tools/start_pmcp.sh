@@ -139,9 +139,22 @@ def totp(secret, digits=6, period=30, at=None):
     return str(code % (10 ** digits)).zfill(digits)
 
 
+# An expired session leaves the old admin page fully rendered (Coachings,
+# Logout, the open coaching...) under a red Vaadin system notification
+# "Session expired!". Checking the page text alone therefore reports
+# "logged in" on a dead session. Confirmed live 2026-09-24: this check said
+# "already logged in" while the banner was up, and a Loom write run
+# half-applied against that dead session.
+SESSION_EXPIRED_JS = r"""
+() => [...document.querySelectorAll('.v-Notification')]
+        .some(n => /session expired/i.test(n.textContent || ''))
+"""
+
 LOGGED_IN_JS = r"""
 () => {
   if (document.querySelector('input[type=password]')) return false;
+  if ([...document.querySelectorAll('.v-Notification')]
+        .some(n => /session expired/i.test(n.textContent || ''))) return false;
   const t = (document.body ? document.body.innerText : '');
   return /Coachings/.test(t) && /Logout/.test(t);
 }
@@ -259,6 +272,10 @@ async def do_login(apw, user, pw, secret, url) -> int:
 
         if await page.evaluate(LOGGED_IN_JS):
             log("already logged in"); return 0
+        if await page.evaluate(SESSION_EXPIRED_JS):
+            # the stale page has no login form - reload to get a fresh one
+            log("session expired - reloading to get a fresh login form")
+            await page.goto(url, wait_until="domcontentloaded")
         if not (user and pw):
             print("PMCP_USERNAME / PMCP_PASSWORD not set in .env — log in by "
                   "hand in the browser.", file=sys.stderr); return 2

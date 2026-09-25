@@ -54,9 +54,16 @@ async def enter_edit_view(page, coaching_name: str) -> bool:
     if not await edit.count():
         return False
     await edit.first.click()
-    await page.wait_for_timeout(2000)
-    body = await page.evaluate("() => document.body.innerText")
-    return f'Coaching "{coaching_name}"' in body
+    # poll, don't sleep-once: on 2026-09-25 the editor took >2s to render its
+    # 'Coaching "..."' header, and a single fixed 2s check reported failure
+    # while the browser was in fact in the Edit view (killed an export).
+    want = f'Coaching "{coaching_name}"'
+    for _ in range(40):
+        await page.wait_for_timeout(500)
+        body = await page.evaluate("() => document.body.innerText")
+        if want in body:
+            return True
+    return False
 
 
 async def fetch_report_html(page, ctx, coaching_name: str, dl_dir: Path,

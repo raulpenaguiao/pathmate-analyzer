@@ -92,6 +92,13 @@ def enrich_dict(bundle: dict, report_html: Path) -> dict:
     for lst in nodes_by_md.values():
         lst.sort(key=lambda n: n["order"])
 
+    # stable cross-export names (uids are positional, see export_coaching);
+    # backfilled here so pre-2026-09-24 exports get them on re-enrich too
+    for md in bundle["microDialogs"]:
+        md.setdefault("path", " / ".join(md.get("folderPath", []) + [md["name"]]))
+        for n in nodes_by_md.get(md["uid"], []):
+            n.setdefault("dialogPath", md["path"])
+
     merged, empty, unresolved = 0, 0, []
     for md in bundle["microDialogs"]:
         bnodes = nodes_by_md.get(md["uid"], [])

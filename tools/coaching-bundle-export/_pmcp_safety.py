@@ -51,6 +51,30 @@ TITLE_JS = r"""
 """
 
 
+SESSION_EXPIRED_JS = r"""
+() => [...document.querySelectorAll('.v-Notification')]
+        .some(n => /session expired/i.test(n.textContent || ''))
+"""
+
+
+async def session_expired(page) -> bool:
+    """True if PMCP's red "Session expired!" system notification is up. A
+    dead session keeps the old page fully rendered underneath, so every
+    other check still looks fine and the next click just silently fails
+    (confirmed live 2026-09-24/25; a Loom write run half-applied and an
+    export died re-entering the Edit view). Check this whenever a step
+    fails, so the error names the real cause."""
+    try:
+        return bool(await page.evaluate(SESSION_EXPIRED_JS))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+EXPIRED_HINT = ("the PMCP session EXPIRED (red 'Session expired!' banner) — "
+                "run tools/start_pmcp.sh to log in again, re-open the coaching "
+                "-> Edit (Monitoring off), then rerun")
+
+
 class WrongCoachingError(RuntimeError):
     """Raised when the CDP-attached tab is not on the expected coaching."""
 
