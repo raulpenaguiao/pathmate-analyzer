@@ -27,7 +27,7 @@ Prints total run time.
 
   export_coaching.py [OUT.json] [--report REPORT.html] [--no-report]
                      [--dialogs-only] [--rules-only] [--no-modals]
-                     [--no-variables] [--update-baseline]
+                     [--no-variables] [--update-baseline] [--resolve-jumps]
 
 Phase 0 clicks "Report" on the Coachings list, which is a native Chrome
 FILE DOWNLOAD, not a page navigation or popup — confirmed live 2026-09-14,
@@ -250,6 +250,72 @@ async def sweep_variables_phase(page) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# phase 3b — resolve ambiguous jump-to-message targets live
+# ---------------------------------------------------------------------------
+
+async def resolve_jumps_live(page, cdp, wid, bundle: dict) -> tuple[int, int]:
+    """The Report names a jump target only by its text, so jumps to empty
+    anchor messages or duplicate-text messages stay ambiguous after enrich
+    (14 on ALEX, 2026-09-25). Read those few live from the branch's own
+    'Edit rule:' window (DN.read_jump_selection, read-only) and accept the
+    answer only if it is one of the Report's candidates. Opening a branch
+    rule and closing it is the same no-op re-save as phase 4.
+    Returns (resolved, still_unresolved)."""
+    import _dialogs_nav as DN
+    mds = {m["uid"]: m for m in bundle["microDialogs"]}
+    by_md: dict[str, list] = {}
+    for n in bundle["nodes"]:
+        by_md.setdefault(n["microDialogUid"], []).append(n)
+    todo = []  # (md, node, branch_index, key)
+    for n in bundle["nodes"]:
+        for bi, br in enumerate(n.get("branches") or ()):
+            for key in ("jumpMessageIfTrue", "jumpMessageIfFalse"):
+                if isinstance(br.get(key), dict) and br[key].get("unresolved"):
+                    todo.append((mds[n["microDialogUid"]], n, bi, key))
+    resolved = 0
+    for md, node, bi, key in todo:
+        labels = md["folderPath"] + [md["name"]]
+        label = "Jump to dialog message if " + ("TRUE" if key.endswith("True") else "FALSE")
+        tag = f"{md['path']} row {node['order']} rule {bi} {label[-5:]}"
+        D.step(f"phase 3b: {tag}")
+        br = node["branches"][bi]
+        try:
+            prev = await M.table_signature(page)
+            await _navigate_retrying(page, cdp, wid, labels, tag)
+            await M.wait_round_trip(page)
+            if await M.wait_dialog_ready(page, labels, prev):
+                await M.wait_dialog_ready(page, labels, "")
+            if not await DN.open_row_editor(page, node["order"]):
+                raise RuntimeError("decision point editor did not open")
+            dpw = page.locator(".v-window").last
+            count = await DN.dp_expand_all(page, dpw)
+            if count != len(node["branches"]):
+                raise RuntimeError(f"{count} rules on screen, Report has {len(node['branches'])}")
+            await DN.dp_open_branch_rule(page, dpw, bi)
+            sel = await DN.read_jump_selection(page, page.locator(".v-window").last, label)
+        except Exception as e:  # noqa: BLE001
+            sel, err = None, e
+        else:
+            err = None
+        finally:
+            await R.close_windows(page)
+        msgs = [x for x in sorted(by_md[md["uid"]], key=lambda x: x["order"])
+                if x["type"] != "decision"]
+        uid = (msgs[sel["index"]]["uid"]
+               if sel and sel.get("index") is not None and 0 <= sel["index"] < len(msgs) else None)
+        if uid and uid in br[key]["candidates"]:
+            br[key] = uid
+            br.setdefault("resolvedLive", []).append(key)
+            resolved += 1
+            print(f"  jump resolved: {tag} -> {uid}")
+        else:
+            br[key]["liveRead"] = {"selection": sel, "error": repr(err) if err else None}
+            print(f"  ~ jump still ambiguous: {tag} (live read {sel or err!r}, "
+                  f"not one of the Report's candidates)")
+    return resolved, len(todo) - resolved
+
+
+# ---------------------------------------------------------------------------
 # phase 4 — rules
 # ---------------------------------------------------------------------------
 
@@ -359,6 +425,13 @@ def coherence_check(bundle: dict, report_html: str | None) -> dict:
         warnings.append(f"TEXT != REPORT in {len(mism)} dialog(s) - swept rows "
                         f"belong to another dialog: "
                         + "; ".join(f"{u['name']} ({u['reason'].split(' - ')[0]})" for u in mism))
+
+    amb = sum(1 for n in bundle.get("nodes", []) for br in n.get("branches") or ()
+              for k in ("jumpMessageIfTrue", "jumpMessageIfFalse")
+              if isinstance(br.get(k), dict))
+    if amb:
+        warnings.append(f"{amb} decision-branch jump target(s) still ambiguous "
+                        f"(see phase 3b)")
 
     html_vs_sweep = None
     if report_html:
@@ -570,6 +643,14 @@ async def main() -> int:
                 t = time.monotonic()
                 enrich_bundle.enrich_dict(bundle, Path(report))
                 timings["phase3_enrich"] = time.monotonic() - t
+                # opt-in until it is stable on long dialogs (row virtualization)
+                if "--resolve-jumps" in flags and "--no-modals" not in flags:
+                    print("--- phase 3b: resolve ambiguous jump targets live ---")
+                    D.step("phase 3b: jump targets")
+                    t = time.monotonic()
+                    ok_n, left = await resolve_jumps_live(page, cdp, wid, bundle)
+                    print(f"  {ok_n} jump target(s) resolved live, {left} still ambiguous")
+                    timings["phase3b_jumps"] = time.monotonic() - t
 
             if do_rules:
                 print("--- phase 4: rules ---")

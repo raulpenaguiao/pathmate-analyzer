@@ -302,3 +302,88 @@ async def set_branch_fields(page, rule_window, comment: str, rule_x: str,
         result["stop"] = await set_checkbox_by_label(
             page, rule_window, "Stop this complete micro dialog after this rule if rule result is TRUE", True)
     return result
+
+
+# ---------------------------------------------------------------------------
+# Read-only helpers (2026-09-25): resolve decision-branch jump targets live
+# ---------------------------------------------------------------------------
+
+async def dp_expand_all(page, dp_window, max_rounds: int = 8) -> int:
+    """Expand every node of a decision point's rule tree. Child rules (AND
+    logic, see enrich._nest_branches) are only rendered once their parent is
+    expanded, so a collapsed tree hides branches that the Report lists
+    (confirmed live 2026-09-25 on Hello's "Jump to the end of the dialog":
+    1 node shown, 2 after expanding). Returns the final node count, in the
+    same pre-order as the Report's branch list."""
+    count = await dp_branch_count(dp_window)
+    for _ in range(max_rounds):
+        for i in range(count):
+            if await dp_select_branch(page, dp_window, i):
+                await page.keyboard.press("ArrowRight")
+                await page.wait_for_timeout(350)
+        new = await dp_branch_count(dp_window)
+        if new == count:
+            return count
+        count = new
+    return count
+
+
+JUMP_POPUP_JS = r"""
+() => {
+  const p = document.querySelector('.v-filterselect-suggestpopup');
+  if (!p) return null;
+  const items = [...p.querySelectorAll('.gwt-MenuItem')]
+    .map(e => ({ text: e.textContent.replace(/\s+/g, ' ').trim(),
+                 selected: e.className.includes('gwt-MenuItem-selected') }));
+  const st = (p.querySelector('.v-filterselect-status') || {}).textContent || '';
+  const m = st.match(/(\d+)-(\d+)\/(\d+)/);
+  return { items, first: m ? +m[1] : 1, total: m ? +m[3] : items.length };
+}
+"""
+
+
+async def read_jump_selection(page, rule_window, label: str) -> dict | None:
+    """Open the 'Jump to dialog message if TRUE/FALSE' dropdown (`label`) of
+    a branch's 'Edit rule:' window READ-ONLY, report the highlighted entry,
+    and close it again with Escape (no selection is made).
+
+    The dropdown lists the dialog's messages in order as '[comment] text',
+    with the current target highlighted. The displayed value alone is useless
+    for anchor messages (every empty one shows '(not set)'), but the
+    highlighted entry's POSITION identifies the exact message. Returns
+    {'value', 'text', 'index'} where index is the 0-based position among
+    real entries (the leading blank 'no target' entry excluded), or None
+    when nothing is selected."""
+    labels = rule_window.locator(".v-label, .v-caption")
+    fss = rule_window.locator(".v-filterselect")
+    n = await fss.count()
+    # the filterselect sits on the same row as its label
+    lab = labels.filter(has_text=label).first
+    if not await lab.count():
+        return None
+    lbox = await lab.bounding_box()
+    fs = None
+    for i in range(n):
+        box = await fss.nth(i).bounding_box()
+        if box and lbox and abs(box["y"] - lbox["y"]) < 20:
+            fs = fss.nth(i)
+            break
+    if fs is None:
+        return None
+    value = await fs.locator(".v-filterselect-input").input_value()
+    if not value.strip():
+        return {"value": "", "text": None, "index": None}
+    await fs.locator(".v-filterselect-button").click()
+    await page.wait_for_timeout(1200)
+    pop = await page.evaluate(JUMP_POPUP_JS)
+    await page.keyboard.press("Escape")
+    await page.wait_for_timeout(400)
+    if not pop:
+        return None
+    sel = next((k for k, it in enumerate(pop["items"]) if it["selected"]), None)
+    if sel is None:
+        return None
+    # the first page starts with the blank 'no target' entry
+    blank = 1 if pop["first"] == 1 and pop["items"] and not pop["items"][0]["text"] else 0
+    index = (pop["first"] - 1) + sel - blank
+    return {"value": value, "text": pop["items"][sel]["text"], "index": index}

@@ -438,7 +438,7 @@ async def close_windows(page) -> int:
                     if label in ("Close", "OK"):
                         committed += 1
                 else:
-                    print(f"  ! close_windows: {label!r} stuck 'not enabled' "
+                    print(f"  ~ close_windows (retrying, not an error yet): {label!r} stuck 'not enabled' "
                           f"past 4x8s — Escape + outer retry")
                     await page.keyboard.press("Escape")
                 clicked = True

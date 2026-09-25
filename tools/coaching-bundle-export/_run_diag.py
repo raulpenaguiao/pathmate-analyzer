@@ -193,7 +193,10 @@ async def snapshot(page, tag: str, reason: str = "") -> str:
                  at=time.strftime("%Y-%m-%dT%H:%M:%S%z"))
     try:
         (d / f"{stem}.json").write_text(json.dumps(state, indent=2, ensure_ascii=False))
-        await page.screenshot(path=str(d / f"{stem}.png"))
+        # clip: a full screenshot of a 12000px-wide window timed out (30s) on
+        # 2026-09-25; the top-left 2400x1400 holds everything diagnostic
+        await page.screenshot(path=str(d / f"{stem}.png"), timeout=15000,
+                              clip={"x": 0, "y": 0, "width": 2400, "height": 1400})
     except Exception as e:  # noqa: BLE001
         print(f"  ! snapshot incomplete: {e!r}")
     print(f"  !! [{tag}] during [{_state['step']}]: {cause}")
