@@ -35,6 +35,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 import urllib.request
 from collections import OrderedDict
 from pathlib import Path
@@ -107,6 +108,10 @@ Write {need} ADDITIONAL variant(s). Every new variant must:
 - write ro-RO that sounds native, not translated: swap English idioms for real
   Romanian phrasing, use no English loanwords ("reminder"), and never render a
   figure of speech word-for-word
+- be a DIFFERENT wording in BOTH languages: no en-GB and no ro-RO may repeat
+  an existing variant's wording (or another new one's). Distinct English
+  lines that translate to the same Romanian sentence are NOT allowed - vary
+  the ro-RO too
 
 Return ONLY a JSON array of exactly {need} objects: {{"en-GB": "...", "ro-RO": "..."}}
 """
@@ -224,6 +229,34 @@ def build_prompt(req: dict) -> str:
                          need=req["needVariants"], existing=existing)
 
 
+def _norm(text: str) -> str:
+    """Comparison key for duplicate wordings: case-, diacritic-, punctuation-
+    and emoji-insensitive (so 's-cedilla' vs 's-comma' or a trailing '!' don't
+    hide a repeat)."""
+    t = unicodedata.normalize("NFKD", text or "").casefold()
+    t = "".join(ch for ch in t if not unicodedata.combining(ch))
+    return " ".join(re.sub(r"[^\w$]+", " ", t).split())
+
+
+def duplicate_reason(v: dict, existing_en, existing_ro, taken_en, taken_ro) -> str:
+    """'' if the variant's en-GB and ro-RO are both new wordings for this pool,
+    else why not. `taken_*` are the normalized wordings already accepted from
+    this same batch. Existing v01 content has shipped such repeats (e.g. two
+    spirometry variants sharing one ro-RO), so generated ones must not add more."""
+    en, ro = _norm(v.get("en-GB", "")), _norm(v.get("ro-RO", ""))
+    ex_en = {_norm(x) for x in existing_en if x.strip()}
+    ex_ro = {_norm(x) for x in existing_ro if x.strip()}
+    if en and en in ex_en:
+        return "duplicate: en-GB repeats an existing variant"
+    if ro and ro in ex_ro:
+        return "duplicate: ro-RO repeats an existing variant"
+    if en and en in taken_en:
+        return "duplicate: en-GB repeats another generated variant"
+    if ro and ro in taken_ro:
+        return "duplicate: ro-RO repeats another generated variant"
+    return ""
+
+
 def expand(requests, provider, limit, dry=False, progress=None, api_key=None):
     """Process the first `limit` request rows. `progress(i, n, pool, status)`
     is called before and after each pool. Returns (generated_rows, prompt_log).
@@ -267,16 +300,28 @@ def expand(requests, provider, limit, dry=False, progress=None, api_key=None):
             except Exception as e:  # noqa: BLE001 -- one bad pool must not abort the run
                 variants = []
                 status = f"failed: {e!r}"
+        existing_en = (req.get("existing_enGB") or "").split("\n")
+        existing_ro = (req.get("existing_roRO") or "").split("\n")
+        taken_en, taken_ro = set(), set()
         for j in range(need):
             v = variants[j] if j < len(variants) else {}
             if not isinstance(v, dict):
                 v = {}
+            row_status = status
+            if v:
+                # post-check: a repeated wording is kept for review but not
+                # "ok", so rgroup_apply (status == "ok" only) never writes it
+                row_status = duplicate_reason(v, existing_en, existing_ro,
+                                              taken_en, taken_ro) or "ok"
+                if row_status == "ok":
+                    taken_en.add(_norm(v.get("en-GB", "")))
+                    taken_ro.add(_norm(v.get("ro-RO", "")))
             gen_rows.append({
                 "pool": pool, "randomisationGroup": req["randomisationGroup"],
                 "microDialog": req["microDialog"], "folderPath": req["folderPath"],
                 "variantIndex": j + 1,
                 "en-GB": v.get("en-GB", ""), "ro-RO": v.get("ro-RO", ""),
-                "status": "ok" if v else status,
+                "status": row_status,
             })
         if progress:
             progress(i, n, pool, status)
@@ -315,8 +360,9 @@ def main() -> None:
         w.writerows(gen_rows)
     prompts.write_text("\n".join(prompt_log))
     ok = sum(1 for r in gen_rows if r["status"] == "ok")
+    dup = sum(1 for r in gen_rows if r["status"].startswith("duplicate"))
     print(f"\nprovider={provider}  pools processed={min(limit, len(reqs))}/{len(reqs)}  "
-          f"variants ok={ok}/{len(gen_rows)}")
+          f"variants ok={ok}/{len(gen_rows)}  duplicates rejected={dup}")
     print(f"wrote {out} and {prompts}")
     if dry:
         print(f"dry run — no API calls; review {prompts.name}, then rerun with a key")

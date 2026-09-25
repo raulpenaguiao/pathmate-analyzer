@@ -198,6 +198,11 @@ def print_plan(plan):
 # --------------------------------------------------------------------------
 async def run_apply(plan, args, meta):
     sys.path.insert(0, str(HERE.parent / "coaching-bundle-export"))
+    import _browser_lock as BL
+    try:  # one live tool on the shared browser at a time; released at exit
+        BL.claim("rgroup_apply")
+    except BL.BrowserBusy as e:
+        sys.exit(str(e))
     from playwright.async_api import async_playwright
     import _menu_nav as S
     import _pmcp_safety as safety
