@@ -114,5 +114,5 @@ New variables: `$lastDoseTakenAt` (number, reset daily), `$hyperparameterSpiroAf
 
 ## Also carried into the workbench build
 
-- **Spirometry Yes/No buttons.** Rows 3–6 of the v02 dialog store answer options on one line (`Yes:1 No:0`). Enter them as two lines (`Yes:1` newline `No:0`) when building on the workbench. The fix on the old sandbox was dropped (never applied).
+- **Spirometry Yes/No buttons.** Rows 3–6 of the v02 dialog, plus row 15 (Loom's stray copy, which Loom will reuse for the "close by" variant, so leave it in place), store answer options on one line (`Yes:1 No:0`). Enter them as two lines (`Yes:1` newline `No:0`) when building on the workbench. The fix on the old sandbox was dropped (never applied).
 - **Remove v01's recall setting** from the FAQ and air-quality dialogs before wiring them up.
