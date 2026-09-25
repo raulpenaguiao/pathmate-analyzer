@@ -14,7 +14,17 @@ dropped: Mason's spirometry Yes/No fix and Loom's Stage3 write.
 
 Due today:
 - [ ] **Clean export**, with a log that has zero errors (Warden, **top
-      priority**).
+      priority**). **12:40 progress:**
+      - Root cause of the stale-table and missing-row errors fixed
+        (`5a8c461`): the sweep read the table before PMCP had swapped in
+        the new dialog.
+      - Verified live on all 9 dialogs that had failed.
+      - Also fixed: menu-click retries, dropped folders now fail loudly,
+        and expired sessions are detected on every retry path.
+      - A full verifying export is running now (~17 min).
+      - The 14 ambiguous jump targets: an opt-in live resolver exists
+        (`--resolve-jumps`, `4bd935a`), but it isn't stable yet on long
+        dialogs.
 - [ ] **r_ steps 0-3 rerun** (Loom): export .json → r_ table → LLM
       requests → run the prompt. Step 4 (apply) is **test only**. Output:
       the CSV for Raul's advisor. Needs Raul's API key.
