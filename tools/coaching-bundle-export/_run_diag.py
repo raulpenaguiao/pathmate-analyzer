@@ -109,7 +109,11 @@ class Heartbeat:
     def _run(self):
         while not self._stop.wait(10):
             now = time.time()
-            if now - _state["last_out"] >= self.quiet_s:
+            # only when the SAME step has been running that long, not merely
+            # when output is sparse (the sweep prints every 20 dialogs, which
+            # made normal progress look stuck on 2026-09-25)
+            if (now - _state["last_out"] >= self.quiet_s
+                    and now - _state["step_since"] >= self.quiet_s):
                 since = time.strftime("%H:%M:%S", time.localtime(_state["step_since"]))
                 print(f"  .. still on [{_state['step']}] since {since} "
                       f"({now - _state['step_since']:.0f}s, no output for "
@@ -166,6 +170,11 @@ def diagnose(state: dict) -> str:
         return "on the Coachings LIST, not inside a coaching's Edit view"
     if not state.get("coachingHeader"):
         return "not inside any coaching's Edit view"
+    if state.get("menubarItems"):
+        # everything checks out - seen 2026-09-25 on 3 click/popup timeouts
+        return ("page looks HEALTHY (logged in, Edit view, full menubar, no "
+                "modal) - a transient click/popup timeout in the Vaadin UI; "
+                "retrying the step normally clears it")
     return "no known failure signature - see the screenshot"
 
 

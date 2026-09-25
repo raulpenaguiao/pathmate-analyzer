@@ -134,6 +134,29 @@ async def _widen_for_menubar(page, cdp, wid) -> None:
              "session, or set PMCP_WIDE higher.")
 
 
+async def _navigate_retrying(page, cdp, wid, labels, label: str, tries: int = 3):
+    """navigate_and_select with retries. Menu clicks/popups time out now and
+    then on a perfectly healthy page (2026-09-25: 3 of 87 dialogs lost to
+    single-shot click timeouts - the failure snapshots showed nothing wrong).
+    An overflowed menubar is re-widened first (see MenuOverflowError)."""
+    for attempt in range(1, tries + 1):
+        try:
+            await M.navigate_and_select(page, labels)
+            return
+        except M.MenuOverflowError as e:
+            print(f"  {label}  {e} — re-widening (try {attempt}/{tries})")
+            await _widen_for_menubar(page, cdp, wid)
+            if attempt == tries:
+                raise
+        except Exception as e:  # noqa: BLE001
+            if attempt == tries:
+                raise
+            print(f"  {label}  navigation failed (try {attempt}/{tries}): "
+                  f"{str(e).splitlines()[0][:120]} — retrying")
+            await M.close_menus(page)
+            await page.wait_for_timeout(1000 * attempt)
+
+
 async def sweep_micro_dialogs(page, cdp, wid) -> tuple[list[dict], list[dict]]:
     if not await M.ensure_micro_dialogs(page):
         sys.exit("Micro Dialogs menu not on screen — open the coaching's Edit "
@@ -141,6 +164,10 @@ async def sweep_micro_dialogs(page, cdp, wid) -> tuple[list[dict], list[dict]]:
     targets = await M.all_targets(page)
     print(f"  {len(targets)} menu targets "
           f"({sum(t['isFolder'] for t in targets)} folders)")
+    if M.DISCOVERY_ERRORS:
+        print(f"  ! {len(M.DISCOVERY_ERRORS)} folder(s) could not be expanded - "
+              f"their dialogs are MISSING: "
+              + "; ".join(d["path"] for d in M.DISCOVERY_ERRORS))
     micro_dialogs, nodes = [], []
     n_errors = 0
     for seq, t in enumerate(targets):
@@ -148,14 +175,7 @@ async def sweep_micro_dialogs(page, cdp, wid) -> tuple[list[dict], list[dict]]:
         md_uid = f"md-{seq:03d}"
         D.step(f"phase 1: dialog {seq}/{len(targets)} {name}")
         try:
-            try:
-                await M.navigate_and_select(page, t["labels"])
-            except M.MenuOverflowError as e:
-                # the bar collapsed mid-run (see MenuOverflowError): re-widen
-                # and retry once rather than lose this and every later dialog
-                print(f"  [{seq}] {name}  {e} — re-widening, retrying once")
-                await _widen_for_menubar(page, cdp, wid)
-                await M.navigate_and_select(page, t["labels"])
+            await _navigate_retrying(page, cdp, wid, t["labels"], f"[{seq}] {name}")
             await M.wait_round_trip(page)
             total, seen, missing = await M.sweep_table(page)
         except Exception as e:  # noqa: BLE001
@@ -288,6 +308,13 @@ def coherence_check(bundle: dict, report_html: str | None) -> dict:
     # on 2026-09-18 30 of them failed, and the only warnings were "nodesTotal
     # down 33%" etc., which read like a content change rather than a partial
     # export. That export then got used downstream.
+    lost = bundle.get("discoveryErrors") or []
+    if lost:
+        ok = False
+        warnings.append(f"PARTIAL EXPORT: {len(lost)} menu folder(s) could not "
+                        f"be expanded, so every dialog under them is missing: "
+                        + "; ".join(d["path"] for d in lost))
+
     failed = [m for m in bundle.get("microDialogs", []) if m.get("error")]
     if failed:
         ok = False
@@ -506,6 +533,7 @@ async def main() -> int:
                 md, nodes = await sweep_micro_dialogs(page, cdp, wid)
                 bundle["microDialogs"] = md
                 bundle["nodes"] = nodes
+                bundle["discoveryErrors"] = list(M.DISCOVERY_ERRORS)
                 timings["phase1_dialogs"] = time.monotonic() - t
             else:
                 bundle["microDialogs"], bundle["nodes"] = [], []
@@ -559,7 +587,8 @@ async def main() -> int:
                      "phaseSeconds": {k: round(v, 1) for k, v in timings.items()},
                      "finishedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                      "log": str(log_path)}
-    if not explicit_out and any(m.get("error") for m in bundle["microDialogs"]):
+    if not explicit_out and (any(m.get("error") for m in bundle["microDialogs"])
+                             or bundle.get("discoveryErrors")):
         # make a partial export obvious to anyone who picks the file up later
         out_path = out_path.with_name(out_path.stem + "_PARTIAL.json")
     out_path.parent.mkdir(parents=True, exist_ok=True)

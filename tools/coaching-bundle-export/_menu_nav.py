@@ -228,10 +228,17 @@ async def read_children(page, depth: int) -> list[tuple[str, bool]]:
     return out
 
 
+# folders that still failed to expand after retries in the last discover()
+# run - their dialogs are missing from the result. Callers must check this.
+DISCOVERY_ERRORS: list[dict] = []
+
+
 async def discover(page) -> list[dict]:
     """Recursive DFS where every folder is opened by a fresh re-navigation from
-    the bar (no lingering popups -> no accidental parent collapse)."""
+    the bar (no lingering popups -> no accidental parent collapse). Folders
+    that fail even after retries are listed in DISCOVERY_ERRORS."""
     leaves: list[dict] = []
+    DISCOVERY_ERRORS.clear()
 
     async def expand(labels: list[str]):
         depth = await open_folder_path(page, labels)
@@ -242,13 +249,25 @@ async def discover(page) -> list[dict]:
             if lbl in ("", "·", "►", "."):
                 continue
             if folder:
-                try:
-                    await expand(labels + [lbl])
-                except Exception as e:  # noqa: BLE001
-                    print(f"  ! folder {' / '.join(labels+[lbl])}: {e!r}")
-                    await close_menus(page)
+                await expand_retrying(labels + [lbl])
             else:
                 leaves.append({"labels": labels + [lbl]})
+
+    async def expand_retrying(labels: list[str], tries: int = 3):
+        # a folder that fails to expand silently loses every dialog under it
+        # (2026-09-25: 3 dialogs vanished from an export on one flaky popup),
+        # so retry, and record a final failure for the caller to fail on
+        for attempt in range(1, tries + 1):
+            try:
+                await expand(labels)
+                return
+            except Exception as e:  # noqa: BLE001
+                await close_menus(page)
+                print(f"  ! folder {' / '.join(labels)} (try {attempt}/{tries}): {e!r}")
+                if attempt == tries:
+                    DISCOVERY_ERRORS.append({"path": " / ".join(labels), "error": repr(e)})
+                else:
+                    await page.wait_for_timeout(800 * attempt)
 
     bar = await bar_loc(page)
     n = await bar.count()
@@ -264,11 +283,7 @@ async def discover(page) -> list[dict]:
         if ABORT_FILE.exists():
             break
         if folder:
-            try:
-                await expand([lbl])
-            except Exception as e:  # noqa: BLE001
-                print(f"  ! top folder {lbl!r}: {e!r}")
-                await close_menus(page)
+            await expand_retrying([lbl])
         else:
             leaves.append({"labels": [lbl]})
     await close_menus(page)
