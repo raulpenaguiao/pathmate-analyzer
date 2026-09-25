@@ -29,9 +29,10 @@ The rule of thumb: a daily task expires at the end of the day, a weekly or occas
 
 Accept the whole table, or name the exceptions.
 
-**D4. Does the reminder window stay?**
-- **A ★ Yes.** A reminder stops nagging after its window (3 h), and end of day/week only limits how long an *interrupted* dialog may come back.
-- B No. Interrupted *or* ignored, a dialog may return until its expiry. (Risk: this brings the pile-up back in a milder form.)
+**D4. A reminder that never got its turn within its window: what happens after the window closes?**
+Each reminder has two timers. The *window* is how late it may still make its **first** appearance (spirometry at 08:00 with a 3 h window may start until 11:00). The *expiry* is how long it may **come back after being interrupted** (end of day). D4 is only about a reminder that was kept waiting by other dialogs until its window closed and **never started**. Interrupted reminders come back until expiry either way, and ignored ones don't come back (D1, D2).
+- **A ★ Skip it for today.** Nothing is sent, and tomorrow starts fresh. A morning reminder never first appears in the evening.
+- B It may still start later, until the end of the day. No day is lost, but a morning spirometry prompt could land at 19:00 and push aside evening content (the v01 symptom).
 
 **D5. Two reminders of the same rank: strict waiting?**
 - **A ★ Strict.** Equal ranks never interrupt each other. With D1 = 30 min, the worst case is a 30-minute delay.

@@ -54,7 +54,7 @@ The *proposed* rows are Mason's defaults, following the same logic (daily task â
 
 ## Reminders keep their short window
 
-A reminder's own nagging still stops after its short window (e.g. 3 hours after the scheduled spirometry time, see [reminder-pattern.md](reminder-pattern.md)). The end-of-day/week expiry only governs how long an **interrupted** dialog may come back. *(Mason's default; Raul to confirm.)*
+Each reminder has two timers. The **window** (e.g. 3 h after the scheduled spirometry time, see [reminder-pattern.md](reminder-pattern.md)) is how late it may still make its *first* appearance. The **expiry** (end of day or week) is how long it may *come back after an interruption*. A reminder kept waiting by other dialogs until its window closes, never having started, is skipped for today *(D4, Mason's recommendation)*.
 
 ---
 ## Implementation
