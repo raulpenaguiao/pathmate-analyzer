@@ -17,7 +17,7 @@ Set by Raul, 2026-09-23/25. **A lower number means more important.**
 - **Onboarding.** It runs before any daily coaching starts.
 - **Greetings.** They are openers inside other dialogs, not scheduled on their own.
 - **The well-being check-in.** Not a priority, and never restarted.
-- **Development/test dialogs.** Being removed.
+- **Development/test dialogs.** Not part of production; most were already deleted in the Phase 2 prune.
 
 ## The collision rules
 
