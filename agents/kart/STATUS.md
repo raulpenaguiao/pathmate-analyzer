@@ -272,4 +272,21 @@ decisions listed above, with no new information, so no third push sent.
 - **Once all 6 have replied**: check `git status` for leftovers, then
   `git pull --ff-only`, then `git push`, then tell everyone.
 - Not being committed: `docs/coaching_categories_table.md`, pending
-  Raul's call on deleting it.
+  Raul's call on deleting it. **Update:** deleted on Raul's instruction.
+- Replies so far: herald `8712dc6`, warden `f2c040c` + `431553f`,
+  mirror `deac66d`, smith `604855d` + `58b7bb9`, mason `3da9a52`.
+  **Only Loom is left**; its `rgroup_apply.py` changes are still
+  uncommitted.
+
+## 2026-09-25 — JOURNAL READY: `agents/kart/journal_latest.md`
+
+The first cross-agent digest (Raul's new standing job). It covers the
+2026-09-23 restart → 09-25 ~08:45, with one section per agent: done,
+waiting on Raul, next. There's a "waiting on you" list of 8 items at the
+top. It's ready for Raul to publish. The next digest will cover only
+what happened after this one.
+
+Also, on Raul's instruction: mailed all 6 agents the rule to read mail
+only with `checkmail.sh --read`, send only with plain `mail.sh`, never
+use loops, `mv` or chains, and never ask Raul before reading mail.
+Progress Tree is at v13.

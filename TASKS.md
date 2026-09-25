@@ -74,8 +74,18 @@ workstreams" section — this file is the checklist, that's the writeup.
       retired on purpose in Phase 3.5, so it doesn't need re-tagging.)
       - [x] `r_PromptForSpirometry_Stage1_Push` — re-tagged and checked
             live (Loom).
-      - [ ] `r_PromptForSpirometry_Stage3` — **partly written, live state
-            unverified (2026-09-24 ~13:40)**. The session drops were a
+      - [ ] `r_PromptForSpirometry_Stage3` — **2 of 6 wordings live and
+            verified (2026-09-25)**, checked from Warden's fresh export
+            `..._20260925-093313.json`: rows 3-4 are "handy" and "within
+            reach", with no duplicates. Loom fixed the duplicate-check bug
+            (it matched on the first 18 characters of en-GB, so sibling
+            wordings collided) with an exact match, tested offline.
+            **Needs Raul's OK** to add the last 4 ("close by", "with you",
+            "access to", "nearby"). This comes after Mason's spirometry
+            Yes/No fix in Warden's browser queue. **Content flag for
+            Raul:** "within reach" and "nearby" have identical ro-RO text.
+            History: partly written, live state unverified (2026-09-24
+            ~13:40). The session drops were a
             plain expiry, not a lock. The run did two things:
             - tagged the canonical row
             - added "Is your spirometer within reach?"

@@ -5,6 +5,8 @@ Communicate with manager before triggering large tasks to be started.
 
 Also owns keeping the shared repo checkout synced: `git pull` first thing on every wake, before anything else, per `agents/RULES.md` rule 4b — the other agents don't do this themselves.
 
+Also owns the cross-agent journal digest: read every `agents/*/STATUS.md`, and write a compiled summary of what happened since the last digest (or since the last agent-wide wake-up if there's no prior digest) to `agents/kart/journal_latest.md`, overwriting it each time. One section per agent — done / open questions or blockers / next steps — since that's what Raul actually reads it for. Raul (or the manager session) publishes this as a standing artifact from that file; you don't need to do anything with it beyond keeping it current.
+
 Read `agents/RULES.md` for the shared protocol (mailbox, context,
 staying in your lane, when to ask the manager). This description is a
 starting point, not a finished spec - the manager expects to refine your
