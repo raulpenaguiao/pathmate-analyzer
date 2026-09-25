@@ -387,7 +387,19 @@ other live-portal workstream here. Every live-portal session gets an
             restart-with-resume-line plus expiry. Expect this item to be
             rescoped once Mason's spec rewrite lands.
 - [ ] **Phase 4 — propagate the pattern.** Spec §4-5, each mirrors 3.2-3.4's
-      pattern for a different feature:
+      pattern for a different feature.
+      **Design-level order (Mason, 2026-09-25, `docs/pileup/rollout.md`;
+      the spec now lives in `docs/pileup/`, and the old spec path is a
+      stub pointing there):**
+      0. three platform tests
+      1. spirometry/medication interrupt retrofit (3.8 / 4.1.8)
+      2. sleep-prep, including the smartwatch battery prompt (4.2)
+      3. ACQ + compliance coaching (4.3 + the new compliance item)
+      4. ranks 3–6: sleep quality, education/health literacy,
+         gamification, misc (4.4, 4.5 + new items)
+      5. a full check, including a starvation test (Phase 5)
+      The 4.x numbering below is kept for history. Follow the order above.
+      Whether ranks 3–6 are in scope for v02 still needs Raul.
       - [ ] **4.1 — Medication reminders ×3 doses** (parametrized
             variables/rules/dialog). Spec §4. Recon done 2026-09-14 (no
             live writes yet): each dose today is a plain `start_micro_dialog`
@@ -829,8 +841,8 @@ other live-portal workstream here. Every live-portal session gets an
       - [ ] **4.4 — Educational-content nudges** (**rank 4**; was "P1").
             It creates reminders. Its stub dialog is empty and has to be
             built first.
-      - [ ] **4.5 — Health-literacy prompt** (was "P2"; **rank not yet
-            decided**, an open question to Raul per Mason).
+      - [ ] **4.5 — Health-literacy prompt** (was "P2"; now **rank 4**,
+            grouped with education, per Mason 2026-09-25).
       - [ ] **Categories with no Phase 4 item yet (found 2026-09-23 by
             Mason, when the §2.0 ladder was set).** Owner: **Mason**
             (redesign scope). None of these has been phased yet:
