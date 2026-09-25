@@ -69,6 +69,7 @@ from pathlib import Path
 
 from playwright.async_api import async_playwright
 
+import _browser_lock as BL
 import _menu_nav as M
 import _pmcp_safety as S
 import _run_diag as D
@@ -425,6 +426,12 @@ async def main() -> int:
     do_variables = ("--no-variables" not in flags and "--rules-only" not in flags
                     and "--dialogs-only" not in flags)
     auto_report = "--report" not in args and "--no-report" not in flags and do_dialogs
+
+    # one tool on the shared browser at a time (see _browser_lock)
+    try:
+        BL.claim("export_coaching")
+    except BL.BrowserBusy as e:
+        sys.exit(str(e))
 
     # timestamped log in data/logs/export/ + a stall heartbeat (see _run_diag)
     log_path = D.start_run_log("export")
