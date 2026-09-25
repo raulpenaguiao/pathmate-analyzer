@@ -65,6 +65,37 @@ from _rgroups_files import latest
 HERE = Path(__file__).resolve().parent
 DATA_DIR = HERE.parents[1] / "data" / "rgroups"
 CDP = os.environ.get("PMCP_CDP", "http://127.0.0.1:9222")
+# Vaadin's top-level MenuBar collapses items past the visible width into a
+# `►` overflow popup that scripted clicks can't open (same issue
+# export_coaching.py's _widen_for_menubar works around, same PMCP_WIDE env
+# var and default). 3600 (this file's width until 2026-09-23) is fine for
+# top-level items positioned early, but a top item deep enough in the menu
+# (confirmed live: "Prompt patient to conduct daily spirometry", one of the
+# later top-level dialogs) sits right at that boundary - its button is
+# still found by caption match (so navigate_and_select doesn't fail with
+# "top X not found"), but clicking it never opens its popup, surfacing as
+# "popup 1 for X never opened" instead. Widening removes the ambiguity
+# rather than chasing where exactly the boundary sits.
+WIDE = int(os.environ.get("PMCP_WIDE", "12000"))
+
+
+def en_cell_matches(cell: str, en: str) -> bool:
+    """Does a grid "Message Text" cell ("en-GB: ... / ro-RO: ...") show this
+    en-GB text? Exact when the grid shows it whole; when the grid truncated it
+    ("..."), everything it does show must be a prefix of `en`. Replaces an
+    18-char prefix check that collided on sibling wordings ("Is your
+    spirometer close by?" vs "... within reach?"; seen live 2026-09-24)."""
+    en = en.strip()
+    m = re.search(r"en-GB:\s*(.*?)(?:\s+/\s+[a-z]{2}-[A-Z]{2}:|$)", cell, re.S)
+    shown = (m.group(1) if m else cell).strip()
+    # the grid can render an emoji as a literal "?", so "?" matches any char
+    pat = "".join("." if ch == "?" else re.escape(ch) for ch in shown)
+    for dots in ("...", "…"):
+        if shown.endswith(dots):
+            head = shown[: -len(dots)].rstrip()
+            hp = "".join("." if ch == "?" else re.escape(ch) for ch in head)
+            return bool(head) and re.match(hp, en, re.S) is not None
+    return bool(en) and re.fullmatch(pat, en, re.S) is not None
 
 
 def menu_path(meta_row) -> list[str]:
@@ -73,11 +104,53 @@ def menu_path(meta_row) -> list[str]:
     return segs + [meta_row["microDialog"]]
 
 
+def build_restore_plan(args):
+    """--restore-from mode: source variants from the COMMITTED
+    rgroups_table.csv (not the git-ignored rgroups_generated.csv) for one
+    pool that still exists at its old location, and point them at a new
+    dialog (--to-path) that has lost the group tag entirely — e.g. a
+    rebuilt dialog (Mason's rebuilds dropping `r_` tags on otherwise-kept
+    canonical wording is the recurring case this was written for, see
+    autochanges/2026-09-23-spirometry-retag.md). Every variant already
+    existed and was already reviewed live before; there is no LLM step
+    and no `status` column to filter on here."""
+    # prefer the committed deliverable (HERE/rgroups_table.csv) over a
+    # timestamped data/rgroups/ copy - it's the reviewed, checked-in source
+    # of truth; the timestamped copies are just rgroup_report.py's own
+    # auto-chain intermediates and may be stale or mid-flight.
+    table = HERE / "rgroups_table.csv"
+    if not table.exists():
+        table = latest(DATA_DIR, "rgroups_table", ".csv")
+    if not table or not table.exists():
+        sys.exit(f"no rgroups_table.csv found (looked in {HERE} and {DATA_DIR})")
+    print(f"using {table.name} (restore mode)")
+    rows = [r for r in csv.DictReader(table.open(encoding="utf-8"))
+            if r["pool"] == args.restore_from]
+    if not rows:
+        sys.exit(f"no rows for pool {args.restore_from!r} in {table.name}")
+    to_path = [s.strip() for s in args.to_path.split(" / ") if s.strip()]
+    group = rows[0]["randomisationGroup"]
+    dest_pool = f"{group} @ {to_path[-1]}"
+    seen_en, plan = set(), []
+    for r in rows:
+        en, ro = (r.get("en-GB") or "").strip(), (r.get("ro-RO") or "").strip()
+        if not en or en in seen_en:
+            continue
+        seen_en.add(en)
+        plan.append({"pool": dest_pool, "en": en, "ro": ro, "group": group,
+                     "path": to_path, "skip_existing": False})
+    if args.limit:
+        plan = plan[: args.limit]
+    return plan, {}
+
+
 def build_plan(args):
     """Read the most RECENTLY-RUN rgroups_generated_*.csv (from
     rgroup_expand.py) and turn every `ok` variant into a plan item. No
     review gate — everything generated is applied; `--limit` caps the
     count."""
+    if args.restore_from:
+        return build_restore_plan(args)
     generated = latest(DATA_DIR, "rgroups_generated", ".csv")
     if generated is None:
         sys.exit(f"no rgroups_generated_*.csv in {DATA_DIR} — run rgroup_expand.py first")
@@ -143,54 +216,12 @@ async def run_apply(plan, args, meta):
                      if "andomis" in h or "andomiz" in h), None)
 
     # the .v-table body is virtualized - only on-screen rows are in the DOM.
-    # scroll top-to-bottom, and place each rendered row by its pixel position
-    # within the scroll content (row_top - scroller_top + scrollTop) / rowHeight
-    # -- same technique as _menu_nav.sweep_table.
-    TABLE_JS = r"""
-    async () => {
-      const t = document.querySelector('.v-table');
-      if (!t) return { headers: [], rows: [] };
-      const headers = [...t.querySelectorAll('.v-table-header-cell .v-table-caption-container')]
-        .map(e => e.textContent.trim());
-      const sc = t.querySelector('.v-table-body-wrapper')
-        || t.querySelector('.v-scrollable')
-        || t.querySelector('.v-table-body').parentElement;
-      const first = t.querySelector('.v-table-body tr');
-      const rh = first ? first.offsetHeight || 24 : 24;
-      const map = new Map();
-      const grab = () => {
-        const base = sc.getBoundingClientRect().top;
-        t.querySelectorAll('.v-table-body tr').forEach(tr => {
-          const cells = [...tr.querySelectorAll('.v-table-cell-wrapper')].map(c => c.textContent.trim());
-          if (!cells.length) return;
-          const idx = Math.round((tr.getBoundingClientRect().top - base + sc.scrollTop) / rh);
-          if (idx >= 0) map.set(idx, cells);
-        });
-      };
-      const total = Math.max(Math.round(sc.scrollHeight / rh),
-                             t.querySelectorAll('.v-table-body tr').length);
-      sc.scrollTop = 0; await new Promise(r => setTimeout(r, 150)); grab();
-      const step = Math.max(rh * 3, 120);
-      let guard = 0;
-      while (sc.scrollTop + sc.clientHeight < sc.scrollHeight - 2 && guard++ < 2000) {
-        sc.scrollTop += step; await new Promise(r => setTimeout(r, 130)); grab();
-      }
-      sc.scrollTop = sc.scrollHeight; await new Promise(r => setTimeout(r, 200)); grab();
-      // fill any index still missing with a targeted scroll
-      for (let i = 0; i < total; i++) {
-        if (map.has(i)) continue;
-        sc.scrollTop = Math.max(0, i * rh - sc.clientHeight / 2);
-        await new Promise(r => setTimeout(r, 160)); grab();
-      }
-      const rows = [];
-      for (let i = 0; i < total; i++) rows.push(map.get(i) || []);
-      return { headers, rows };
-    }
-    """
-
+    # read_table_dense() (shared with _menu_nav.sweep_table) handles the
+    # scroll-and-accumulate itself, with the scrollable-check + trailing-
+    # blank trim this file's own TABLE_JS used to lack (see Warden's
+    # 2026-09-21 mail / autochanges/2026-09-21-shared-read-table-dense-primitive.md).
     async def read_table(page):
-        d = await page.evaluate(TABLE_JS)
-        return d["headers"], d["rows"]
+        return await S.read_table_dense(page)
 
     def grp_rows(rows, gi, group):
         return [k for k, r in enumerate(rows)
@@ -340,6 +371,70 @@ async def run_apply(plan, args, meta):
         await ta.fill(text)
         await page.wait_for_timeout(200)
 
+    async def tag_randomisation_group(page, row_idx, group) -> bool:
+        """Set row `row_idx`'s (currently blank) Randomisation Group field
+        to `group`, via the "Edit micro dialog message:" property sheet ->
+        its "Randomisation group:" field -> own Edit button -> the
+        "Edit randomisation group:" sub-editor. Confirmed live 2026-09-23
+        (read-only probe against a real tagged row): that sub-editor is a
+        single plain <input type=text>, pre-filled with the current value -
+        same shape as the text sub-editor `set_lang_text` handles, just one
+        field instead of two language tabs. Caller should only invoke this
+        when the field is actually blank (bootstrap use only, not a general
+        retag) - it does not check the current value itself.
+        Returns True on a clean OK-commit, False (and leaves whatever
+        windows were left open for the caller to dismiss) on any failure."""
+        await select_row(page, row_idx)
+        ed = await node_btn(page, "Edit")
+        if not ed:
+            return False
+        await ed.click()
+        try:
+            await page.wait_for_function(
+                r"""() => { const w = document.querySelector('.v-window');
+                return w && [...w.querySelectorAll('.v-label')].some(
+                  e => /randomisation group/i.test(e.textContent)); }""",
+                timeout=12000)
+        except Exception:  # noqa: BLE001
+            pass
+        await page.wait_for_timeout(400)
+        spot = await page.evaluate(r"""
+        () => {
+          const w = document.querySelector('.v-window'); if (!w) return null;
+          const l = [...w.querySelectorAll('.v-label')]
+            .find(e => /randomisation group/i.test(e.textContent));
+          if (!l) return null;
+          const ly = l.getBoundingClientRect().top;
+          let best = null, bd = 1e9;
+          w.querySelectorAll('.v-button').forEach(x => {
+            if (((x.querySelector('.v-button-caption')||{}).textContent||'').trim() !== 'Edit') return;
+            const r = x.getBoundingClientRect(), d = Math.abs(r.top - ly);
+            if (d < bd) { bd = d; best = {x: Math.round(r.x+r.width/2), y: Math.round(r.top+r.height/2)}; }
+          });
+          return best;
+        }
+        """)
+        if not spot:
+            return False
+        await page.mouse.click(spot["x"], spot["y"])
+        try:  # wait for the group sub-editor (has the OK button)
+            await page.wait_for_selector(
+                ".v-window .v-button-caption:has-text('OK')", timeout=8000)
+        except Exception:  # noqa: BLE001
+            pass
+        await page.wait_for_timeout(400)
+        sub = page.locator(".v-window").last
+        inp = sub.locator("input[type=text]").first
+        if not await inp.count():
+            return False
+        await inp.click()
+        await inp.fill(group)
+        await page.wait_for_timeout(200)
+        await sub.locator(".v-button-caption", has_text="OK").first.click()
+        await page.wait_for_timeout(700)
+        await dismiss(page)  # close the outer message modal
+        return True
+
     added = errors = skipped = 0
     async with async_playwright() as pw:
         b = await pw.chromium.connect_over_cdp(CDP)
@@ -356,9 +451,25 @@ async def run_apply(plan, args, meta):
         page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
         cdp = await ctx.new_cdp_session(page)
         wid = (await cdp.send("Browser.getWindowForTarget"))["windowId"]
+        # Switch to Micro Dialogs BEFORE widening: widening while another tab
+        # (e.g. Information) is showing leaves the menubar laid out narrow
+        # with a `►` overflow once it does render (seen live 2026-09-24).
+        if not await S.ensure_micro_dialogs(page):
+            sys.exit("Micro Dialogs menu not on screen - open the coaching's "
+                     "Edit view (Monitoring off), then rerun.")
+        bar = ".v-menubar.md-menu > .v-menubar-menuitem"
         await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
-            "left": 0, "top": 0, "width": 3600, "height": 1800, "windowState": "normal"}})
-        await page.wait_for_timeout(1000)
+            "left": 0, "top": 0, "width": WIDE, "height": 1800, "windowState": "normal"}})
+        last = "►"
+        for _ in range(20):
+            await page.wait_for_timeout(500)
+            if await page.locator(bar).count():
+                last = (await page.locator(bar).last.inner_text()).strip()
+                if last != "►":
+                    break
+        if last == "►":
+            sys.exit(f"Micro Dialogs menubar still overflows (`►`) at {WIDE}px - "
+                     "window didn't widen; set PMCP_WIDE higher and rerun.")
 
         NEG = {"cancel", "no", "abbrechen", "nein", "close", "anulează", "nu"}
 
@@ -453,9 +564,8 @@ async def run_apply(plan, args, meta):
                         gi = rg_col(heads)
                         ci = next((i for i, h in enumerate(heads) if "Message Text" in h), 2)
                         grp = grp_rows(rows, gi, p["group"])
-                        key = p["en"].strip()[:18]
-                        match = next((k for k in grp if key and ci < len(rows[k])
-                                      and key in rows[k][ci]), None)
+                        match = next((k for k in grp if ci < len(rows[k])
+                                      and en_cell_matches(rows[k][ci], p["en"])), None)
                         if match is None:
                             print(f"  o {label}: not found (already removed, or never added)")
                             notfound += 1
@@ -499,24 +609,51 @@ async def run_apply(plan, args, meta):
                     await S.wait_round_trip(page)
                     heads, rows = await read_table(page)
                     gi = rg_col(heads)
-                    src = next((k for k, r in enumerate(rows)
-                                if gi is not None and gi < len(r)
-                                and r[gi].strip() == p["group"]), None)
-                    if src is None:
-                        print(f"  ! {label}: no existing row with this group"); errors += 1
-                        continue
                     ci = next((i for i, h in enumerate(heads) if "Message Text" in h), None)
                     ci = ci if ci is not None else 2
                     ti = ci
+                    src = next((k for k, r in enumerate(rows)
+                                if gi is not None and gi < len(r)
+                                and r[gi].strip() == p["group"]), None)
+                    if src is None and args.bootstrap_text:
+                        cand = next((k for k, r in enumerate(rows)
+                                     if ci < len(r)
+                                     and en_cell_matches(r[ci], args.bootstrap_text)), None)
+                        cand_group = (rows[cand][gi].strip()
+                                      if cand is not None and gi is not None
+                                      and gi < len(rows[cand]) else None)
+                        if cand is None:
+                            print(f"  ! {label}: --bootstrap-text {args.bootstrap_text!r} "
+                                  "not found in this dialog either")
+                        elif cand_group:
+                            print(f"  ! {label}: --bootstrap-text row {cand} already "
+                                  f"carries a group ({cand_group!r}) - refusing to "
+                                  "overwrite, bootstrap is blank-field-only")
+                        else:
+                            print(f"  ~ {label}: bootstrapping - tagging row {cand} "
+                                  f"with [{p['group']}] (confirmed blank)")
+                            tagged = await tag_randomisation_group(page, cand, p["group"])
+                            if not tagged:
+                                print(f"  ! {label}: bootstrap tag failed on row {cand}")
+                            heads, rows = await read_table(page)
+                            gi = rg_col(heads)
+                            src = next((k for k, r in enumerate(rows)
+                                        if gi is not None and gi < len(r)
+                                        and r[gi].strip() == p["group"]), None)
+                    if src is None:
+                        print(f"  ! {label}: no existing row with this group"); errors += 1
+                        continue
                     grp = grp_rows(rows, gi, p["group"])
-                    # the grid truncates long text, so match a short prefix of
-                    # en-GB within this group's rows.
-                    key = p["en"].strip()[:18]
-                    have = [k for k in grp if key and key in (rows[k][ci] if ci < len(rows[k]) else "")]
+                    # the grid truncates long text; en_cell_matches handles that.
+                    have = [k for k in grp if ci < len(rows[k])
+                            and en_cell_matches(rows[k][ci], p["en"])]
                     reposition_only = False
                     if have:
                         k = have[0]
-                        if k > 0 and gi < len(rows[k - 1]) and rows[k - 1][gi].strip() == p["group"]:
+                        # the pool's first row has no pool row above it by
+                        # definition - that's "in the pool", not misplaced
+                        if k == grp[0] or (k > 0 and gi < len(rows[k - 1])
+                                           and rows[k - 1][gi].strip() == p["group"]):
                             print(f"  = {label}: already in the pool (row {k}), skipped")
                             skipped += 1
                             continue
@@ -617,9 +754,8 @@ async def run_apply(plan, args, meta):
                     # row by full-text match. Instead: the new row is grp[-1];
                     # move it to just after grp[-2] with a fixed number of clicks
                     # (it stays selected and shifts up one per click), then
-                    # verify once at the end with a short (untruncated) prefix.
+                    # verify once at the end via en_cell_matches.
                     en = p["en"].strip()
-                    key = en[:18]
                     heads, rows = await read_table(page)
                     grp = grp_rows(rows, gi, p["group"])
                     n_up = 0
@@ -638,7 +774,7 @@ async def run_apply(plan, args, meta):
                             await page.wait_for_timeout(120)
                     heads, rows = await read_table(page)
                     cur = next((k for k, r in enumerate(rows)
-                                if ti < len(r) and key and key in r[ti]
+                                if ti < len(r) and en_cell_matches(r[ti], en)
                                 and gi is not None and gi < len(r)
                                 and r[gi].strip() == p["group"]), None)
                     adj = (cur is not None and cur > 0 and gi is not None
@@ -679,10 +815,31 @@ def main():
                          "target CSV's variants added, instead of adding them "
                          "(same --pool/--limit scoping as adding)")
     ap.add_argument("--debug", action="store_true", help="verbose per-step state dump")
+    ap.add_argument("--restore-from", metavar="'GROUP @ OLD_DIALOG'",
+                    help="restore mode: source variants from the committed "
+                         "rgroups_table.csv for this still-live old pool "
+                         "instead of rgroups_generated.csv, and apply them "
+                         "at --to-path. For a rebuild that dropped a group's "
+                         "`r_` tag but kept the canonical wording live "
+                         "elsewhere unrelated. Requires --to-path.")
+    ap.add_argument("--to-path", metavar="'Folder / Segments / Dialog'",
+                    help="--restore-from only: destination menu path "
+                         "(folder segments then the dialog leaf, ' / '-joined)")
+    ap.add_argument("--bootstrap-text",
+                    help="if the target group isn't found at all in the "
+                         "destination dialog (e.g. a rebuilt dialog kept the "
+                         "canonical wording but lost the tag), locate this "
+                         "text (a short prefix is enough) anywhere in the "
+                         "table and set ITS Randomisation Group field to "
+                         "--pool's group first, then proceed normally. "
+                         "One-time bootstrap - once any row carries the "
+                         "group, later runs don't need this.")
     args = ap.parse_args()
 
     if args.dedup and args.undo:
         sys.exit("--dedup and --undo are mutually exclusive")
+    if args.restore_from and not args.to_path:
+        sys.exit("--restore-from requires --to-path")
 
     plan, meta = build_plan(args)
 

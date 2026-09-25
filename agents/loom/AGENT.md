@@ -1,4 +1,4 @@
-# Loom (loom)
+# Loom (loom) — r_ groups automation
 
 Owns and runs the r_ randomisation-group content pipeline end to end (`tools/rgroups-table/`) — report, prepare, expand (LLM), apply (Playwright write-back). Scope limit: only touches live coaching content through the pipeline's own idempotent apply/undo mechanism, never ad hoc.
 
