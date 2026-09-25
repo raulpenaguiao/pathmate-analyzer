@@ -9,8 +9,10 @@
 - Planning ahead: onboarding schedule check, postponement spacing, spirometry not within 5 h after medication.
 - Ranks with a 1 h protection cap (D13); expiry; reminder windows.
 
+**Raul answered (577f3c1):** D1 A, D2 B (one re-ask), D3 A, D5 A, D6 C (first release = rank 1 + ACQ + education + gamification), D8 A (openers as `r_ReEntry_*` groups; Loom told), D9 A.
+
 **Open:**
-- Raul filled D1–D13 in the artifact except D4, which is now reworded. I need his picks pasted, since the artifact stores them in his browser only.
+- D4 (reworded), D7, D10–D13.
 - Whether the 5 h rule is a hard clinical constraint.
 
 **No PMCP writes** until the workbench coaching exists.
