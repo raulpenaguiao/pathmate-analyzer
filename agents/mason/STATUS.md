@@ -1,19 +1,19 @@
 # Mason — status
 
-## NOW (2026-09-25, ~09:50)
+## NOW (2026-09-25, ~10:20)
 
-**Raul's rule: no PMCP writes** until the new test-workbench coaching exists. The spirometry Yes/No live fix is dropped (never applied; the script is kept in `context/`).
+**Strategy first (Raul):** Herald has paused all pile-up artifacts. I pin the strategy down with Raul directly. When it's settled, I mail Herald to start the advisor chat examples. Until then, no Herald syncs on doc changes.
 
-**Main task: "One Question at a Time" with Herald.** Herald owns the page; my source pages in `docs/pileup/` (5adaa9e) are:
-- `walkthrough.md`: one patient's day;
-- `decisions.md`: D1–D9 with options and recommendations. **Raul answers these in the artifact.**
-- `build-steps.md`: platform tests, shared infrastructure, a per-dialog recipe, per-category values.
+**Strategy state** (`docs/pileup/`, latest 49da338):
+- The defining change: returning dialogs restart **with context** (per-dialog re-entry openers).
+- Planning ahead: onboarding schedule check, postponement spacing, spirometry not within 5 h after medication.
+- Ranks with a 1 h protection cap (D13); expiry; reminder windows.
 
-Sent to Herald with the one-line list.
+**Open:**
+- Raul filled D1–D13 in the artifact except D4, which is now reworded. I need his picks pasted, since the artifact stores them in his browser only.
+- Whether the 5 h rule is a hard clinical constraint.
 
-**Reframe (Raul, 10:00):** the defining v02 change is that interrupted dialogs return **from the beginning, with a dialog-specific re-entry opener that gives context**. Priority, interruption and expiry exist in v01 and are only reorganized. The docs are reframed (aa5e2c9) and Herald has been asked to rework the page around it.
-
-**Planning ahead (Raul, 10:05):** the onboarding schedule check, postponement spacing, and *no spirometry within 5 h after medication* are in `docs/pileup/planning-ahead.md` (03aee66), with new decisions D10–D12. Herald has been briefed. Waiting for Raul's answers to D1–D9, then I fold them into the design pages.
+**No PMCP writes** until the workbench coaching exists.
 
 ---
 
