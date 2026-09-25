@@ -8,8 +8,10 @@
 
 **For the advisor:** compliance thresholds M and K (placeholders of 2), the ACQ interval (the sandbox has 1, and 14 is assumed), and the 5 h number.
 
+**Strategy settled (Raul, 13:40).** Kart is informed for TASKS.md. Herald is unblocked for the advisor-facing artifact, and I supply content and check accuracy.
+
 **Next:**
-- Ask Raul whether the strategy counts as settled; if so, mail Herald to start the advisor chat examples.
+- Review Herald's draft against docs/pileup.
 - Then wait for the workbench to exist before running Phase A (platform tests).
 - No PMCP writes.
 
