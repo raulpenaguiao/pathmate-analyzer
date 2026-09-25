@@ -46,9 +46,41 @@ Also queued:
       strategy isn't ready for advisor-facing material yet. **Raul and
       Mason settle it first**, working directly in `docs/pileup/`, and
       all pile-up artifact work is stopped.
+      - [x] **Strategy settled (Raul + Mason, 09-25 ~13:40).** All
+            design decisions D1–D13 and D12b are answered. Source of
+            truth: `docs/pileup/decisions.md` + `rollout.md`. Dev page:
+            One Question at a Time v10.
+            - **Defining change:** an interrupted dialog restarts from the
+              beginning with a dialog-specific re-entry opener
+              (`r_ReEntry_<Dialog>` groups, which Loom expands later).
+            - **Planning ahead:** an onboarding schedule check, a 30-min
+              minimum gap, and spirometry not within 5 h after
+              medication.
+            - **Nothing is live.** The spirometry and medication work is
+              a sandbox prototype, and everything gets rebuilt on the new
+              workbench coaching.
+            - **First release (D6), which answers the scope question:**
+              spirometry, medication, night prep, ACQ, education,
+              gamification. Later: compliance coaching, sleep quality,
+              health literacy, misc.
+            - **Rollout:**
+              - Phase A: 3 platform tests on the workbench
+              - step 1/1b: spirometry + medication with planning ahead
+              - step 2: night prep
+              - step 3: ACQ
+              - step 4: education, then gamification
+              - step 5: the first-release check
+            - **Open for the advisor:**
+              - compliance thresholds M/K (placeholder 2)
+              - the ACQ interval (14 days assumed; the sandbox has 1)
+              - confirming the 5 h number
       - [ ] Herald's next pile-up task: a couple of example chat
             interactions for the advisor showing v02 resolving the
-            pile-up. **Blocked until Mason comes to Herald.**
+            pile-up. **Unblocked 09-25:** the strategy is settled, and
+            Mason is coordinating the advisor-facing artifact with Herald.
+      - [ ] **Blocked on the workbench coaching**: the whole rollout
+            (Phase A onward), since there are no PMCP writes until Raul
+            creates it.
 - [ ] **ro-RO duplicate wording**: it's in the **existing v01 content**,
       not LLM output. "within reach" and "nearby" are both "Este
       spirometrul la îndemână?", and "handy" is near-identical (md-020
