@@ -324,6 +324,72 @@ async def navigate_and_select(page, labels: list[str]):
     raise RuntimeError(f"leaf {labels[-1]!r} not found at depth {depth}")
 
 
+BREADCRUMB_JS = r"""
+() => { const b = document.querySelector('.v-label.breadcrumb');
+        return b ? b.textContent.replace(/\s+/g, ' ').trim() : null; }
+"""
+
+TABLE_SIG_JS = r"""
+() => {
+  const t = document.querySelector('.v-table');
+  if (!t) return 'none';
+  const sc = t.querySelector('.v-table-body-wrapper');
+  const first = [...t.querySelectorAll('.v-table-body tr')].slice(0, 3)
+    .map(tr => tr.textContent.replace(/\s+/g, ' ').trim().slice(0, 80));
+  return JSON.stringify([sc ? sc.scrollHeight : 0, first]);
+}
+"""
+
+
+async def table_signature(page) -> str:
+    """Cheap fingerprint of the micro-dialog table currently rendered (its
+    scroll height + first rows). Take it BEFORE navigating, and hand it to
+    wait_dialog_ready()."""
+    try:
+        return await page.evaluate(TABLE_SIG_JS)
+    except Exception:  # noqa: BLE001
+        return "error"
+
+
+async def wait_dialog_ready(page, labels: list[str], prev_sig: str,
+                            timeout_s: float = 15.0) -> str | None:
+    """Wait until the dialog just selected is really the one on screen, before
+    reading its table. Returns None when ready, else a reason string.
+
+    Why: the sweep used to read right after the loading indicator went away,
+    and PMCP sometimes hadn't swapped the table in yet. It then read the
+    PREVIOUS dialog's rows, or its scroll height (inflated totals + rows
+    "missing"). Seen on 2026-09-14 and 2026-09-25 (Quit spirometry got 51 rows,
+    the Report says 7; Timeless Greetings got Hello's rows). Two conditions:
+      1. the `.breadcrumb` label reads exactly `labels` joined with ' > '
+         (confirmed live 2026-09-25), and
+      2. the table fingerprint has changed from `prev_sig` and holds still
+         for two polls - or holds still for 3s (two genuinely identical
+         tables, e.g. both empty)."""
+    want = " > ".join(labels)
+    deadline = time.monotonic() + timeout_s
+    crumb = None
+    while time.monotonic() < deadline:
+        crumb = await page.evaluate(BREADCRUMB_JS)
+        if crumb == want:
+            break
+        await page.wait_for_timeout(200)
+    else:
+        return f"breadcrumb never showed {want!r} (last: {crumb!r})"
+    stable_since, last = None, None
+    while time.monotonic() < deadline:
+        sig = await table_signature(page)
+        if sig == last:
+            if sig != prev_sig:
+                return None
+            if stable_since and time.monotonic() - stable_since >= 3.0:
+                return None
+        else:
+            last, stable_since = sig, time.monotonic()
+        await page.wait_for_timeout(250)
+    return "table never settled on a new dialog"
+
+
 async def wait_round_trip(page):
     ind = page.locator(".v-loading-indicator")
     try:
@@ -437,7 +503,10 @@ async def sweep_table(page):
     if not meta["scrollable"]:
         total = _trim_trailing_blanks(total, seen)
         return total, seen, [i for i in range(total) if i not in seen]
-    step = meta["ch"] or 240
+    # half a screen per step, so consecutive reads overlap: a full-screen step
+    # let boundary rows fall between two reads under virtualization (rows
+    # 15-20 reported MISSING in several dialogs, 2026-09-25)
+    step = max(int((meta["ch"] or 240) * 0.5), 100)
     y, stale = 0, 0
     while y <= meta["sh"] + step:
         await page.evaluate(SET_SCROLL_JS, y)

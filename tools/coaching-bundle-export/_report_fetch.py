@@ -48,16 +48,24 @@ async def enter_edit_view(page, coaching_name: str) -> bool:
     """From the Coachings list, select `coaching_name`'s row and click Edit.
     Used to get back into the coaching after fetch_report_html() leaves the
     browser on the list."""
+    want = f'Coaching "{coaching_name}"'
+
+    async def in_edit_view() -> bool:
+        return want in await page.evaluate("() => document.body.innerText")
+
+    # the row-select retries can land as a DOUBLE-click, which opens the
+    # coaching by itself: the row vanishes, selection "fails", and we used to
+    # report failure while already in the Edit view (2026-09-25). So ask
+    # "are we there?" first, not "did each step work?".
     if not await _select_coaching_row(page, coaching_name):
-        return False
+        return await in_edit_view()
     edit = page.locator(".v-button-caption", has_text="Edit")
     if not await edit.count():
-        return False
+        return await in_edit_view()
     await edit.first.click()
     # poll, don't sleep-once: on 2026-09-25 the editor took >2s to render its
     # 'Coaching "..."' header, and a single fixed 2s check reported failure
     # while the browser was in fact in the Edit view (killed an export).
-    want = f'Coaching "{coaching_name}"'
     for _ in range(40):
         await page.wait_for_timeout(500)
         body = await page.evaluate("() => document.body.innerText")

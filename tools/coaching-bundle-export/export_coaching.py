@@ -149,6 +149,10 @@ async def _navigate_retrying(page, cdp, wid, labels, label: str, tries: int = 3)
             if attempt == tries:
                 raise
         except Exception as e:  # noqa: BLE001
+            # an expired session looks exactly like a flaky click - check it
+            # first, and stop: retries can't help (2026-09-25, misread once)
+            if await S.session_expired(page):
+                raise SystemExit(f"{label}: {S.EXPIRED_HINT}") from e
             if attempt == tries:
                 raise
             print(f"  {label}  navigation failed (try {attempt}/{tries}): "
@@ -175,8 +179,21 @@ async def sweep_micro_dialogs(page, cdp, wid) -> tuple[list[dict], list[dict]]:
         md_uid = f"md-{seq:03d}"
         D.step(f"phase 1: dialog {seq}/{len(targets)} {name}")
         try:
+            prev_sig = await M.table_signature(page)
             await _navigate_retrying(page, cdp, wid, t["labels"], f"[{seq}] {name}")
             await M.wait_round_trip(page)
+            # don't read until THIS dialog's table is really on screen
+            # (stale-table reads, see M.wait_dialog_ready); one re-navigation
+            not_ready = await M.wait_dialog_ready(page, t["labels"], prev_sig)
+            if not_ready and await S.session_expired(page):
+                sys.exit(f"[{seq}] {name}: {S.EXPIRED_HINT}")
+            if not_ready:
+                print(f"  [{seq}] {name}  not ready ({not_ready}) — re-navigating")
+                await _navigate_retrying(page, cdp, wid, t["labels"], f"[{seq}] {name}")
+                await M.wait_round_trip(page)
+                not_ready = await M.wait_dialog_ready(page, t["labels"], prev_sig)
+                if not_ready:
+                    raise RuntimeError(f"dialog never became ready: {not_ready}")
             total, seen, missing = await M.sweep_table(page)
         except Exception as e:  # noqa: BLE001
             print(f"  [{seq}] {name}  ERROR {e!r}")
