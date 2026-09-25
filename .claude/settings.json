@@ -10,6 +10,7 @@
       "Bash(find *)",
       "Bash(agents/checkmail.sh *)",
       "Bash(agents/mail.sh *)",
+      "Bash(export AGENT_SLUG=*)",
       "Monitor"
     ]
   }

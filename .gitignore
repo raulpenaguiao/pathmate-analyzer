@@ -234,3 +234,7 @@ __marimo__/
 # Personal Claude Code permission overrides - .claude/settings.json (shared,
 # committed) carries the agent-system permissions everyone needs
 .claude/settings.local.json
+
+# Per-agent Claude Code session IDs (agents/wake.sh) - point at this
+# machine's local ~/.claude transcript store, meaningless on another clone
+agents/*/.session_id

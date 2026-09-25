@@ -10,12 +10,11 @@
 # a file is not a notification. To reach the manager, call the
 # PushNotification tool yourself for anything urgent, or write to your own
 # agents/<slug>/STATUS.md for anything routine - see agents/RULES.md.
-# Writes one file to mailbox/<to>/inbox/, named per RULES.md's mail-format
-# rule: YYMMDDHHMMSS_<name>.md.
+# Writes one file to agents/<to>/mailbox/inbox/, named per RULES.md's
+# mail-format rule: YYMMDDHHMMSS_<name>.md.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(cd "$HERE/.." && pwd)"
 
 TO="${1:-}"; SUBJECT="${2:-}"
 [ -n "$TO" ] || { echo "usage: agents/mail.sh <to> \"<subject>\" [\"<body>\"]" >&2; exit 2; }
@@ -32,7 +31,7 @@ if [ ! -d "$HERE/$TO" ]; then
   exit 2
 fi
 
-INBOX="$REPO/mailbox/$TO/inbox"
+INBOX="$HERE/$TO/mailbox/inbox"
 mkdir -p "$INBOX"
 
 FROM="${AGENT_SLUG:-$(whoami)}"
@@ -56,4 +55,4 @@ timestamp: $TS
 $BODY
 EOF
 
-echo "sent -> mailbox/$TO/inbox/$(basename "$FILE")"
+echo "sent -> agents/$TO/mailbox/inbox/$(basename "$FILE")"

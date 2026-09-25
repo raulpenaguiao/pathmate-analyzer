@@ -9,7 +9,6 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(cd "$HERE/.." && pwd)"
 
 SLUG="${1:-${AGENT_SLUG:-}}"
 if [ -n "${1:-}" ] && [ "$1" = "--read" ]; then
@@ -18,30 +17,30 @@ if [ -n "${1:-}" ] && [ "$1" = "--read" ]; then
 fi
 [ -n "$SLUG" ] || { echo "usage: agents/checkmail.sh <slug> [--read FILE]  (or export AGENT_SLUG)" >&2; exit 2; }
 
-INBOX="$REPO/mailbox/$SLUG/inbox"
-READ_DIR="$REPO/mailbox/$SLUG/read"
-[ -d "$INBOX" ] || { echo "no such mailbox: mailbox/$SLUG/ (check agents/RULES.md)" >&2; exit 2; }
+INBOX="$HERE/$SLUG/mailbox/inbox"
+READ_DIR="$HERE/$SLUG/mailbox/read"
+[ -d "$INBOX" ] || { echo "no such mailbox: agents/$SLUG/mailbox/ (check agents/RULES.md)" >&2; exit 2; }
 mkdir -p "$READ_DIR"
 
 if [ "${2:-}" = "--read" ]; then
   TARGET="${3:-}"
   [ -n "$TARGET" ] || { echo "usage: agents/checkmail.sh $SLUG --read FILE" >&2; exit 2; }
   SRC="$INBOX/$(basename "$TARGET")"
-  [ -f "$SRC" ] || { echo "not in mailbox/$SLUG/inbox/: $(basename "$TARGET")" >&2; exit 2; }
+  [ -f "$SRC" ] || { echo "not in agents/$SLUG/mailbox/inbox/: $(basename "$TARGET")" >&2; exit 2; }
   cat "$SRC"
   mv "$SRC" "$READ_DIR/"
   echo
-  echo "(archived to mailbox/$SLUG/read/)" >&2
+  echo "(archived to agents/$SLUG/mailbox/read/)" >&2
   exit 0
 fi
 
 COUNT=$(find "$INBOX" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
 if [ "$COUNT" -eq 0 ]; then
-  echo "mailbox/$SLUG/inbox/: empty - caught up."
+  echo "agents/$SLUG/mailbox/inbox/: empty - caught up."
   exit 0
 fi
 
-echo "mailbox/$SLUG/inbox/: $COUNT unread"
+echo "agents/$SLUG/mailbox/inbox/: $COUNT unread"
 echo
 for f in $(find "$INBOX" -maxdepth 1 -type f -name '*.md' | sort); do
   from=$(sed -n 's/^from: //p' "$f" | head -1)

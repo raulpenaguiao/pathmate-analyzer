@@ -12,8 +12,9 @@
 # it, do not construct a workaround, do not do it "on his behalf".
 # ============================================================================
 #
-# Creates agents/<slug>/{AGENT.md,STATUS.md}, mailbox/<slug>/{inbox,read},
-# context/<slug>/. Nothing else needs editing anywhere else - there is no
+# Creates agents/<slug>/{AGENT.md,STATUS.md,mailbox/{inbox,read},context/}
+# - everything about one agent lives under its own agents/<slug>/. Nothing
+# else needs editing anywhere else - there is no
 # roster file to keep in sync; every agent reads agents/*/AGENT.md live
 # (see agents/RULES.md), so a new one is visible the moment its folder
 # exists. Does NOT launch a Claude Code session itself (no reliable
@@ -81,23 +82,25 @@ if ! [[ "$SLUG" =~ ^[a-z] ]]; then SLUG="a-$SLUG"; fi   # slug must start with a
 if [ -d "$HERE/$SLUG" ]; then echo "agents/$SLUG already exists" >&2; exit 1; fi
 echo "  -> slug: $SLUG"
 
+TAGLINE=$(ask "one-line tagline, a few words (e.g. 'advisor coordinator') - shows up next to the codename wherever this agent is listed: ")
+
 echo
 DESCRIPTION=$(ask_multiline "Description - role, goal, scope, and any explicit limits, however you've already got it written:")
 
 AGENT_DIR="$HERE/$SLUG"
-mkdir -p "$AGENT_DIR" \
-         "$REPO/mailbox/$SLUG/inbox" "$REPO/mailbox/$SLUG/read" \
-         "$REPO/context/$SLUG"
+mkdir -p "$AGENT_DIR/mailbox/inbox" "$AGENT_DIR/mailbox/read" "$AGENT_DIR/context"
 # git doesn't track empty directories - without this, read/ (always empty
 # at creation) and possibly inbox/ (if no starter mail is queued below)
 # would silently vanish for anyone who clones the repo rather than
 # creating this agent themselves. mail.sh clears inbox/'s .gitkeep away
 # the moment a real message lands there anyway (its own mkdir -p doesn't
 # touch this file, but it's harmless to leave one file alongside real mail).
-touch "$REPO/mailbox/$SLUG/inbox/.gitkeep" "$REPO/mailbox/$SLUG/read/.gitkeep"
+touch "$AGENT_DIR/mailbox/inbox/.gitkeep" "$AGENT_DIR/mailbox/read/.gitkeep"
 
+HEADER="# $CODENAME ($SLUG)"
+[ -n "$TAGLINE" ] && HEADER="$HEADER — $TAGLINE"
 cat > "$AGENT_DIR/AGENT.md" << EOF
-# $CODENAME ($SLUG)
+$HEADER
 
 $DESCRIPTION
 
@@ -115,7 +118,7 @@ other agents or the manager might want to know about, without them having
 to ask._
 EOF
 
-cat > "$REPO/context/$SLUG/README.md" << EOF
+cat > "$AGENT_DIR/context/README.md" << EOF
 # $CODENAME's private context
 
 Free-form notes only $CODENAME needs: future tasks, quirks/skills learned
@@ -124,15 +127,23 @@ else is expected to read this folder, and this agent shouldn't expect
 anyone to.
 EOF
 
-# Starter mail(s), sent now so they're already waiting the first time this
-# agent wakes up and checks its inbox - saves a separate mail.sh round trip
-# right after creation. Reuses mail.sh itself (not reimplemented here) so
-# the filename/frontmatter format is identical to any other mail this
-# agent will ever receive. Loops so more than one can be queued (e.g. a
-# curated-context mail plus a first task); blank subject stops the loop.
+# Starter mail, sent now so it's already waiting the first time this agent
+# wakes up and checks its inbox - saves a separate mail.sh round trip right
+# after creation. Reuses mail.sh itself (not reimplemented here) so the
+# filename/frontmatter format is identical to any other mail this agent
+# will ever receive. The FIRST one is mandatory (every agent should wake up
+# to at least the context that justified creating it) and its subject is
+# always literally "starter mail", not typed - matches every existing
+# agent's own first message and keeps the filename convention predictable
+# (*_starter-mail.md). Further mail after that is optional, looped, with a
+# real subject each time; blank subject stops the loop.
 echo
-echo "Starter mail for $CODENAME? Sent immediately so it's waiting the"
-echo "first time this agent wakes up - skip by leaving the subject blank."
+echo "Starter mail for $CODENAME - required, this is what it wakes up to:"
+MAIL_BODY=$(ask_multiline "  mail body")
+"$HERE/mail.sh" "$SLUG" "starter mail" "$MAIL_BODY"
+
+echo
+echo "Any more mail to queue? Leave the subject blank to stop."
 while true; do
   MAIL_SUBJECT=$(ask "  mail subject (blank to stop adding mail): ")
   [ -z "$MAIL_SUBJECT" ] && break
@@ -140,14 +151,14 @@ while true; do
   "$HERE/mail.sh" "$SLUG" "$MAIL_SUBJECT" "$MAIL_BODY"
 done
 
-MAIL_COUNT=$(find "$REPO/mailbox/$SLUG/inbox" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
+MAIL_COUNT=$(find "$AGENT_DIR/mailbox/inbox" -maxdepth 1 -type f -name '*.md' 2>/dev/null | wc -l | tr -d ' ')
 
 echo
 echo "=== created ==="
 echo "  agents/$SLUG/AGENT.md"
 echo "  agents/$SLUG/STATUS.md"
-echo "  mailbox/$SLUG/{inbox,read}/  ($MAIL_COUNT starter message(s) waiting)"
-echo "  context/$SLUG/README.md"
+echo "  agents/$SLUG/mailbox/{inbox,read}/  ($MAIL_COUNT starter message(s) waiting)"
+echo "  agents/$SLUG/context/README.md"
 echo "  (nothing else to update - every agent reads agents/*/AGENT.md live)"
 
 cat << EOF
@@ -157,11 +168,15 @@ To start this agent:
   agents/wake.sh $SLUG
 
 That opens a konsole window running claude with the one fixed wake prompt
-(agents/wake_prompt.txt - same file for every agent, nothing to retype).
+(agents/wake_prompt.txt - same file for every agent, nothing to retype),
+and with --remote-control on so $CODENAME is reachable from another device
+by default. The very first agent ever woken on this machine will show a
+one-time "Enable Remote Control? (y/n)" prompt in its own window - answer
+it there once and every agent after that connects automatically.
 Wake every agent that exists at once with: agents/wake.sh --all
 
 Manual fallback if you'd rather not use a new terminal window:
 
-  cd '$REPO' && AGENT_SLUG=$SLUG claude "\$(cat agents/wake_prompt.txt)"
+  cd '$REPO' && AGENT_SLUG=$SLUG claude --remote-control "$CODENAME${TAGLINE:+ - $TAGLINE}" "\$(cat agents/wake_prompt.txt)"
 
 EOF
