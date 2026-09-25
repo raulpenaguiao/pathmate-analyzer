@@ -44,8 +44,11 @@ workstreams" section — this file is the checklist, that's the writeup.
       Step 4 (Playwright write-back) is **not** in the portal — it needs a
       CDP-connected browser the app process doesn't have; still CLI-only.
       Smoke-tested end to end with Flask's test client (attach → step 1 → 2 →
-      3-with-a-bad-key → poll-to-finish → downloads → 404 guards). Not yet
-      exercised by a human in a real browser.
+      3-with-a-bad-key → poll-to-finish → downloads → 404 guards).
+      **Browser QA done 2026-09-23 (Smith):** steps 1-2 run in headless
+      Chromium on a throwaway instance, with zero console or HTTP errors.
+      Step 3 (the LLM call) was only checked for gating, because a real
+      run needs Raul and an API key, so that part is still open.
 
 ### After `coaching.json` is regenerated (unblocks the rest)
 
@@ -63,6 +66,29 @@ workstreams" section — this file is the checklist, that's the writeup.
       Ausprobieren" sandbox (a greeting in *Timeless Greetings*, a spirometry
       prompt in *Prompt patient to conduct daily spirometry*). `--dedup` does
       not catch them (unique text) — delete by hand.
+- [ ] **Re-tag the 2 r_ pools the v02 rebuild dropped (added 2026-09-23).**
+      Owner: **Loom** (found by Mason in Phase 3.4). In the dialog *Prompt
+      patient to conduct daily spirometry / Prompt patient to conduct daily
+      spirometry (v02)*, `r_PromptForSpirometry_Stage1_Push` and `_Stage3`
+      lost their live `r_` tags when the dialog was rebuilt. (`r_PostponeSpirometry` was
+      retired on purpose in Phase 3.5, so it doesn't need re-tagging.)
+      - [x] `r_PromptForSpirometry_Stage1_Push` — re-tagged and checked
+            live (Loom).
+      - [ ] `r_PromptForSpirometry_Stage3` — **partly written, live state
+            unverified (2026-09-24 ~13:40)**. The session drops were a
+            plain expiry, not a lock. The run did two things:
+            - tagged the canonical row
+            - added "Is your spirometer within reach?"
+            The rest of its output contradicts itself. The duplicate check
+            probably matched on the identical ro-RO text, and one variant
+            reported "popup never opened". Loom writes nothing more until
+            the rows are read back, either live or from Warden's fresh
+            export. Loom will then propose a fix to Raul. **Needs Raul**:
+            he rejected Loom's live read-only check, so the check has to
+            come from somewhere else. Loom also fixed two
+            `rgroup_apply.py` bugs: the widen order and `PMCP_WIDE`.
+      - Downstream: once Stage3 is live, Herald removes the "1 pool
+        untagged" caveat from the *One Question at a Time* artifact (v4).
 
 ## Pile-up problem
 
@@ -347,6 +373,19 @@ other live-portal workstream here. Every live-portal session gets an
             (microDialogs/nodes/rules counts) — expected, since the baseline
             predates this session's edits and the known per-run popup-hover
             scrape gaps (documented pre-existing flakiness, not a regression).
+      - [ ] **3.8 — Interrupt Contract retrofit (added 2026-09-21).** 3.1-3.7
+            shipped spirometry's guard as a flat "wait for everything" gate
+            (`participantOpenQuestions==0` only). The Interrupt Contract
+            (https://claude.ai/code/artifact/08cda0cf-aa0d-4b21-9441-a178bd7b61b2)
+            has since replaced that with a ranked ladder — spirometry is
+            rank 4 (lowest of the insistent tier, ~180min grace, existing
+            default) and needs the `activeDialogRank`-aware interrupt gate,
+            not just the soft check it has today. Owner: **Mason** (already
+            briefed on the Interrupt Contract in his starter mail).
+            **Update 2026-09-23:** under the spec §2.0 ladder, spirometry is
+            now **rank 1**. The interrupt model is also moving to
+            restart-with-resume-line plus expiry. Expect this item to be
+            rescoped once Mason's spec rewrite lands.
 - [ ] **Phase 4 — propagate the pattern.** Spec §4-5, each mirrors 3.2-3.4's
       pattern for a different feature:
       - [ ] **4.1 — Medication reminders ×3 doses** (parametrized
@@ -768,13 +807,43 @@ other live-portal workstream here. Every live-portal session gets an
                   just in-session reads) in 4.1.4 and 4.1.6, which this
                   export's own successful Rules/Variables data
                   corroborates rather than needing to duplicate.
+            - [ ] **4.1.8 — Interrupt Contract retrofit (added 2026-09-21).**
+                  4.1.1-4.1.7 shipped all 3 medication doses under the same
+                  old flat gate as spirometry's pre-3.8 state
+                  (`participantOpenQuestions==0` only, no rank awareness).
+                  The Interrupt Contract ranks medication 3 (~120min grace,
+                  proposed default, not yet confirmed by the manager) —
+                  needs the same `activeDialogRank` retrofit as 3.8, for all
+                  3 doses. Owner: **Mason**. **Update 2026-09-23:** under the
+                  spec §2.0 ladder, medication is now **rank 1**, alongside
+                  spirometry and nighttime monitoring. The interrupt model
+                  is also changing from delete to restart-with-resume-line
+                  plus expiry (Decision 1, under Hierarchy). Mason expects
+                  3.8 and this item to be rescoped once his spec rewrite
+                  lands.
       - [ ] **4.2 — Sleep-prep / nighttime monitoring.**
-      - [ ] **4.3 — ACQ administration** (P1 priority, but reminder-creating
-            — the dual-mode exception in spec 2.2a).
-      - [ ] **4.4 — Educational-content nudges** (P1, reminder-creating) —
-            its stub dialog has to be built first, it's currently empty.
-      - [ ] **4.5 — Health-literacy prompt** (P2, same treatment as
-            spirometry).
+      - [ ] **4.3 — ACQ administration** (**rank 2** in the spec §2.0
+            ladder, set 2026-09-23; it was "P1" under the old tiers). It
+            creates reminders, which is the dual-mode exception in spec
+            2.2a.
+      - [ ] **4.4 — Educational-content nudges** (**rank 4**; was "P1").
+            It creates reminders. Its stub dialog is empty and has to be
+            built first.
+      - [ ] **4.5 — Health-literacy prompt** (was "P2"; **rank not yet
+            decided**, an open question to Raul per Mason).
+      - [ ] **Categories with no Phase 4 item yet (found 2026-09-23 by
+            Mason, when the §2.0 ladder was set).** Owner: **Mason**
+            (redesign scope). None of these has been phased yet:
+            - compliance coaching (**rank 2**). Its only rule starts an
+              empty dialog, so it has no working trigger.
+            - sleep quality inquiry (**rank 3**). No working trigger.
+            - gamification (**rank 5**). It fires with no guard.
+            - misc: FAQ, air quality, clinic visits (**rank 6**). No
+              working trigger.
+            Where there's no working trigger, the job is to **build a
+            rule**, not just add a guard. Source: spec §2.0. **Scope
+            growth**: this adds up to 4 new phase-sized items, so Raul
+            should confirm which of them are in scope for v02.
       - [ ] **4.6 — Build-or-drop the remaining stub dialogs** (8 total per
             spec §5) that existing rules already point at.
 - [ ] **Phase 5 — close-out / cross-cutting.**
@@ -788,6 +857,135 @@ other live-portal workstream here. Every live-portal session gets an
       - [ ] **5.3 — Mark workstream 2c complete** in README/TASKS; note that
             real behavioral validation still needs the separate Stage-4 chat
             simulator workstream, which doesn't exist yet.
+
+## Further tasks
+
+Captured 2026-09-18 in the Progress Tree from a live variable audit plus one
+outstanding item from Simone's email; pushed here 2026-09-21 per the
+manager's mail. Owners assigned where the fit is clear; two items flagged
+below still need a manager decision before anyone picks them up.
+
+- [ ] **Dead-variable cleanup.** Owner: **Mason** (touches variables in his
+      own Phase 4.2-4.6 territory — sleep-prep outcomes, education,
+      compliance feedback — so natural to fold in as he rebuilds those
+      dialogs rather than as a separate pass; confirm with Kart if that
+      doesn't hold once he's in the detail). Set somewhere, never read back
+      anywhere in the whole coaching — candidates for deletion, or in a
+      few cases for finally wiring up logic that looks like it was meant to
+      consult them:
+      - `$needMedicalHelp` — check this one first.
+      - `$needForCatharsis`, `$needGeneralAssistance` — same pattern,
+        likely the same well-being check-in flow (`Offer assistance`/
+        `Coaching` dialogs).
+      - `$displayOfSpirometryOutcomes`,
+        `$displayOfNighttimeMonitoringOutcomes` — look like flags meant
+        to gate an outcomes/feedback dialog that never actually checks them.
+      - `$newTimeForHealthLiteracyQuiz`,
+        `$newTimeForDisplayingOutcomeOfSpirometry`,
+        `$newTimeForDisplayingOutcomeOfSleepMonitoring`,
+        `$timeToSendSleepMonitoringDialog` — same reschedule-flag shape
+        as the already-documented ACQ/education reschedule flags, but never
+        read back.
+      - `$needSupportMaterialOnCompliance`,
+        `$needSupportMaterialOnMedicationAdherence`,
+        `$needSupportMaterialOnHowAshtmaControllerMedicationWorks` —
+        consistent with the compliance-feedback stubs already documented in
+        `ALEX_v01_design_spec.md` §11; the "send support material" logic
+        that should check these doesn't seem to exist.
+      - `$coach` — captures `$participantIntentionContent` once, never
+        read again; possibly intentional metadata capture, not a bug.
+      - `$participantTimeZone` — hardcoded to the literal string
+        `Europe/Bucharest`, never derived from the participant's actual
+        locale, never referenced by any time-of-day math elsewhere.
+        **Flag for the v02 redesign specifically**: if `$systemHourOfDay`
+        and friends run on server time rather than participant-local time,
+        the day-slot/window design (spec §2.3) needs to confirm it's
+        computing against the right timezone before it ships.
+      - `$readinessForSpirometry` — set to 99, never read; the live one
+        actually in use is `$mySpiro_readinessForSpirometry`.
+- [ ] **Rename `$userSetBedTime` / `$userSetBedtime` for clarity.** Owner:
+      **Mason** (bedtime is sleep-prep territory, Phase 4.2). Two variables
+      one capitalization apart, easy to confuse mid-edit. Proposed:
+      `userSetBedTime` → *stated bed time* (what the participant typed),
+      `userSetBedtime` → *our implied bed time* (what the coaching
+      actually computes/uses).
+- [ ] **Hierarchy — refine The Interrupt Contract's priority ladder with
+      real scheduling constraints, not just rank order.** Owner: **Mason**
+      — already flagged in his own starter mail as needing a manager
+      conversation before Phase 4.2 locks in the ranked-ladder rebuild. The
+      three proposed grace values (60/90/120 min) in the Interrupt Contract
+      are placeholders, not confirmed numbers — get sign-off before
+      they're built into live rules, not after. See also the 2026-09-21
+      3.8/4.1.8 follow-up items above/below — spirometry and medication
+      both shipped as fully soft and need to move onto the ladder too.
+      - [x] **Decision 1 (Raul, 2026-09-23): an interrupted dialog has an
+            expiry, not a restart cap.** It can be restarted, with a resume
+            line, until it expires. Spirometry and medication expire at end
+            of day. Educational content and gamification expire at end of
+            week. Recorded in Mason's STATUS.md; the spec hasn't been
+            rewritten yet.
+      - [ ] Still open with Raul (Mason is waiting on these before any
+            spec rewrite): (a) the scope question; (b) which expiry bucket
+            sleep-prep, low-compliance feedback and ACQ go in; (c) whether
+            end of day *replaces* the grace-minute windows
+            (`$spiroWindowEnd`, `$myMedication_windowEnd_i`) or only sets
+            the resume cutoff. The answer to (c) decides whether the
+            60/90/120 min grace sign-off below is still needed. Note that
+            "end of week" for educational content conflicts with the
+            "reprompt after 1 day" line below; reconcile them when (b) is
+            settled.
+      - [ ] Top-3 (spirometry, medication, night-time monitoring) only
+            interruptible by end of day — nothing below them in the
+            ladder can pre-empt them at all; only the day boundary
+            (midnight) can close them out, not a lower-priority reminder
+            waiting its turn.
+      - [ ] Sequence spirometry before medication, or ≥5h after — plan
+            the day intelligently rather than just by rank; if that's not
+            achievable, surface a pop-up saying medication isn't advised
+            right now because spirometry is coming up in a couple of hours.
+      - [ ] ACQ and educational content persist over days, reprompt after 1
+            day — neither is top-priority, but both should survive being
+            deprioritized for a day rather than being dropped.
+- [ ] **What info to collect — open design question, no owner yet.** We
+      should be collecting a lot more into structured variables to actually
+      know what's going on with a participant over time, not just enough to
+      fire the next reminder. Needs a first pass at what's actually useful
+      to capture before it's anyone's task to build. **Flagging for the
+      manager per Kart's scope** (challenge unclear tasks rather than guess
+      an owner): this isn't scoped enough yet to assign — no stated goal
+      beyond "collect more" — and it plausibly feeds workstream 5's
+      Markov-chain patient simulation (Mirror's Stage-4 engine is its
+      eventual consumer), which may want to shape the scoping before this
+      is handed to anyone.
+- [ ] **Set questionnaire `multiSubmit` to false — no clear owner yet.**
+      Should restrict a participant to a single submission per
+      questionnaire. Documented somewhere already per Simone's email, but
+      not actually implemented — needs to be found and set. **Flagging
+      for the manager**: this is a PMCP questionnaire-config setting, not
+      clearly inside any current agent's declared scope (not the r_
+      pipeline, not the Rules/Dialogs/Variables tabs the redesign touches,
+      not the Flask portal) — needs a decision on who picks it up, and
+      whether it needs Warden's navigation tooling to find/set via
+      automation or is just a one-off manual portal click.
+- [ ] **Which model backs the read-only analysis tabs (Rules/Dialogs/
+      Variables/Statistics) — added 2026-09-23, Smith's own call.** Found
+      while scoping a portal visual-nav feature: `coaching_view` never
+      calls `parse_bundle()`, so these tabs are 100% HTML-sourced today
+      regardless of a bundle being attached — some data (e.g.
+      `Rule.micro_dialog_path`, rule→dialog routing) only ever exists via
+      the bundle path and isn't in the HTML export at all. Switching would
+      surface that, but `parse_bundle`-derived models have empty
+      `message_groups` (the known Stage-3 gap,
+      `test_message_groups_are_empty_stage3_gap`) — a real regression to
+      the Rules tab's "Message Groups" section for every bundle-attached
+      coaching today, not a pure addition. **Confirmed 2026-09-23 (Mirror)
+      this is unrelated to Stage 4's own Phase A-F** — Chat's
+      `load_bundle_model()` is a separate entry point Mirror built on
+      purpose to avoid exactly this fork; nothing about Phases A-F needs
+      the analysis tabs on bundle data. So this is purely Smith's own
+      tradeoff to make (or defer indefinitely), not a cross-agent blocker —
+      options: fix the Message Groups gap first, accept it and switch
+      anyway, or leave HTML as the source of truth for these tabs for good.
 
 ## Coaching export
 
@@ -1006,6 +1204,26 @@ other live-portal workstream here. Every live-portal session gets an
         `►`-overflow check, and doubles the width (to 40000) until it clears
         or aborts with a clear message.
 
+- [x] **Surface the export/coaching.json coherence check in the portal**
+      — done 2026-09-23 (Smith, portal-side only — not a live PMCP
+      session, no autochanges/ entry). The phase-4 coherence check built
+      into `export_coaching.py` (sweep vs Report HTML vs
+      `coherence_baseline.json`) was already computed and stored
+      (`app/storage.py`'s `_bundle_summary` → `coherenceOk`/
+      `coherenceWarnings`) but only ever rendered once, buried in the
+      Statistics tab — invisible unless you went looking. Added a loud
+      page-level banner (any tab, not just Statistics) when an attached
+      `coaching.json`'s coherence check failed, linking to the existing
+      Statistics-tab detail, plus a "⚠ export/JSON mismatch" badge next
+      to the coaching's name on the `/coachings` list so drift is visible
+      without opening the coaching at all. Template/CSS/JS surfacing only,
+      no new backend logic. Verified: full suite still green (60/60,
+      untouched by this change) plus a throwaway Flask test-client smoke
+      check (banner+badge fire on `coherenceOk:false`, silent on
+      `coherenceOk:true` and on no-bundle coachings). **Uncommitted in the
+      working tree** as of this entry — see Smith's own STATUS.md for
+      the file-level detail.
+
 ## Simulate chat — Stage 4 (depends on `coaching.json`)
 
 **Full cold-start brief: `docs/stage4_chat_engine_plan.md`** — architecture,
@@ -1043,16 +1261,83 @@ question; a sender firing while a question is pending is **skipped**.
       concurrent live session): regenerating
       `tools/coaching-bundle-export/rules_stage3_ALEX_v01.json` and bumping
       `coherence_baseline.json` — do this on the next live export run.
-- [ ] **Phase A** — `parse_bundle()` in `app/coaching_model.py` + additive
-      dataclass fields; `load_model()` dispatches on `.json` vs `.html`.
-- [ ] **Phase B** — r_-group collapsing in the dialog walker (seeded).
-- [ ] **Phase C** — sender rule → auto-launch its `microDialogPath`;
-      not-answered timeout → run `doesNotAnswerRules`.
-- [ ] **Phase D** — interruption (skip a sender while `pending` is set).
-- [ ] **Phase E** — Chat tab wired to `parse_bundle`; gate on `.json`
+- [x] **Phase A** — done, commit `695b490` ("Stage 4 Phase A: parse_bundle()
+      - coaching.json -> CoachingModel"). **Correction to this item's own
+      original wording, per Mirror 2026-09-23**: deviated from the plan
+      doc's assumption on purpose — `load_model()`'s own dispatch (HTML vs
+      bundle) was never touched, and still isn't; `parse_bundle()` is
+      reachable only through a new, separate entry point,
+      `load_bundle_model(coaching_id)`, that only the (not-yet-wired) Chat
+      engine calls. `coaching_view`'s read-only analysis tabs
+      (Rules/Dialogs/Variables/Statistics) still go through
+      `load_model()`→`parse_model()` untouched — nothing about them
+      changed by this phase. See "Which model backs the analysis tabs" in
+      Further tasks above for the separate, non-blocking question Smith
+      raised about *those* tabs — it doesn't touch Phase A/B-F at all.
+- [x] **Phase B** — done, commit `31d92ea` ("Stage 4 Phase B:
+      randomisation-group collapsing in the dialog walker"), seeded per
+      plan.
+- [x] **Phase C** — sender rule → auto-launch its `microDialogPath`;
+      not-answered timeout → run `doesNotAnswerRules`. Done, commit
+      `44cbf2f` (2026-09-23). A sender fires at most once per day. The
+      sleep-monitoring sender bug is fixed: the once-per-day key used
+      `$today`, which the coaching rewrites itself. `doesNotAnswerRules` are only logged on
+      timeout, not run, because no real sender has any.
+- [x] **Phase D** — interruption (skip a sender while `pending` is set).
+      Done, commit `06bb7c3`. A sender that comes due while a question is
+      open is suppressed and retries on a later tick. This is an
+      **unverified assumption** about PMCP's behaviour, recorded as one in
+      `docs/stage4_chat_engine_plan.md`. 74 tests pass.
+- [x] **`{#d}` date-format suffix (found 2026-09-23, Mirror).** Done,
+      commit `4bbc195`: implemented as the documented `dd.mm.yyyy`
+      modifier, per the PMCP 6.0 docs.
+- [x] **Phase E** — Chat tab wired to `parse_bundle`; gate on `.json`
       present; surface rule→dialog, timeout countdown, not-answered events.
-- [ ] **Phase F (design only)** — `PatientModel.respond()` seam for
-      workstream 5.
+      **Done 2026-09-24.** The browser acceptance walks pass on the
+      jump-enriched 0917 ALEX export and match hand-traces:
+      - medication v02 dialog, Yes and No paths
+      - ACQ reminder → answers → questionnaire → correct score → the
+        next daily run advancing `$dateOfNextACQ`
+      Engine side (Mirror) is committed, `4b223e5` → `efc238a`. Engine
+      fixes made along the way, all checked against the PMCP 6.0 docs:
+      - answer options are label:value
+      - decision rules run as a tree (child = AND)
+      - per-rule jump-to-message targets
+      - cascades return to the calling dialog
+      - questionnaire buttons
+      - `$participantParticipationInDays` and 3 system variables are
+        simulated
+      - sims start from the export's variable defaults
+      Portal side (Smith) is **uncommitted, waiting on Raul's
+      go-ahead**. It includes the stale-chat guard: a saved chat is
+      refused if it doesn't match the attached export's model
+      fingerprint.
+      - [ ] Verify the assumed semantics of
+            `$participantParticipationInDays` (Raul chose them) against a
+            real participant snapshot. Flagged in the plan doc.
+      - [ ] Re-walk on a **fresh, complete ALEX export**. The 0918 export
+            fails its own coherence check and predates the 09-19
+            medication-options fix. Warden's fresh export is **queued**
+            for the browser right after Loom's Stage3 run. Until then,
+            Raul says the 0917 export is fine for testing.
+- [x] **Jump-to-message targets in the export (Warden, 2026-09-24).**
+      They were already in the Report HTML, just unparsed.
+      `enrich_bundle.py` resolves 22 of the 36 on ALEX v01; the other 14
+      are ambiguous from the text alone and are listed as candidates.
+      Exporter commit `0686367`; more exporter and enrich changes are
+      still in the working tree, waiting on Raul's go-ahead.
+      - [ ] Optional: a small live pass to settle the 14 ambiguous
+            targets. It fits into Warden's browser time.
+- [x] **Phase F (design only)** — `PatientModel.respond()` seam for
+      workstream 5. **Done, commit `87e5e11`** (`app/patient_sim.py`, 98
+      tests pass). **Decided 2026-09-24 (Kart, delegated by Raul):**
+      Mirror builds the **engine-only seam now**:
+      - a `PatientModel` protocol
+      - a headless `run(model, patient, days)` loop
+      - one always-answers test patient
+      It has no behavioural logic. How stored patient-model fields turn
+      into answers stays open for workstream 5's owner, which is still
+      unassigned.
 
 - [ ] Allow tracking and changing variables on the go, and advancing the
       clock. — Already works in the current simulator (`set_var` / `tick` /
@@ -1061,4 +1346,16 @@ question; a sender firing while a question is pending is **skipped**.
 - [ ] Interface the chat simulation with patient models using Markov chains
       (workstream 5). Design in `ALEX_v02_simulator_scope.md` §4–7. Needs
       Stage 4's engine + the phase-F hook as its substrate. `autochanges/` is
-      set up (`autochanges/README.md` for the format).
+      set up (`autochanges/README.md` for the format). **No owner assigned
+      in any agent's `AGENT.md` yet.** Surfaced concretely 2026-09-23:
+      Smith found the existing Patient Models CRUD (adherence %,
+      response-time, sleep window — already built, currently disconnected
+      from the Chat tab) is explicitly in Smith's own scope to *wire in*,
+      but the behavioral model it needs (how does e.g.
+      `adherence_spirometry_pct` actually decide whether/when a simulated
+      patient answers a given question?) is workstream 5's own open design
+      question, not an implementation detail — right call not to invent
+      it solo. Needs a manager decision on who owns workstream 5's
+      behavioural design. Phase F's engine-only seam is going ahead
+      without it (2026-09-24), but nothing behavioural can be built on
+      top until there's an owner.
