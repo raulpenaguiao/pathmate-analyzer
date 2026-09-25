@@ -9,7 +9,9 @@
 - `decisions.md`: D1–D9 with options and recommendations. **Raul answers these in the artifact.**
 - `build-steps.md`: platform tests, shared infrastructure, a per-dialog recipe, per-category values.
 
-Sent to Herald with the one-line list. Waiting for Raul's answers to D1–D9, then I fold them into the design pages.
+Sent to Herald with the one-line list.
+
+**Reframe (Raul, 10:00):** the defining v02 change is that interrupted dialogs return **from the beginning, with a dialog-specific re-entry opener that gives context**. Priority, interruption and expiry exist in v01 and are only reorganized. The docs are reframed (aa5e2c9) and Herald has been asked to rework the page around it. Waiting for Raul's answers to D1–D9, then I fold them into the design pages.
 
 ---
 
