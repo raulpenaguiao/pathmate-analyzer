@@ -22,7 +22,11 @@ Due today:
       from Loom): what the tool creates, the CSV columns, current status,
       and the ro-RO duplicate flag.
 - [ ] **Chat test with Raul** on a locally running portal (Smith). This
-      unblocks workstream 5.
+      unblocks workstream 5. **Ready:** the demo portal is at
+      http://localhost:8010 (throwaway `DATA_DIR`, 0925 export attached);
+      Smith re-ran the walks there with 0 errors.
+- [x] **Commit round + push.** Everyone committed; Loom pushed `b35d0a1`,
+      and Kart pushed the rest. `main` = origin as of 09-25 ~10:15.
 
 Also queued:
 - [ ] **One Question at a Time**: a detailed flow walk-through plus
@@ -36,7 +40,18 @@ Also queued:
       check to the expand prompt and output (Loom).
 - Owners set by Raul:
   - workstream 5 → **Mirror**, blocked until Raul has tested the chat
-  - "what info to collect" → **Mirror**
+  - "what info to collect" → **Mirror**. **First pass done 09-25**:
+    `docs/participant_data_collection.md`.
+    - PMCP already timestamps every variable write, so collecting data
+      means writing variables at the right moment.
+    - Biggest gap: all 18 senders time out, but none has a "does not
+      answer" branch, so ignored prompts leave no trace.
+    - Also ranked: response latency, deferral counts, 31 unstored
+      answers, which variant was shown, and engagement stages.
+    - It maps each gap to the workstream 5 patient-model field it
+      would let us estimate.
+    - **4 open questions for Raul** in the doc, including privacy limits
+      and who builds it (probably Mason, since it's live content).
   - questionnaire `multiSubmit` → **Warden**, blocked until we have
     access to the real ALEX coaching
 
