@@ -16,12 +16,12 @@ In v02 a returning dialog takes a separate path, the **re-entry path**. That pat
 
 | Dialog | Re-entry opener, EN seed | RO seed (informal *tu*) |
 |---|---|---|
-| Spirometry | "Earlier today I reminded you about your spirometry measurement, and we got interrupted. Let's start again from the top." | "Mai devreme ți-am amintit de măsurarea spirometriei și am fost întrerupți. Hai să o luăm de la început." |
+| Spirometry | "Earlier today I reminded you about your spirometry measurement, and we got interrupted. Let's start again from the top." | "Mai devreme ți-am amintit de măsurarea spirometriei și ne-am întrerupt. Hai să o luăm de la început." |
 | Medication dose | "A little while ago I asked about your medication dose, before something else came up. Let's go back to it." | "Acum puțin timp te-am întrebat despre doza ta de medicament, înainte să intervină altceva. Hai să revenim la ea." |
 | Night preparation | "Before we got side-tracked, I wanted to help you get your devices ready for tonight's monitoring." | "Înainte să ne abatem de la subiect, voiam să te ajut să-ți pregătești dispozitivele pentru monitorizarea de la noapte." |
-| ACQ | "Earlier I asked you to fill in your asthma questionnaire (ACQ), and we got interrupted. Here it is again." | "Mai devreme te-am rugat să completezi chestionarul despre astm (ACQ) și am fost întrerupți. Iată-l din nou." |
+| ACQ | "Earlier I asked you to fill in your asthma questionnaire (ACQ), and we got interrupted. Here it is again." | "Mai devreme te-am rugat să completezi chestionarul despre astm (ACQ) și ne-am întrerupt. Iată-l din nou." |
 | ACQ, after a new time was picked *(continue)* | "You asked me to remind you about your asthma questionnaire at this time. Here it is." | "Mi-ai cerut să-ți amintesc de chestionarul despre astm la ora asta. Iată-l." |
-| Educational content | "Before we were interrupted, I wanted to share some material about asthma with you." | "Înainte să fim întrerupți, voiam să-ți arăt niște materiale despre astm." |
+| Educational content | "Before we were interrupted, I wanted to share some material about asthma with you." | "Înainte de întrerupere, voiam să-ți arăt niște materiale despre astm." |
 
 Approved by Raul (D8). Each opener is built as an `r_` randomisation group named `r_ReEntry_<Dialog>` (e.g. `r_ReEntry_Spirometry`). Loom's r_ pipeline then generates further variants in English and Romanian automatically, so a returning patient doesn't see the identical line every time. The Romanian seeds are Mason's drafts. They anchor the pipeline's style and register; a native speaker should review the generated set.
 
