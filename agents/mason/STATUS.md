@@ -11,7 +11,9 @@
 
 Sent to Herald with the one-line list.
 
-**Reframe (Raul, 10:00):** the defining v02 change is that interrupted dialogs return **from the beginning, with a dialog-specific re-entry opener that gives context**. Priority, interruption and expiry exist in v01 and are only reorganized. The docs are reframed (aa5e2c9) and Herald has been asked to rework the page around it. Waiting for Raul's answers to D1–D9, then I fold them into the design pages.
+**Reframe (Raul, 10:00):** the defining v02 change is that interrupted dialogs return **from the beginning, with a dialog-specific re-entry opener that gives context**. Priority, interruption and expiry exist in v01 and are only reorganized. The docs are reframed (aa5e2c9) and Herald has been asked to rework the page around it.
+
+**Planning ahead (Raul, 10:05):** the onboarding schedule check, postponement spacing, and *no spirometry within 5 h after medication* are in `docs/pileup/planning-ahead.md` (03aee66), with new decisions D10–D12. Herald has been briefed. Waiting for Raul's answers to D1–D9, then I fold them into the design pages.
 
 ---
 
