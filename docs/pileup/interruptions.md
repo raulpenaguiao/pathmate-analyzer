@@ -2,11 +2,30 @@
 
 Decided by Raul, 2026-09-23. Replaces the original spec's "delete it and never bring it back".
 
-## The idea
+## The idea: come back with context
 
-When a more important dialog interrupts a less important one, the interrupted dialog **comes back** once the interruption is over. It opens with one short line, *"Let's pick up where we left off"*, and then either starts over or continues, depending on how far the patient had got. It stops coming back at its **expiry**: the end of the day for daily tasks, the end of the week for weekly ones.
+This is **the defining architecture change of v02** (Raul, 2026-09-25).
 
-Two things make this different from the v01 pile-up. First, a dialog only comes back when nothing equally or more important is open ([priority.md](priority.md)). Second, it can never come back after its expiry.
+When a more important dialog interrupts a less important one, the interrupted dialog **comes back** once the interruption is over. In v01, it came back at the exact question where it stopped, with at most one generic line. The patient, sometimes hours later, had to work out what was being asked and why.
+
+In v02 a returning dialog takes a separate path, the **re-entry path**. That path is designed on the assumption that the patient has lost the thread:
+
+1. **A re-entry opener, specific to the dialog.** It says what the conversation is about and why it's back. It is not a generic "let's pick up where we left off".
+2. **Then the dialog from the beginning.** Its first question is worded so that it stands on its own.
+3. **Only if a real part is already done ("continue", below) does it skip ahead.** Even then the opener says what's already done, and never drops the patient into a bare mid-dialog question.
+
+| Dialog | Re-entry opener (EN draft) |
+|---|---|
+| Spirometry | "Earlier today I reminded you about your spirometry measurement, and we got interrupted. Let's start again from the top." |
+| Medication dose | "A little while ago I asked about your medication dose, before something else came up. Let's go back to it." |
+| Night preparation | "Before we got side-tracked, I wanted to help you get your devices ready for tonight's monitoring." |
+| ACQ | "Earlier I asked you to fill in your asthma questionnaire (ACQ), and we got interrupted. Here it is again." |
+| ACQ, after a new time was picked *(continue)* | "You asked me to remind you about your asthma questionnaire at this time. Here it is." |
+| Educational content | "Before we were interrupted, I wanted to share some material about asthma with you." |
+
+The wording is a draft for Raul (decisions.md D8). The Romanian versions need a native speaker.
+
+Two further rules keep comebacks from piling up. A dialog only comes back when nothing equally or more important is open ([priority.md](priority.md)), and it never comes back after its expiry.
 
 ## How far the patient got: three states
 
@@ -54,7 +73,7 @@ Each ranked dialog X has its own:
 
 | Variable | Meaning |
 |---|---|
-| `$X_started` | 0/1. Has X been shown today (or this week)? Decides whether the "pick up where we left off" line is said. The reminders already have this as `$…ReminderStage ≥ 1`. |
+| `$X_started` | 0/1. Has X been shown today (or this week)? Decides whether the dialog takes the re-entry path. The reminders already have this as `$…ReminderStage ≥ 1`. |
 | `$X_resumeMode` | 0 = start over, 1 = don't come back, 2 = continue. Set by X's checkpoints; 1 also when X ends normally or is ignored. |
 
 ### Firing rule for dialog X (rank r)
@@ -72,7 +91,7 @@ PERIODIC rules are ordered by rank, so when several dialogs are waiting, the mos
 
 ### Inside dialog X
 
-1. **Opening decision point:** if `$X_started == 1`, say "Let's pick up where we left off". If `$X_resumeMode == 2`, jump to "X, part 2". Then set `$X_started = 1`.
+1. **Opening decision point:** if `$X_started == 1`, go to the dialog's **re-entry opener** (its own message rows, then back to the first question). If `$X_resumeMode == 2`, jump to "X, part 2", whose own re-entry opener says what's already done. Then set `$X_started = 1`.
 2. **Checkpoints** set `$X_resumeMode` to 1 or 2.
 3. **Normal end:** `$X_resumeMode = 1`, `$openDialogName = ""`, `$openDialogRank = 99`.
 4. **The first message** of every ranked dialog clears whatever it interrupted ("clears the current dialog cascade" setting). The interrupted dialog then returns only through its own firing rule, never through PMCP's built-in recall, which has no expiry.

@@ -14,7 +14,7 @@ The patient is making breakfast and doesn't answer.
 
 **08:30 · Medication dose 1 is due** (rank 1), but spirometry, also rank 1, is still open. Equal ranks don't interrupt, so medication waits.
 
-**08:30 · Spirometry counts as ignored.** It has gone unanswered for 30 minutes *(D1)*, so it closes quietly. Ignored is not interrupted: spirometry does **not** come back with "let's pick up where we left off". *(Whether it may ask once more before its window closes at 11:00 is D2.)*
+**08:30 · Spirometry counts as ignored.** It has gone unanswered for 30 minutes *(D1)*, so it closes quietly. Ignored is not interrupted: spirometry does **not** come back through its re-entry opener. *(Whether it may ask once more before its window closes at 11:00 is D2.)*
 
 **08:31 · Medication dose 1 asks.** The way is clear and it is still inside its window (08:30–11:30).
 > ALEX: Quick reminder: it's time for your medication!
@@ -44,10 +44,10 @@ The patient sees it but doesn't open it yet.
 > Patient: **Yes**
 
 **20:31 · The ACQ comes back.** Nothing is open any more, it's before the ACQ's expiry, and it had been shown but not finished.
-> ALEX: Let's pick up where we left off.
+> ALEX: Earlier I asked you to fill in your asthma questionnaire (ACQ), and we got interrupted. Here it is again.
 > ALEX: It's time to check in on your asthma with the questionnaire…
 
-No checkpoint had been passed, so it **starts over**. The patient opens the survey at 21:40 and is still answering at 21:50.
+This is the defining change. v01 would have re-surfaced the ACQ's bare question with no framing. Here the ACQ **starts over**, and the opener first tells the patient what this is and why it's back. The patient opens the survey at 21:40 and is still answering at 21:50.
 
 **21:50 · Night preparation is due** (rank 1, 10 minutes before bedtime). The ACQ is being *actively answered*, so it counts as rank 1 as well. Equal ranks wait, and night preparation waits.
 
@@ -67,9 +67,9 @@ The patient ticks the checklist. Done.
 | Higher beats lower | 20:30: medication interrupts an idle ACQ |
 | Equals wait | 08:30: medication waits for spirometry. 21:50: night prep waits for the actively answered ACQ |
 | Active answers are protected | 17:00 education, 21:50 ACQ |
-| Interrupted → comes back, starts over | 20:31: "Let's pick up where we left off" |
+| **Interrupted → comes back from the beginning, with context** | 20:31: the ACQ's re-entry opener |
 | Checkpoint → doesn't come back | 08:31 medication, 17:12 education |
 | Ignored → doesn't come back | 08:30 spirometry |
 | Expiry | 00:00 reset |
 
-**Compared with v01:** in v01, the ignored 08:00 spirometry question would still have been sitting open at 18:00 and 20:30. The v01 transition dialogs would have parked it and resumed it afterwards ("we had previously stopped somewhere else…"). The patient would have met a morning reminder in the evening, which is the pile-up.
+**Compared with v01:** in v01, the ignored 08:00 spirometry question would still have been sitting open at 18:00 and 20:30. The v01 transition dialogs would have parked it and resumed it afterwards ("we had previously stopped somewhere else…"). The patient would have met a morning question in the evening, mid-conversation, with nothing saying what it was about or where to pick up.

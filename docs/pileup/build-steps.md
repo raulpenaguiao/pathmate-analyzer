@@ -51,7 +51,7 @@ Do these for each dialog, in the order from [rollout.md](rollout.md). Category-s
 5. Sender: start dialog X. Keep the rule's own "not answered" timeout at least as long as `$hyperparameterIdleMinutes`.
 
 **C3. Opening decision point** (new first row of dialog X), flat branches in this order:
-1. If `$X_started == 1`: jump to the message row "resume line" (a plain message: *"Let's pick up where we left off."*, D8), which then continues into the dialog.
+1. If `$X_started == 1`: jump to the **re-entry opener**, one or two plain message rows written for this dialog (wording in [interruptions.md](interruptions.md#the-idea-come-back-with-context), D8), which then continue into the dialog's first question.
 2. If `$X_resumeMode == 2`: jump to dialog "X, part 2". Only for dialogs that have one (C5).
 3. Assign `$X_started = 1`.
 4. Assign `$openDialogName = "X"` (create text), `$openDialogRank = r`, `$openDialogStaleAt = $timeDecimal + $hyperparameterIdleMinutes/60`.

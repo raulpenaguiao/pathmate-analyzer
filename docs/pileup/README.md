@@ -1,12 +1,14 @@
 # The pile-up problem and its fix
 
-**The problem, in one sentence:** ALEX's reminders never expire and have no priority. An unanswered morning reminder keeps coming back later in the day and pushes aside whatever was actually scheduled for that time.
+**The problem, in one sentence:** when ALEX brings an interrupted dialog back, it drops the patient back into the middle of it, sometimes hours later, with no context about what was being asked or why.
 
-**The fix, in three rules:**
+**The defining change in v02:** an interrupted dialog comes back **from the beginning**, through a **re-entry opener** written for that dialog. The opener tells the patient what this is about and why it's back, and never assumes they remember. → [interruptions.md](interruptions.md)
 
-1. **Every dialog has a rank.** A more important dialog may interrupt a less important one, never the other way round. Two dialogs of the same rank never interrupt each other. → [priority.md](priority.md)
-2. **An interrupted dialog comes back, but not forever.** When the interruption is over, it restarts with a short "let's pick up where we left off", until it expires at the end of the day or the end of the week. Dialogs that are effectively finished don't come back at all. → [interruptions.md](interruptions.md)
-3. **Reminders have a time window.** A reminder only nags within a window around its scheduled time, then gives up for the day. → [reminder-pattern.md](reminder-pattern.md)
+**Three mechanisms v01 already has, organized better:**
+
+1. **Priority, made explicit.** Every dialog has a rank. A more important dialog may interrupt a less important one, never the other way round, and equal ranks don't interrupt each other. → [priority.md](priority.md)
+2. **Comebacks that expire.** An interrupted dialog keeps coming back only until the end of the day or week. Dialogs that are effectively finished don't come back at all. → [interruptions.md](interruptions.md)
+3. **Reminder windows.** A reminder only asks within a window around its scheduled time, then gives up for the day. → [reminder-pattern.md](reminder-pattern.md)
 
 ## Pages
 

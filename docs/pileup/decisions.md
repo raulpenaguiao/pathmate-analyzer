@@ -54,11 +54,10 @@ Question: will you or the clinical team supply N, M and K?
 
 ## Content
 
-**D8. The resume line.**
-- EN: *"Let's pick up where we left off."*
-- RO: *"Să continuăm de unde am rămas."* (needs a native-speaker check)
-
-Keep it, or reword?
+**D8. The re-entry openers.** Each returning dialog gets its own opener, which says what the dialog is about and why it's back. Drafts for each dialog are in [interruptions.md](interruptions.md#the-idea-come-back-with-context).
+- **A ★ Approve the drafts**, then write the rest per category as each is built; Romanian by a native speaker.
+- B Reword (tell me which).
+- C One generic line for all dialogs. *Not recommended: this is v01's missing-context flaw again.*
 
 **D9. The spirometry Yes/No buttons.** On the old sandbox they show raw text, and the live fix was dropped. ★ Fix it as part of the workbench build ([build-steps.md](build-steps.md#also-carried-into-the-workbench-build)). Nothing to do before then.
 
@@ -66,5 +65,5 @@ Keep it, or reword?
 
 - **The ladder:** 0 safety; 1 spirometry / medication / night prep; 2 ACQ / compliance; 3 sleep quality; 4 education and health literacy; 5 gamification; 6 misc.
 - **Outside the ladder:** patient-started conversations, onboarding, greetings, the well-being check-in (never restarted).
-- **Interrupted dialogs come back**, using three states: start over / don't come back / continue.
+- **The defining change:** interrupted dialogs come back **from the beginning, with a re-entry opener that gives context**, and never assume the patient remembers. Three states: start over / don't come back / continue.
 - **Expiry:** spirometry and medication at the end of the day; education and gamification at the end of the week.

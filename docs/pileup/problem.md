@@ -1,15 +1,23 @@
 # What goes wrong in ALEX v01
 
-**Symptom.** The patient ignores the morning "do your spirometry" reminder. Hours later it resurfaces and displaces the evening dialog that was actually due, instead of getting out of the way.
+**Symptom.** The patient ignores the morning "do your spirometry" reminder. Hours later it resurfaces in the middle of the evening, and the patient is left looking at a question with no idea what it refers to or where to pick up.
 
-**Why it happens.** Three design choices in v01 add up to the pile-up:
+## The design flaw: returning without context
 
-1. **Reminders never expire.** They are PMCP's default *blocking* questions, which stay open until the patient answers.
-2. **Nothing has a priority.** A stale reminder and a scheduled questionnaire are treated the same, so whichever got there first holds the conversation.
-3. **Interrupted reminders are always brought back.** v01 parks the old question when something new starts, then resumes it afterwards ("we had previously stopped somewhere else… let us resume"). There is no limit on how old the parked question may be. The only cleanup is one end-of-day sweep, for spirometry only.
+v01 interrupts dialogs on purpose and brings them back afterwards. That is intended behaviour, and PMCP's own v6.0 guidance calls bringing interrupted dialogs back the *preferred* approach, because patients can answer at their own pace ("Defining the conversational coaching flow" best-practice page).
 
-**What is *not* the problem.** Bringing an interrupted dialog back is not wrong in itself. PMCP's own v6.0 guidance calls it the *preferred* approach, because it lets patients answer at their own pace ("Defining the conversational coaching flow" best-practice page). The bug is bringing things back **with no expiry and no priority**. So the fix keeps the comeback, and adds a rank (see [priority.md](priority.md)) and an expiry (see [interruptions.md](interruptions.md)).
+**What v01 gets wrong is how a dialog comes back.** It resumes the parked question at the exact point it stopped. The only framing is one generic transition line ("we had previously stopped somewhere else… let us resume the previous conversation"). The patient is dropped mid-conversation, hours later, and is expected to remember what was being asked and why. The dialog assumes a context the patient no longer has.
 
-**A structural finding from the live rules (14 Sep export).** Before the redesign, not a single sending rule checked whether another question was already open. Any two dialogs whose times happened to coincide for a participant could fire together. Spirometry and medication have since been rebuilt with that check; the others haven't yet.
+**This is the flaw v02 closes, and it is the defining architecture change.** An interrupted dialog comes back **from the beginning**, through a re-entry opener written for that dialog. The opener says what this is about and why it's back, and it doesn't assume the patient remembers. → [interruptions.md](interruptions.md)
+
+## Mechanisms v02 keeps, but organizes better
+
+These are not design flaws. The mechanisms exist in v01 and are intended; v02 makes them explicit and consistent:
+
+- **Priority.** v01 orders dialogs through rule order and per-rule timeouts. v02 replaces that implicit ordering with an explicit ranking by category. → [priority.md](priority.md)
+- **Interruption.** More important content is meant to be able to cut in. v02 keeps this, and states exactly who may interrupt whom.
+- **Expiry.** v01 has one end-of-day sweep, for spirometry only. v02 gives every reminder a window, and every returning dialog an expiry (end of day or end of week). → [reminder-pattern.md](reminder-pattern.md)
+
+**A structural finding from the live rules (14 Sep export).** Before the redesign, no sending rule checked whether another question was already open, so dialogs whose times coincided could fire together. Spirometry and medication have since been rebuilt with that check.
 
 *Details: [archive/pileup_findings_ALEX_v01.md](archive/pileup_findings_ALEX_v01.md) and §1 of [archive/ALEX_v02_redesign_spec.md](archive/ALEX_v02_redesign_spec.md).*

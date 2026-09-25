@@ -15,10 +15,10 @@ Detailed task tracking lives in `TASKS.md` (owned by Kart). This page is the des
 **Step 0: three quick platform tests** (sandbox coaching, one browser session via Warden). These settle the unverified points in [interruptions.md](interruptions.md#not-yet-verified-needs-one-test-on-the-sandbox-coaching-booked-through-warden). They must come first, because the design depends on them.
 
 **Step 1: retrofit spirometry and medication** to the new interrupt design:
-1. Add the shared markers (`$openDialogName`, `$openDialogRank`, `$openDialogSince`) and each dialog's `…_resumeMode`.
+1. Add the shared markers (`$openDialogName`, `$openDialogRank`, `$openDialogStaleAt`) and each dialog's `…_resumeMode`.
 2. Firing rules: swap the "nothing open" check for the rank check, and set the markers when the dialog starts.
 3. Dialogs:
-   - Add the opening "pick up where we left off" step and the checkpoint.
+   - Add the dialog's re-entry opener (the context for a returning patient) and the checkpoint.
    - **Spirometry:** once measured → don't come back.
    - **Medication:** once the dose is answered → don't come back. Neither needs the "continue" state, so neither needs splitting.
    - At the end, clear the markers. On the first message, turn on the clear setting.
