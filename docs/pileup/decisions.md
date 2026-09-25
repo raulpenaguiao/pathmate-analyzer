@@ -51,6 +51,13 @@ Accept the whole table, or name the exceptions.
 - B Spirometry simply waits 5 h after the dose; no offer.
 - C Clinical input needed. Is the 5 h rule a hard constraint, or advice?
 
+**D13. How long does active-answer protection last?** Once the patient answers, the dialog counts as rank 1. After this time it drops back to its own rank; it stays open, but becomes interruptible.
+- A 30 minutes.
+- **B ★ 1 hour** (Raul's suggestion). This covers a video or a full ACQ.
+- C Until the dialog ends, bounded only by the 30-minute idle timeout. This is the current draft; a slow but active conversation could hold rank 1 for hours.
+
+Note: a long video with no answers would hit the 30-minute idle timeout (D1) first and count as ignored. For education, the idle time should be at least the length of the longest video. Per-dialog idle times are an option.
+
 ## Scope
 
 **D6. What goes into the first v02 release on the workbench?**

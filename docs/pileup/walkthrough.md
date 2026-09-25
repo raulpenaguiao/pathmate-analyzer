@@ -37,7 +37,7 @@ The dose is recorded. That was the checkpoint, so medication dose 1 won't come b
 > ALEX: Is this a good time point to interact with educational material related to asthma? 🧐📖
 > Patient: **Yes**
 
-The patient has now answered, so the dialog counts as rank 1 until it ends, and nothing except safety may interrupt the video. At 17:12 the video ends and the dialog closes normally. Done for the week.
+The patient has now answered, so the dialog counts as rank 1, and nothing except safety may interrupt the video. The protection lasts up to one hour from this answer, until 18:00 *(D13)*. After that the dialog would drop back to rank 4. At 17:12 the video ends and the dialog closes normally, well inside the hour. Done for the week.
 
 ## Evening: an interruption and a comeback
 

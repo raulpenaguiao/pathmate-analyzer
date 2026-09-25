@@ -67,6 +67,8 @@ Two shared markers record which dialog is open right now:
 |---|---|---|
 | `$openDialogName` | `""` | a ranked dialog starts (its own name); cleared when it ends |
 | `$openDialogRank` | `99` | a ranked dialog starts (its rank); set to `1` while the patient is actively answering (the protection rule in [priority.md](priority.md)); `99` when it ends |
+| `$openDialogOwnRank` | `99` | a ranked dialog starts (its own rank). The demote rule uses it to drop the dialog back once protection runs out. |
+| `$openDialogProtectedUntil` | `0` | the patient's first answer: `$timeDecimal` + the protection time (1 h, D13) |
 | `$openDialogStaleAt` | `0` | a ranked dialog starts, and again on every answer: `$timeDecimal` + the idle time. After this, an unanswered dialog counts as ignored. |
 
 Each ranked dialog X has its own:

@@ -30,6 +30,9 @@ Log each result in `autochanges/`, then update [interruptions.md](interruptions.
 | `$openDialogRank` | number | `99` | its rank (99 = nothing open) |
 | `$openDialogStaleAt` | number | `0` | `$timeDecimal` after which an unanswered open dialog counts as ignored |
 | `$hyperparameterIdleMinutes` | number | `30` *(D1)* | how long an unanswered question may block others |
+| `$openDialogOwnRank` | number | `99` | the open dialog's own rank, used when its protection ends |
+| `$openDialogProtectedUntil` | number | `0` | when active-answer protection ends |
+| `$hyperparameterProtectMinutes` | number | `60` *(D13)* | how long active-answer protection lasts |
 
 **B2. Daily reset.** In the DAILY BASIS reset block, add assignments that reset the three markers to their defaults. Anything open at midnight is over.
 
@@ -54,21 +57,23 @@ Do these for each dialog, in the order from [rollout.md](rollout.md). Category-s
 1. If `$X_started == 1`: jump to the **re-entry opener**, one or two plain message rows written for this dialog (wording in [interruptions.md](interruptions.md#the-idea-come-back-with-context), D8), which then continue into the dialog's first question.
 2. If `$X_resumeMode == 2`: jump to dialog "X, part 2". Only for dialogs that have one (C5).
 3. Assign `$X_started = 1`.
-4. Assign `$openDialogName = "X"` (create text), `$openDialogRank = r`, `$openDialogStaleAt = $timeDecimal + $hyperparameterIdleMinutes/60`.
+4. Assign `$openDialogName = "X"` (create text), `$openDialogRank = r`, `$openDialogOwnRank = r`, `$openDialogStaleAt = $timeDecimal + $hyperparameterIdleMinutes/60`.
 
 **C4. The first visible message** has "clears the current dialog cascade" **on**, and has "expects an answer" **off** (the two are mutually exclusive in PMCP; Phase 3.4 log). "Deactivates and remembers" and both "recalls…" settings stay **off**.
 
 **C5. Checkpoints.** At each checkpoint, add an assignment for `$X_resumeMode` (1 or 2, per the table). Where the table says "split", move everything after the checkpoint into a new dialog "X, part 2". The checkpoint then jumps there, and part 2 gets its own opening decision point (C3).
 
 **C6. Engaged and end.**
-- On the patient's first answer, assign `$openDialogRank = 1` (active-answer protection).
+- On the patient's first answer, assign `$openDialogRank = 1` (active-answer protection) and `$openDialogProtectedUntil = $timeDecimal + $hyperparameterProtectMinutes/60`. Assign it only on the first answer, so later answers don't extend it.
 - On **every** answer, re-assign `$openDialogStaleAt = $timeDecimal + $hyperparameterIdleMinutes/60`. An active conversation never counts as ignored, but one the patient walks away from mid-way clears after the idle time instead of blocking everything until midnight.
-- At every normal stop: assign `$X_resumeMode = 1`, `$openDialogName = ""`, `$openDialogRank = 99`.
+- At every normal stop: assign `$X_resumeMode = 1`, `$openDialogName = ""`, `$openDialogRank = 99`, `$openDialogOwnRank = 99`.
 - Put the condition and its assignments as **children** of the answer check, not beside it. Flat siblings are OR'd; this is the latent issue Mirror found in the medication dialogs.
 
 **C7. Ignored-dialog cleanup** (PERIODIC BASIS, above the firing rules):
 `$openDialogName == "X"` AND `$timeDecimal is bigger than $openDialogStaleAt` → assign `$X_resumeMode = 1`, `$openDialogName = ""`, `$openDialogRank = 99`.
 *(With D2 = "one re-ask": for reminders, set `…ReminderStage = 2` instead of resumeMode 1, and allow one more firing while stage < 2.)*
+
+**C7b. Protection ends** (one shared PERIODIC rule, above the firing rules): `$openDialogRank == 1` AND `$openDialogOwnRank > 1` AND `$timeDecimal is bigger than $openDialogProtectedUntil` → assign `$openDialogRank = $openDialogOwnRank`.
 
 **C8. Expiry resets.** End-of-day dialogs: add `$X_started = 0` and `$X_resumeMode = 0` to the daily reset (B2). End-of-week dialogs: add them to the weekly reset (B3).
 
