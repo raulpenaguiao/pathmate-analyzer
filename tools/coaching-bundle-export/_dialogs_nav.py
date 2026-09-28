@@ -39,8 +39,44 @@ from __future__ import annotations
 import _rules_nav as R
 
 
+LOCATE_ROW_JS = r"""
+([target, scroll]) => {
+  const t = document.querySelector('.v-table');
+  if (!t) return -1;
+  const sc = t.querySelector('.v-table-body-wrapper');
+  const trs = [...t.querySelectorAll('.v-table-body tr')];
+  const rh = trs[0] ? trs[0].offsetHeight : 24;
+  const scrollable = sc.scrollHeight > sc.clientHeight + 4;
+  if (!scrollable) return target < trs.length ? target : -1;
+  if (scroll) { sc.scrollTop = Math.max(0, target * rh - sc.clientHeight / 3); return -2; }
+  const base = sc.getBoundingClientRect().top;
+  return trs.findIndex(tr => tr.querySelectorAll('.v-table-cell-wrapper').length &&
+    Math.round((tr.getBoundingClientRect().top - base + sc.scrollTop) / rh) === target);
+}
+"""
+
+
+async def locate_row(page, row_index: int) -> int:
+    """DOM position (nth among `.v-table-body tr`) of dialog row `row_index`,
+    scrolling it into the rendered window first. The table is virtualized:
+    only the rows near the viewport exist in the DOM, so `tr.nth(row_index)`
+    only works for rows near the top (2026-09-25: Welcome rows 77/90 timed out).
+    Same index arithmetic as _menu_nav.GRAB_JS. Returns -1 if not found."""
+    k = await page.evaluate(LOCATE_ROW_JS, [row_index, False])
+    if k >= 0:
+        return k
+    await page.evaluate(LOCATE_ROW_JS, [row_index, True])
+    for _ in range(20):
+        await page.wait_for_timeout(250)
+        k = await page.evaluate(LOCATE_ROW_JS, [row_index, False])
+        if k >= 0:
+            return k
+    return -1
+
+
 async def select_dialog_row(page, row_index: int, attempts: int = 8) -> bool:
-    row = page.locator(".v-table-body tr").nth(row_index)
+    k = await locate_row(page, row_index)
+    row = page.locator(".v-table-body tr").nth(k if k >= 0 else row_index)
     cell = row.locator(".v-table-cell-wrapper").nth(0)
     for _ in range(attempts):
         await cell.click()
@@ -362,12 +398,19 @@ async def read_jump_selection(page, rule_window, label: str) -> dict | None:
     if not await lab.count():
         return None
     lbox = await lab.bounding_box()
-    fs = None
+    fs, best = None, None
     for i in range(n):
         box = await fss.nth(i).bounding_box()
-        if box and lbox and abs(box["y"] - lbox["y"]) < 20:
-            fs = fss.nth(i)
-            break
+        if not (box and lbox):
+            continue
+        dy = box["y"] - lbox["y"]
+        # same row, or the control placed just below its caption
+        if -20 < dy < 60 and (best is None or abs(dy) < best):
+            fs, best = fss.nth(i), abs(dy)
+    if fs is None and n == 5:
+        # known layout (probe 2026-09-25): 0 operator, 1 cascade, 2 jump
+        # dialog, 3 jump message if TRUE, 4 jump message if FALSE
+        fs = fss.nth(3 if label.endswith("TRUE") else 4)
     if fs is None:
         return None
     value = await fs.locator(".v-filterselect-input").input_value()

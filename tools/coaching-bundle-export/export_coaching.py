@@ -126,7 +126,13 @@ async def _widen_for_menubar(page, cdp, wid) -> None:
               f"last={last!r}")
         if n and last != "►":
             return
-        w = min(w * 2, 40000)
+        # the window is sometimes shrunk back mid-run (seen at 1400px, twice on
+        # 2026-09-25): retry the width that worked before doubling, and cap
+        # the size. Chromium died ~6s after a 24000px re-widen on 2026-09-25
+        # 13:43 (cause unproven, but giant windows are the suspect).
+        if actual is not None and actual < w:
+            continue
+        w = min(w * 2, 16000)
     sys.exit("The Micro Dialogs menubar still shows a `►` overflow at the "
              "widest window — top-level items are hidden and the sweep would "
              "miss most dialogs. The browser window likely didn't actually "
