@@ -111,8 +111,9 @@ Also queued:
       check to the expand prompt and output (Loom).
 - Owners set by Raul:
   - workstream 5 → **Mirror**, blocked until Raul has tested the chat
-  - "what info to collect" → **Mirror**. **First pass done 09-25**:
-    `docs/participant_data_collection.md`.
+  - "what info to collect" → **Mason** (moved from Mirror by Raul, 09-29;
+    Raul answers the 4 open questions with Mason). Mirror did the
+    **first pass on 09-25**: `docs/participant_data_collection.md`.
     - PMCP already timestamps every variable write, so collecting data
       means writing variables at the right moment.
     - Biggest gap: all 18 senders time out, but none has a "does not
@@ -125,6 +126,15 @@ Also queued:
       and who builds it (probably Mason, since it's live content).
   - questionnaire `multiSubmit` → **Warden**, blocked until we have
     access to the real ALEX coaching
+- [ ] **Export study for the engine** (Mirror, Kart coordinates; Raul
+      09-29). **Blocked on the chat test with Raul** (EngineV1, Phases
+      A–F, with Smith).
+      - Study what the PMCP platform can give us in an export that
+        matters for the engine.
+      - End with a proposed extension of the `.json` export, for Raul to
+        decide on.
+      - Then integrate the result into the portal with Smith.
+      - Any live checks go through Warden's browser lock.
 
 ## r_ task
 

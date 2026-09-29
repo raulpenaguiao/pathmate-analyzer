@@ -1,5 +1,8 @@
 # Kart — status
 
+**Mailbox listener:** armed through Monitor. It's now step 4 of the
+wake-up sequence in my AGENT.md, and I re-arm it every 30 min.
+
 **10:25 pushed on Raul's OK:** `8945330..94fb007` (4 commits: 6e9c5b4,
 af5e637, b64b345, 94fb007). `main` = origin.
 
