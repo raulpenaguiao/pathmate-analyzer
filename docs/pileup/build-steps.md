@@ -118,3 +118,4 @@ New variables: `$lastDoseTakenAt` (number, reset daily), `$hyperparameterSpiroAf
 
 - **Spirometry Yes/No buttons.** Enter each Yes/No answer option on its own line (`Yes:1`, newline, `No:0`). The sandbox prototype stored them on one line, and the patient saw the raw text (D9).
 - **Remove v01's recall setting** from the FAQ and air-quality dialogs before wiring them up.
+- **Greeting typo.** In `r_TimelessGreetings` (Timeless Greetings dialog), two wordings read `Hi $particpantName! 😊`, so the name never fills. Write `$participantName`. Found by Herald, confirmed by Loom in export 20260929-111706. Loom's generated variants don't have it.
