@@ -81,7 +81,16 @@ import enrich_bundle
 HERE = Path(__file__).resolve().parent
 CDP = os.environ.get("PMCP_CDP", "http://127.0.0.1:9222")
 WIDE = int(os.environ.get("PMCP_WIDE", "12000"))
-BASELINE = HERE / "coherence_baseline.json"
+BASELINE = HERE / "coherence_baseline.json"  # alex-sandbox's
+
+
+def baseline_path(coaching: str | None) -> Path:
+    """One baseline per coaching: alex-sandbox keeps coherence_baseline.json,
+    any other coaching (e.g. alex-live) gets coherence_baseline_<slug>.json,
+    so comparing one coaching against another's metrics can't happen."""
+    if not coaching or coaching == S.DEFAULT_EXPECTED:
+        return BASELINE
+    return HERE / f"coherence_baseline_{_slug(coaching)}.json"
 
 _TYPE = {"Message": "message", "DECISION POINT": "decision",
          "Command Message": "command", "EVENT": "event"}
@@ -526,8 +535,9 @@ def coherence_check(bundle: dict, report_html: str | None) -> dict:
                             f"{len(rc)} in the Report HTML — navigation likely broke")
 
     vs_baseline = None
-    if BASELINE.is_file():
-        base = json.loads(BASELINE.read_text())
+    bpath = baseline_path(bundle["coaching"].get("name"))
+    if bpath.is_file():
+        base = json.loads(bpath.read_text())
         bm = base.get("metrics", {})
         accepted = base.get("acceptedPerDialogDeltas", {})
         changed = {}
@@ -561,7 +571,7 @@ def coherence_check(bundle: dict, report_html: str | None) -> dict:
                     f"(sweep, report) - likely a stale/wrong table read: "
                     + "; ".join(f"{k} {v}" for k, v in new_deltas.items()))
     else:
-        warnings.append("no coherence_baseline.json — run with "
+        warnings.append(f"no {bpath.name} for this coaching — run with "
                         "--update-baseline once against a known-good export")
 
     return {"ok": ok, "metrics": cur, "htmlVsSweep": html_vs_sweep,
@@ -582,8 +592,9 @@ def write_baseline(bundle: dict, report_html: str | None) -> None:
             if exp is not None and exp != m.get("nodeCount"):
                 base["acceptedPerDialogDeltas"][
                     " / ".join(m["folderPath"] + [m["name"]])] = [m.get("nodeCount"), exp]
-    BASELINE.write_text(json.dumps(base, indent=2, ensure_ascii=False))
-    print(f"wrote baseline -> {BASELINE}")
+    bpath = baseline_path(base["coaching"])
+    bpath.write_text(json.dumps(base, indent=2, ensure_ascii=False))
+    print(f"wrote baseline -> {bpath}")
 
 
 # ---------------------------------------------------------------------------
