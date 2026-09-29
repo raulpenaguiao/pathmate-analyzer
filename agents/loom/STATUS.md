@@ -1,5 +1,35 @@
 # Loom — status
 
+**~16:57 alex-live r_ steps:** export `coaching_alex-v01-zum-ausprobieren-2_20260929-162548.json`
+(Raul ran it). Report: 138 r_ groups, 538 msgs, 175 pools, 159 thin ->
+`rgroups_table_260929165622.csv`; requests 159 calls / 1314 variants
+(`rgroups_requests_260929165622.csv`). Compared with alex-sandbox: +53 groups
+(weekly-incentive weeks Streak/Lottery/Value Retention, Morning greetings +
+sleep, ...), -4 (GoodOverallCompliance_Stage1-3, NighttimeMonitoring_Stage3_Push).
+An "Attic" dialog has 3 groups. **Expand PARTIAL**: `rgroups_generated_260929170725.csv`
+has 284 ok + 2 dup, 37 pools complete. The rest failed with 400 "specified API
+usage limits ... regain access 2026-10-01 00:00 UTC" (spend cap). The guard
+regex missed this wording; FIXED ("usage limit"). **Needs Raul**: raise the
+cap or wait. Then: `rgroup_expand.py --resume --limit 122` (122 pools / 1028
+variants). It must run while the alex-live requests/generated files are the
+LATEST in data/rgroups/. Kart + Herald mailed.
+Task 2 must keep --csv rgroups_generated_260929093415.csv!
+
+**UPDATE (Warden 132840): Raul runs the alex-live export HIMSELF. Do NOT
+start it. Wait for Warden's mail with the .json path, then run report ->
+prepare -> expand (no apply) and mail Kart + Herald. Mine never started.**
+
+## 2026-09-29 ~15:30 — (superseded) alex-live export plan
+Warden's handover 132258: Raul logs in by hand in the HEADED Chromium :9222
+(the .env login is still rejected; keep the screen on for ~25 min). Then
+IMMEDIATELY: `.venv/bin/python agents/loom/context/enter_edit.py "ALEX v01 zum Ausprobieren 2"`
+then `tools/coaching-bundle-export/export_coaching.sh --yes --update-baseline`
+(no --resolve-jumps). The output MUST say "...is the CLEAN reference coaching
+... read-only run", else Ctrl-C. Monitoring must already be off (never toggle
+it). Then report -> prepare -> expand on the new json (NO apply), and mail
+Kart + Herald. At ~15:30 the browser showed 1 tab, not logged in, so I'm
+waiting for Raul's login.
+
 ## 2026-09-29 ~14:30 — two queued tasks
 **Coaching names (RULES.md 'PMCP coachings'):** alex-live = 'ALEX v01 zum
 Ausprobieren 2', EXPORT ONLY, never write. alex-sandbox = 'ALEX v01 zum

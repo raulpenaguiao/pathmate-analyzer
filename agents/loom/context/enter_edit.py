@@ -4,7 +4,7 @@ from playwright.async_api import async_playwright
 import _report_fetch as RF
 import _menu_nav as S
 
-NAME = "ALEX v01 zum Ausprobieren"
+NAME = sys.argv[1] if len(sys.argv) > 1 else "ALEX v01 zum Ausprobieren"  # exact PMCP name
 LOGGED_IN = """() => !document.querySelector('input[type=password]')
   && ![...document.querySelectorAll('.v-Notification')].some(n => /session expired/i.test(n.textContent||''))
   && /Logout/.test(document.body.innerText)"""

@@ -182,7 +182,9 @@ class AccountError(Exception):
 
 
 RETRIES = 3          # for 429 / 5xx / 529 overloaded, before giving up
-_NO_CREDIT = re.compile(r"credit balance|insufficient_quota|billing", re.I)
+# Anthropic's spend cap is a 400 "You have reached your specified API usage
+# limits" (seen 2026-09-29), not a credit-balance message.
+_NO_CREDIT = re.compile(r"credit balance|usage limit|insufficient_quota|billing", re.I)
 
 
 def _post(req: urllib.request.Request) -> dict:

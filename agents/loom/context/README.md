@@ -27,6 +27,17 @@ anyone to.
 4. Check mail by hand right before any live browser run and after each step.
 5. State codename and role, then resume the next step from STATUS.md.
 
+## PMCP docs knowledge base (Mason, 09-29): docs/pmcp-docs/README.md
+- micro-dialogs.md §8: a randomised group shares one identifier, and its rows
+  must be sequential (= apply's Move Up adjacency). Looped groups must NOT
+  start with 'r'.
+- sections/editor-admin.md 'Translations': documented CSV export/import of
+  all message text (needs the coaching deactivated). It could bulk-EDIT
+  existing text (e.g. the ro-RO repeats, the typo), but it can't ADD rows
+  (docs: "don't change the row or column structure", translations page),
+  so apply's row-by-row duplicate is still needed for new variants. Worth
+  checking if a text-only fix pass is ever needed.
+
 ## Future: r_ apply on the workbench coaching (Mason, 09-29)
 
 apply duplicates an existing row of the group, so copies inherit its
