@@ -1,12 +1,86 @@
 # In-flight state (kept current per RULES.md rule 11; rewritten 2026-09-29 11:15)
 
+## 15:40: Raul runs the alex-live export HIMSELF (headed :9222, full program,
+   --allow-noop-resaves). The first run was stopped (spirometry folder dropped),
+   and the rerun started ~15:34 with the final-round retry (801a70a).
+- When it finishes: check its log (data/logs/export/export_20260929-1534*.log), then
+  mail Loom + Kart the json path for the r_ CSV steps.
+- ROOT CAUSE FOUND (telemetry, Raul's 16:25 run): HEADED + a 12000px window on
+  KDE/Wayland = a BLACK window with sporadic frames. Nothing intercepts the click
+  (under = the item's own caption, otherActive=[]). The dropdowns just come late
+  (late popup=1 at +3s), and clicks time out waiting for 'stable' (needs frames).
+  The menu-state hypothesis is REFUTED.
+  FIX TO BUILD: keep the real window screen-sized and emulate the wide viewport
+  with CDP Emulation.setDeviceMetricsOverride(width=12000, ...) instead of
+  Browser.setWindowBounds. Test on sandbox/alex-sandbox after Raul's run.
+  Also done: _render_guard.py (pause + Enter + re-login + resume), a
+  systemd-inhibit wrapper in export_coaching.sh, and a late popup now counts as opened.
+- Phase 3b TODO: a live read of {'value': ''} = the jump dropdown is EMPTY = no jump
+  set (Report '[not set]' was ambiguous with empty anchors). Resolve it to None
+  ("no jump") instead of leaving it ambiguous. Seen on alex-live spirometry row 35.
+- Phase 3b TODO 2: alex-live 'Attic / Andreas Test' row 5: the live read gives index 2
+  = a command message ('increment-achievement main -4'), which is NOT among the Report's
+  candidates. Check what the dropdown lists vs our `msgs` (non-decision nodes):
+  command messages/events may be counted differently.
+  LIKELY CAUSE (2nd case, 'Testing of streak concept' row 9 FALSE -> index 5,
+  'set-achievement main 0'): the targets are COMMAND messages. Enrich builds the
+  candidates from textByLang equality, and command nodes carry commandByLang, so
+  they're never candidates. Fix: accept the live pick when the dropdown text matches
+  that node's command/text, even if it isn't in the candidates.
+- Phase 3b TODO 3: 'Attic / Calculate outcome of lottery...' row 11: the value IS set
+  (a debug message) but the highlight = the blank top entry, so index -1. The target
+  is probably on a later dropdown PAGE (Vaadin filterselect pages ~10 items).
+  Match the item by the displayed value and page through (the status 'x-y/total'
+  is in JUMP_POPUP_JS).
+- (old) Menu flake: failures cluster on RE-opening the SAME top item right after closing
+  it (spirometry -> sub-folder, weekly incentive -> Status...). Hypothesis: after
+  Escape the item stays "active", so the click toggles it shut.
+  wait_popup(tries=15) = only 1.5s. Telemetry committed (36bb85a) -> data/logs/
+  menu_diag.jsonl. Read the records after the next run, then fix at the root.
+
+## 13:23 update: Raul reassigned the alex-live export to LOOM (Kart 13:17)
+- Loom has step-by-step instructions (mail 13:22). I support: jump on any failure log.
+- Per-coaching baselines committed (935d7a8). Loom's first alex-live run uses
+  --update-baseline, which creates coherence_baseline_alex-v01-zum-ausprobieren-2.json.
+- Mine after Loom: a ~5 min ✕-close test on alex-sandbox (plan below). If it's clean,
+  a read-only close lets alex-live exports include sender modals and jumps.
+
+## (was TOP, Kart 12:21): read-only export of alex-live ("ALEX v01 zum Ausprobieren 2")
+- Short names (RULES.md): alex-live = never changed; alex-sandbox = pile-up target;
+  sandbox = Minimal Coaching for Development 2 for Raul.
+- Blocked on the PMCP login (rejected since ~13:10). Raul may log in by hand in the
+  visible browser on :9222 (it was launched with --no-login).
+- Problem: closing editors with "Close" = a no-op re-save = a write. The exporter
+  now auto-forces --no-modals and skips 3b on alex-live (2f89222). Plan:
+  1. On alex-sandbox, open a sender rule editor, dismiss it via the window ✕
+     (.v-window-closebox), and check that NO "has been updated" notification
+     appears.
+  2. If it's clean, give close_windows a read-only mode that uses ✕, and use it
+     for alex-live.
+  3. Export alex-live headed? No: after the login works, an unattended run
+     means --headless (start_pmcp.sh --headless replaces the visible one only
+     if you ask).
+- Then mail Loom + Kart the path. After that: multiSubmit, read-only.
+- Raul logged in by hand at ~13:30 (visible browser, :9222). I asked him in chat for
+  the browser OK before driving it. Don't take it without that.
+
+## Queued export-field requests (need live reads, not in the Report HTML)
+- Smith: `$weekdays` multilingual variable values truncated (table cell read).
+- Mirror: per-message `clearsCascade` flag (message editor checkbox). Mirror will
+  batch it with an export-extension field list. Do one live pass, sandbox first.
+
 ## Now
-- 11:10 full export `--yes --resolve-jumps --update-baseline` on the HEADLESS
-  browser (:9222). Stdout goes to the session scratchpad; the log is in data/logs/export/.
-- If it's clean (ok=True, no `!` lines, 0 ambiguous):
-  1. Commit `tools/coaching-bundle-export/coherence_baseline.json`.
-  2. Mail Kart + Loom the new path.
-  3. Update STATUS.
+- BEFORE export done:
+  `data/exports/coaching_alex-v01-zum-ausprobieren_20260929-111706.json`
+  (ok, 0 warnings, 14/14 jumps). The HTML-text fix was applied post-run, text
+  fields only. Loom + Kart were mailed at 12:28, and Loom holds the browser for
+  the 802-variant apply.
+- NEXT: on Loom's done-mail, run the AFTER export with the same command:
+  `export_coaching.sh --yes --resolve-jumps` (NO --update-baseline: the diff vs the
+  baseline is wanted). Then mail Loom + Kart the path.
+- Later: Smith's `$weekdays` truncation (read full multilingual values from the
+  variable edit dialog, in `_variables_nav.py`).
+- Mailbox listener: re-arm the Monitor on every expiry (Raul, 09-29).
 - Committed today: af5e637 (virtualized rows, widen cap), b64b345 (start_pmcp
   --headless), b3e0971 (phase 3b reliability + click-through tooltips/notifications).
 - Raul was asked (in chat, ~10:40) whether "ALEX v01 zum Ausprobieren 2" or

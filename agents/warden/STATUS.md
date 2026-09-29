@@ -1,39 +1,42 @@
 # Warden — status
 
-_Updated 2026-09-29 12:30._
+_Updated 2026-09-29 16:55._
 
-## Browser (check live: `.venv/bin/python tools/coaching-bundle-export/_browser_lock.py`)
-Order (Raul via Kart, 09-29): Warden BEFORE export (done) -> **Loom: apply all 802 r_
-variants (now, several hours)** -> Warden AFTER export.
-The Chromium on :9222 is headless (`start_pmcp.sh --headless`), logged in.
+## Now
+- **Raul is running the alex-live export himself** (headed :9222, full program with
+  `--allow-noop-resaves`). His 16:25 run is healthy and in phase 4. Phase 3b resolved
+  22 of 26 jump targets. When the JSON is written I'll mail Kart + Loom the path
+  (for Loom's r_ CSVs).
+- The 4 earlier runs (15:29 onwards) died: the screen went to sleep, and the headed
+  12000px-wide window showed black with sporadic frames. The Reports from those
+  runs are leftovers.
 
-## Task 1 done: BEFORE export
-`data/exports/coaching_alex-v01-zum-ausprobieren_20260929-111706.json`
-- Coherence ok=True, 0 validation warnings, 90/90 dialogs, 0 unresolved.
-- All 14 jump targets resolved live (they had been ambiguous since 09-25).
-- The baseline was refreshed from this run.
-- Smith's HTML-message fix is applied: 9 formatted messages that had no text now have it.
-- The log isn't literally zero-noise yet: 1 recovered folder retry, plus 3 "~" notes
-  for a stuck Close that recovered. The data is complete.
+## Coachings (RULES.md, Raul 09-29)
+alex-live = "ALEX v01 zum Ausprobieren 2" (never changed); alex-sandbox =
+"ALEX v01 zum Ausprobieren" (pile-up target); sandbox = "Minimal Coaching for
+Development 2 for Raul". The write guard refuses alex-live. Picking a coaching row
+is an exact match (the alex-sandbox name is a prefix of alex-live's).
 
-## Fixed today (commits af5e637, b64b345, b3e0971, b278397)
-- Overnight runs hung because a headed browser stops rendering when the screen
-  blanks. Fixed: `start_pmcp.sh --headless`.
-- Vaadin tooltips and notifications were blocking clicks, the main cause of the
-  "popup never opened" flakiness. They are now click-through.
-- Jump-target reading: 4/14 -> 14/14. The fixed waits were too short; they now poll.
-  A stuck window no longer kills the export.
-- Formatted (HTML-only) messages had empty text (Smith/Raul's demo-chat bug).
+## Done today (all committed)
+- The BEFORE export of alex-sandbox: `coaching_alex-v01-zum-ausprobieren_20260929-111706.json`.
+- Jump-target reading went from 4/14 to 14/14. Tooltips and notifications are
+  click-through. Headless mode.
+- `start_pmcp.sh` without `--headless` gives Raul a visible window on demand.
+- The export can run the full program on alex-live, but only with a human's
+  `--allow-noop-resaves`. Baselines are per-coaching.
+- A render guard pauses the run when the screen sleeps, asks for Enter / a
+  re-login, and resumes in place. The run is wrapped in systemd-inhibit.
+- Menu telemetry proved the flaky dropdowns are rendering starvation, not a menu bug.
 
 ## Next
-- The AFTER export, when Loom mails that the apply is done.
-- Smith: `$weekdays` multilingual variable values are truncated (the variables
-  sweep reads the table cell). It needs the full value from the edit dialog, which
-  means browser time, so it comes after the AFTER export.
-- Nice to have: the recurring spirometry-folder retry.
+1. Hand the alex-live JSON to Loom + Kart.
+2. Root fix for the black window: keep the real window screen-sized and emulate the
+   12000px viewport (CDP device metrics). Test on sandbox.
+3. Phase 3b: resolve "no jump set", command-message targets, and paged dropdowns.
+4. Queued live-read fields: Smith's `$weekdays` (full multilingual values) and Mirror's
+   `clearsCascade` (batched).
+5. multiSubmit (unblocked now that the real coaching is available; read-only).
 
-## Blocked, mine
-- Questionnaire `multiSubmit`: waits for access to the real ALEX coaching.
-
-## Open, not mine to act on
-- The portal's attached ALEX bundle ("ALEXv1_14th") is a stale 09-14 export (Raul/Smith).
+## Blocked / open, not mine
+- The `.env` PMCP login has been rejected since ~13:10; Raul logs in by hand. Fixing it
+  would allow unattended headless runs again.
