@@ -112,6 +112,62 @@ async def caption(item) -> str:
     return norm(await item.inner_text())
 
 
+MENU_DIAG_LOG = Path(__file__).resolve().parents[2] / "data" / "logs" / "menu_diag.jsonl"
+
+MENU_DIAG_JS = r"""
+(caption) => {
+  const cls = e => e ? (e.tagName.toLowerCase() + '.' + String(e.className).trim().split(/\s+/).join('.')) : null;
+  const items = [...document.querySelectorAll('.v-menubar.md-menu > .v-menubar-menuitem')];
+  const top = items.find(i => (i.querySelector('.v-menubar-menuitem-caption') || i).textContent.trim() === caption);
+  const r = top ? top.getBoundingClientRect() : null;
+  let under = null, chain = [];
+  if (r) {
+    under = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    for (let e = under; e && chain.length < 5; e = e.parentElement) chain.push(cls(e));
+  }
+  const vis = e => { const s = getComputedStyle(e); const b = e.getBoundingClientRect();
+    return {cls: cls(e), display: s.display, visibility: s.visibility, opacity: s.opacity,
+            rect: [Math.round(b.x), Math.round(b.y), Math.round(b.width), Math.round(b.height)]}; };
+  return {
+    topFound: !!top, topCls: cls(top), topRect: r && [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)],
+    viewport: [innerWidth, innerHeight],
+    underClickPoint: chain,
+    otherActiveTops: items.filter(i => i !== top && /highlight|selected|checked/.test(i.className)).map(i => i.textContent.trim().slice(0, 40)),
+    menubarCls: cls(document.querySelector('.v-menubar.md-menu')),
+    activeElement: cls(document.activeElement),
+    popups: [...document.querySelectorAll('.v-menubar-popup')].map(vis),
+    overlays: [...document.querySelectorAll('.v-tooltip, .v-Notification, .v-window, .v-window-modalitycurtain')].map(vis),
+    loading: [...document.querySelectorAll('.v-loading-indicator')].map(e => getComputedStyle(e).display),
+  };
+}
+"""
+
+
+async def menu_diag(page, caption: str, attempt: int) -> dict:
+    """Telemetry for 'popup 1 never opened' (Raul, 2026-09-29): the page
+    state right after a top-level click failed to open its dropdown, plus
+    whether the dropdown turned up LATE (3s later). Appended to
+    data/logs/menu_diag.jsonl; never raises."""
+    rec = {"at": time.strftime("%Y-%m-%dT%H:%M:%S"), "caption": caption, "attempt": attempt}
+    try:
+        rec["now"] = await page.evaluate(MENU_DIAG_JS, caption)
+        await page.wait_for_timeout(3000)
+        rec["after3s"] = {"popups": await (await popups(page)).count()}
+    except Exception as e:  # noqa: BLE001
+        rec["diagError"] = repr(e)
+    try:
+        MENU_DIAG_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with MENU_DIAG_LOG.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception:  # noqa: BLE001
+        pass
+    now = rec.get("now") or {}
+    print(f"  diag[{caption[:30]}#{attempt}]: late popup={rec.get('after3s', {}).get('popups')} "
+          f"under={(now.get('underClickPoint') or [None])[0]} top={now.get('topCls')} "
+          f"otherActive={now.get('otherActiveTops')} popups={len(now.get('popups') or [])}")
+    return rec
+
+
 async def wait_popup(page, depth: int, tries: int = 40) -> bool:
     for _ in range(tries):
         if await (await popups(page)).count() >= depth:
@@ -189,15 +245,22 @@ async def open_folder_path(page, labels: list[str]) -> int:
     # mouse first so the click definitely dispatches a fresh move. Retry: a
     # stray click can toggle it shut.
     opened = False
-    for _ in range(4):
+    for attempt in range(1, 5):
         await page.mouse.move(3, 3)
         await page.wait_for_timeout(40)
+        click_err = None
         try:
             await top.click(timeout=6000)
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as e:  # noqa: BLE001
+            click_err = e
         if await wait_popup(page, 1, tries=15):
             opened = True
+            break
+        rec = await menu_diag(page, labels[0], attempt)
+        if click_err is not None:
+            print(f"    (click itself failed: {str(click_err).splitlines()[0][:100]})")
+        if rec.get("after3s", {}).get("popups"):
+            opened = True  # it was only slow: the dropdown is open now
             break
         await close_menus(page)
     if not opened:
