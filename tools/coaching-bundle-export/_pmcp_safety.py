@@ -38,6 +38,16 @@ import re
 DEFAULT_EXPECTED = "ALEX v01 zum Ausprobieren"
 ENV_VAR = "PMCP_EXPECTED_COACHING"
 
+# Clean reference copies: export only, NEVER written - not even a no-op
+# re-save, and not overridable by $PMCP_EXPECTED_COACHING (Raul, 2026-09-29;
+# agents/RULES.md "PMCP coachings"). Note the sandbox's name is a PREFIX of
+# this one, so every name comparison here and in the nav code must be exact.
+PROTECTED_COACHINGS = frozenset({"ALEX v01 zum Ausprobieren 2"})
+
+
+def is_protected(name: str | None) -> bool:
+    return (name or "").strip() in PROTECTED_COACHINGS
+
 TITLE_JS = r"""
 () => {
   // there can be more than one .title-label in the DOM at once (e.g. an
@@ -104,6 +114,10 @@ async def assert_expected_coaching(page, expected: str | None = None) -> str:
         raise WrongCoachingError(
             "could not read a coaching name from the current page - is it "
             "actually inside a coaching's Edit view? Refusing to write.")
+    if is_protected(name):
+        raise WrongCoachingError(
+            f"CDP tab is on {name!r}, the CLEAN reference coaching: export "
+            f"only, never written (agents/RULES.md). Refusing to write.")
     if name != expected:
         raise WrongCoachingError(
             f"CDP tab is on coaching {name!r}, expected {expected!r}. "

@@ -17,6 +17,8 @@
 #   --headless     no window (Chromium --headless=new). For unattended runs:
 #                  a headed window stops getting composited frames when the
 #                  screen blanks (2026-09-29 00:20), and every click then hangs.
+#                  Without --headless, a headless browser already on the port
+#                  is replaced by a visible one (if no tool holds the lock).
 #
 # After this: in the browser, open your coaching -> Edit -> deactivate
 # Monitoring, then run the tool's export (e.g.
@@ -52,6 +54,26 @@ done
 # ---------------------------------------------------------------------------
 # 1. launch the browser (skip if one is already on the port)
 # ---------------------------------------------------------------------------
+# A headless browser left on the port has no window for a human to use. Plain
+# start_pmcp.sh (no --headless) swaps it for a visible one, unless a tool holds
+# the browser lock (then say who, and leave their run alone). Raul, 2026-09-29:
+# he shouldn't have to ask an agent for a window.
+if [ ${#HEADLESS[@]} -eq 0 ] \
+   && curl -sf "http://127.0.0.1:${PORT}/json/version" 2>/dev/null | grep -q HeadlessChrome; then
+  LOCK_HOLDER="$("$PY" "$HERE/coaching-bundle-export/_browser_lock.py" 2>/dev/null || echo "?")"
+  if [ "$LOCK_HOLDER" != "free" ]; then
+    echo "The browser on :${PORT} is headless and in use: ${LOCK_HOLDER}" >&2
+    echo "Not closing it mid-run. Try again when that finishes." >&2
+    exit 1
+  fi
+  echo "Closing the headless browser on :${PORT} (lock free) to open a visible one..."
+  kill $(pgrep -f -- "--remote-debugging-port=${PORT}( |$)" | head -20) 2>/dev/null || true
+  for _ in $(seq 1 20); do
+    curl -sf "http://127.0.0.1:${PORT}/json/version" >/dev/null 2>&1 || break
+    sleep 0.5
+  done
+fi
+
 if curl -sf "http://127.0.0.1:${PORT}/json/version" >/dev/null 2>&1; then
   echo "A CDP browser is already listening on :${PORT} — reusing it."
 else

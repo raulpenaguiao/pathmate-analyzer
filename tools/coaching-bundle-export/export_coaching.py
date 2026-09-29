@@ -649,6 +649,13 @@ async def main() -> int:
         name = await page.evaluate(
             r"""(()=>{const m=(document.body?document.body.innerText:'')
                  .match(/Coaching\s+"([^"]+)"/); return m?m[1]:null;})()""")
+        if S.is_protected(name):
+            # clean reference copy: export only. Phase 3b and phase 4's
+            # modals close editors with 'Close' = a no-op re-save, a write.
+            print(f"  {name!r} is the CLEAN reference coaching (agents/RULES.md): "
+                  f"read-only run, no editor modals (--no-modals), no phase 3b")
+            flags.add("--no-modals")
+            flags.discard("--resolve-jumps")
         bundle: dict = {"coaching": {
             "name": name, "languages": ["en-GB", "ro-RO"],
             "scrapedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z")}}

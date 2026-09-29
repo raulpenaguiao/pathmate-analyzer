@@ -18,10 +18,22 @@ import asyncio
 from pathlib import Path
 
 
+ROW_INDEX_JS = r"""
+(name) => [...document.querySelectorAll('.v-table-body tr')].findIndex(tr => {
+  const c = tr.querySelector('.v-table-cell-wrapper');
+  return c && c.textContent.trim() === name;
+})
+"""
+
+
 async def _select_coaching_row(page, name: str) -> bool:
-    row = page.locator(".v-table-body tr", has_text=name).first
-    if not await row.count():
+    # EXACT name match on the first cell: has_text is a substring match, and
+    # "ALEX v01 zum Ausprobieren" (sandbox) is a prefix of "... 2" (the clean
+    # copy that must never be written) - .first would depend on list order.
+    k = await page.evaluate(ROW_INDEX_JS, name)
+    if k < 0:
         return False
+    row = page.locator(".v-table-body tr").nth(k)
     for _ in range(6):
         await row.locator(".v-table-cell-wrapper").first.click()
         await page.wait_for_timeout(400)
