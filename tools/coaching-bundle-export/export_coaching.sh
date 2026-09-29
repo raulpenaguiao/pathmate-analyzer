@@ -11,7 +11,10 @@
 #     --rules-only       Rules sweep only
 #     --no-modals        rules tree skeleton only, no "Edit rule:" modals
 #     --no-variables     skip the Variables-tab sweep (~2 min on its own)
-#     --update-baseline  rewrite coherence_baseline.json from this run
+#     --update-baseline  rewrite this coaching's coherence baseline from this run
+#     --resolve-jumps    read ambiguous jump targets live (phase 3b)
+#     --allow-noop-resaves  alex-live only: accept the editors' no-op re-saves
+#                        (human decision) so the export is complete
 #   plus:
 #     --yes / -y         don't pause for the Monitoring step
 #     --cdp URL          CDP endpoint (default http://127.0.0.1:9222)

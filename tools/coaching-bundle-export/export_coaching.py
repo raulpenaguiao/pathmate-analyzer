@@ -28,6 +28,8 @@ Prints total run time.
   export_coaching.py [OUT.json] [--report REPORT.html] [--no-report]
                      [--dialogs-only] [--rules-only] [--no-modals]
                      [--no-variables] [--update-baseline] [--resolve-jumps]
+                     [--allow-noop-resaves]  (alex-live only: a human accepts
+                      the editors' no-op re-saves for a full export)
 
 Phase 0 clicks "Report" on the Coachings list, which is a native Chrome
 FILE DOWNLOAD, not a page navigation or popup — confirmed live 2026-09-14,
@@ -662,11 +664,19 @@ async def main() -> int:
                  .match(/Coaching\s+"([^"]+)"/); return m?m[1]:null;})()""")
         if S.is_protected(name):
             # clean reference copy: export only. Phase 3b and phase 4's
-            # modals close editors with 'Close' = a no-op re-save, a write.
-            print(f"  {name!r} is the CLEAN reference coaching (agents/RULES.md): "
-                  f"read-only run, no editor modals (--no-modals), no phase 3b")
-            flags.add("--no-modals")
-            flags.discard("--resolve-jumps")
+            # modals close editors with 'Close' = a no-op re-save (same
+            # values saved back). Only a human's explicit
+            # --allow-noop-resaves lets a full export do that here (Raul ran
+            # alex-live himself that way, 2026-09-29).
+            if "--allow-noop-resaves" in flags:
+                print(f"  {name!r} is the CLEAN reference coaching: FULL export, "
+                      f"no-op re-saves ACCEPTED via --allow-noop-resaves")
+            else:
+                print(f"  {name!r} is the CLEAN reference coaching (agents/RULES.md): "
+                      f"read-only run, no editor modals (--no-modals), no phase 3b. "
+                      f"A human may pass --allow-noop-resaves for a full export.")
+                flags.add("--no-modals")
+                flags.discard("--resolve-jumps")
         bundle: dict = {"coaching": {
             "name": name, "languages": ["en-GB", "ro-RO"],
             "scrapedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z")}}
