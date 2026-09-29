@@ -5,15 +5,42 @@ they grouped it. Status updated as work lands. For the dependency-ordered
 game plan and full detail on each item, see `README.md`'s "Roadmap: five
 workstreams" section — this file is the checklist, that's the writeup.
 
+## ▶ NEW 2026-09-29 afternoon: access to the live coaching (Raul)
+
+Raul now has access to the new version of the live coaching, which
+unblocks back-burner items. **Coaching names (RULES.md "PMCP coachings"):**
+- **alex-live** = `ALEX v01 zum Ausprobieren 2`: export only, never
+  changed. The write guard refuses it (`2f89222`).
+- **alex-sandbox** = `ALEX v01 zum Ausprobieren`: the pile-up target,
+  free to change.
+- **sandbox** = `Minimal Coaching for Development 2 for Raul`: free to
+  change.
+
+- [ ] **3. Clean export of alex-live** (Warden, **top priority**). Same bar
+      as task 1, with zero writes. It needs a working login (see task 2's
+      blocker).
+- [ ] **4. r_ CSVs from that export** (Loom): report → prepare → expand.
+      No apply. Files and counts go to Kart + Herald.
+- Unblocked, after 3: questionnaire `multiSubmit` (Warden). It needs
+  Raul's OK before any write.
+
 ## ▶ Today (2026-09-29): Raul's two tasks
 
 **Live-write exception (Raul, 09-29):** task 2 may write to PMCP (the ALEX
 v01 sandbox, `alex-v01-zum-ausprobieren`), even though the 09-25 freeze
 still holds for everything else. Browser order: Warden → Loom → Warden.
 
-- [ ] **1. Clean export** (Warden). A full export of ALEX v01 whose log has
+- [x] **1. Clean export** (Warden). A full export of ALEX v01 whose log has
       zero errors and zero warnings. It's also the **"before"** snapshot
-      for task 2.
+      for task 2. **Done 09-29 ~11:17:**
+      `data/exports/coaching_alex-v01-zum-ausprobieren_20260929-111706.json`.
+      - Coherence OK with 0 validation warnings. All 14 jump targets are
+        resolved live, 90/90 dialogs, 0 unresolved, and the baseline was
+        refreshed.
+      - The log still has 4 recovered hiccups (1 folder retry, 3 stuck
+        Close notes). The data is complete, but the log isn't literally
+        zero-noise yet.
+      - The browser is handed to Loom.
 - [ ] **2. r_ apply test + before/after comparison** (Loom, with Warden
       for the export). Generation is already done:
       `data/rgroups/rgroups_generated_260929093415.csv`, 802/804 OK, and
@@ -21,7 +48,16 @@ still holds for everything else. Browser order: Warden → Loom → Warden.
       - [ ] 2a. Apply **all 802 variants** to the sandbox with
             `rgroup_apply.py` in one run (Raul confirmed 09-29, no sample
             batch). It takes several hours of browser time. Claim the
-            browser lock.
+            browser lock. Loom's dry-run plan is checked: 802 variants in
+            41 dialogs. **Side effect:** the 6 new Stage3 rows copy rows
+            3–6, so they inherit the one-line Yes/No bug, and Mason's fix
+            scope grows from 5 to 11 rows. The default is to apply them
+            anyway; Raul can say to skip Stage3 before the hand-off.
+            **Blocked 09-29 ~12:50: PMCP login rejected** ("username/password
+            combination is unknown", with the same `.env` that worked ~30
+            min earlier), after two session expiries. 0 writes. Loom
+            stopped retrying to avoid a lockout. Needs Raul to check the
+            PMCP credentials/account.
       - [ ] 2b. Re-export: the **"after"** snapshot (Warden).
       - [ ] 2c. Diff before vs after `.json`. The expected result is
             exactly the added variants in the right r_ groups, and
@@ -52,7 +88,9 @@ Due today:
       requests → run the prompt. Step 4 (apply) is **test only**. Output:
       the CSV for Raul's advisor. Needs Raul's API key.
 - [ ] **r_ tool explainer artifact** for the advisor (Herald, with facts
-      from Loom): what the tool creates, the CSV columns, current status,
+      from Loom). **Final (v2, Loom-checked) 09-29:**
+      https://claude.ai/artifact/JmLGKdfsXxkn8zeyBPK3Y5, ready for Raul.
+      Herald refreshes it after the task 2 apply and diff.: what the tool creates, the CSV columns, current status,
       and the ro-RO duplicate flag.
 - [ ] **Chat test with Raul** on a locally running portal (Smith). This
       unblocks workstream 5. **Ready:** the demo portal is at
@@ -126,6 +164,19 @@ Also queued:
       and who builds it (probably Mason, since it's live content).
   - questionnaire `multiSubmit` → **Warden**, blocked until we have
     access to the real ALEX coaching
+- [ ] **Typo `$particpantName`** in r_TimelessGreetings (Timeless Greetings,
+      orders 1 and 9), so the name never fills. Herald found it and Loom
+      confirmed it. **Owner: Mason.** Fix it in the workbench build, not
+      the sandbox (writes are frozen). The generated r_ variants don't
+      carry it. It's on Mason's checklist in `docs/pileup/build-steps.md`.
+- [ ] **PMCP docs knowledge base** (Mason; Raul 09-29). Built from the
+      official v6.0 docs (https://my.pathmate.app/pmcp-documentation/doc-6-0).
+      - One markdown page per docs section plus an index, with page
+        citations and a "not documented" list.
+      - It goes in `docs/pmcp-docs/`, shared with Warden, Smith and
+        Mirror. Mason mails everyone when it's committed.
+      - It runs alongside Raul's advisor question: how do the PMCP docs
+        cover interruptions and pile-up?
 - [ ] **Export study for the engine** (Mirror, Kart coordinates; Raul
       09-29). **Blocked on the chat test with Raul** (EngineV1, Phases
       A–F, with Smith).

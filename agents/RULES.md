@@ -164,6 +164,21 @@ nothing about any agent is scattered elsewhere in the repo:
     longer relevant instead of letting it grow into a dump you'd have to
     re-read in full next time.
 
+## PMCP coachings: which ones you may change (Raul, 2026-09-29)
+
+Use the short names in mail, docs and status. Use the exact PMCP names in code.
+
+| Short name | Exact name on the PMCP Coachings list | What it is | You may |
+|---|---|---|---|
+| **alex-live** | `ALEX v01 zum Ausprobieren 2` | Treated as LIVE: the current real coaching. | **Export only. Never change it**: no writes, no apply, no no-op re-saves, not even a test. |
+| **alex-sandbox** | `ALEX v01 zum Ausprobieren` | Sandbox, and the target: our end goal is for this coaching to implement the pile-up solution. | Change it freely (within your scope, with the browser lock). |
+| **sandbox** | `Minimal Coaching for Development 2 for Raul` | Sandbox. | Change it freely: build the versions we want, test things. |
+
+The exact names of alex-sandbox and alex-live differ only by the trailing
+" 2", so match the **exact** name before any write, and never by prefix. If a tool could land in the clean
+copy by mistake, fix the tool before you run it. Any other coaching on
+the list is out of bounds unless Raul says otherwise.
+
 ## PMCP documentation: check it first
 
 Official PMCP v6.0 docs: https://my.pathmate.app/pmcp-documentation/doc-6-0
