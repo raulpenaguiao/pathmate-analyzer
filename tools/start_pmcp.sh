@@ -14,6 +14,9 @@
 #                                      unset, user+password are filled and it
 #                                      waits ~2 min for you to type the code)
 #   --no-login     just launch the browser; log in by hand
+#   --headless     no window (Chromium --headless=new). For unattended runs:
+#                  a headed window stops getting composited frames when the
+#                  screen blanks (2026-09-29 00:20), and every click then hangs.
 #
 # After this: in the browser, open your coaching -> Edit -> deactivate
 # Monitoring, then run the tool's export (e.g.
@@ -29,6 +32,7 @@ PORT=9222
 URL="https://cp22.pathmate.cloud/PMCP/admin"
 ENV_FILE="$REPO/.env"
 DO_LOGIN=1
+HEADLESS=()
 PROFILE="${PMCP_CDP_PROFILE:-/tmp/pmcp-cdp-profile}"
 
 while [ $# -gt 0 ]; do
@@ -37,7 +41,10 @@ while [ $# -gt 0 ]; do
     --url)       URL="$2"; shift 2 ;;
     --env)       ENV_FILE="$2"; shift 2 ;;
     --no-login)  DO_LOGIN=0; shift ;;
-    -h|--help)   sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    # headless ignores Browser.setWindowBounds for the viewport, so start at
+    # the width the Micro Dialogs menubar needs (export's WIDE = 12000)
+    --headless)  HEADLESS=(--headless=new --window-size=12000,1400); shift ;;
+    -h|--help)   sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)           echo "unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -72,10 +79,18 @@ else
   # --no-sandbox: Debian 13 / Ubuntu 23.10+ restrict unprivileged user
   # namespaces (AppArmor), so Chromium's zygote sandbox fails to start
   # ("No usable sandbox!"). Fine here — throwaway profile, one known site.
+  # The --disable-*background* flags: an unattended export at 00:18 on
+  # 2026-09-29 stalled once the window stopped getting frames (0 rAF ticks in
+  # 3s, screenshots timing out), so every Playwright "stable" click hung.
+  # Keep the renderer painting when the window is occluded or unfocused.
   setsid nohup "$CHROME_BIN" \
     --remote-debugging-port="${PORT}" \
     --user-data-dir="${PROFILE}" \
     --no-sandbox \
+    --disable-backgrounding-occluded-windows \
+    --disable-renderer-backgrounding \
+    --disable-background-timer-throttling \
+    ${HEADLESS[@]+"${HEADLESS[@]}"} \
     --no-first-run --no-default-browser-check --start-maximized \
     "${URL}" >"/tmp/pmcp-chrome-${PORT}.log" 2>&1 &
   disown || true
