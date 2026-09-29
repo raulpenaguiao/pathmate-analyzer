@@ -403,6 +403,32 @@ async def wait_round_trip(page):
     await page.wait_for_timeout(400)
 
 
+TOOLTIP_CSS_ID = "pmcp-nav-no-tooltip-hits"
+
+
+async def neutralize_tooltips(page) -> None:
+    """Make Vaadin tooltips click-through. Hovering a menu item shows its
+    description in a `.v-tooltip` that can sit on top of the next submenu
+    item, and Playwright then waits forever ("... v-tooltip subtree
+    intercepts pointer events"): the cause of most 'popup never opened' /
+    click timeouts on 2026-09-29. Same for `.v-Notification` ("The rule has
+    been updated." after an editor's Close): they fade on mouse movement,
+    which never happens headless, and sat on the menubar. They stay in the
+    DOM, so session-expiry detection still sees them. Page-level CSS, lost on
+    reload, so this is idempotent and re-applied by ensure_micro_dialogs.
+    Changes nothing in PMCP."""
+    await page.evaluate("""id => {
+      let s = document.getElementById(id);
+      if (!s) {
+        s = document.createElement('style');
+        s.id = id;
+        document.head.appendChild(s);
+      }
+      s.textContent = '.v-tooltip, .v-tooltip *, .v-Notification, .v-Notification * '
+                    + '{ pointer-events: none !important; }';
+    }""", TOOLTIP_CSS_ID)
+
+
 async def ensure_micro_dialogs(page) -> bool:
     """True once the Micro Dialogs menubar (`.v-menubar.md-menu`) is on screen.
     If it isn't, click the in-app "Micro Dialogs" section tab (same idea as
@@ -410,6 +436,7 @@ async def ensure_micro_dialogs(page) -> bool:
     there — the caller should then ask the operator to open that view and
     check that Monitoring is deactivated (the menubar's popups need it off).
     Never touches the Monitoring toggle itself."""
+    await neutralize_tooltips(page)
     if await page.locator(".v-menubar.md-menu").count():
         return True
     for cand in (

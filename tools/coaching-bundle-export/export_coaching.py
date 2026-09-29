@@ -259,6 +259,42 @@ async def sweep_variables_phase(page) -> list[dict]:
 # phase 3b — resolve ambiguous jump-to-message targets live
 # ---------------------------------------------------------------------------
 
+async def _enter_edit_view_retrying(page, name: str) -> bool:
+    """RF.enter_edit_view, plus one retry from the sidebar's Coachings list:
+    it intermittently leaves the row selected without opening it
+    (2026-09-29 09:26, right after a Report fetch; a retry went in fine)."""
+    if await RF.enter_edit_view(page, name):
+        return True
+    await page.get_by_text("Coachings", exact=True).first.click()
+    await page.wait_for_timeout(2000)
+    return await RF.enter_edit_view(page, name)
+
+
+async def _reload_edit_view(page, name: str) -> None:
+    """Start over from a clean page: reload (drops any stuck Vaadin window;
+    phase 3b only reads, so nothing unsaved is lost), then back into the
+    coaching's Edit view. Exits loudly if that fails.
+    A reload ends the PMCP session (lands on the login form, 2026-09-29), so
+    log in again with start_pmcp.sh, which reuses the running browser."""
+    await page.reload()
+    await page.wait_for_timeout(3000)
+    if await page.locator("input[type=password]").count():
+        port = CDP.rsplit(":", 1)[-1].strip("/")
+        proc = await asyncio.create_subprocess_exec(
+            str(HERE.parent / "start_pmcp.sh"), "--port", port,
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+        if await proc.wait() != 0:
+            sys.exit("phase 3b: re-login after a reload failed — run tools/start_pmcp.sh")
+        await page.wait_for_timeout(2000)
+    if await S.session_expired(page):
+        sys.exit(f"phase 3b: {S.EXPIRED_HINT}")
+    if not await _enter_edit_view_retrying(page, name):
+        sys.exit(f"phase 3b: could not get back into {name!r}'s Edit view "
+                 f"after a reload — rerun.")
+    if not await M.ensure_micro_dialogs(page):
+        sys.exit("phase 3b: Micro Dialogs menubar missing after a reload — rerun.")
+
+
 async def resolve_jumps_live(page, cdp, wid, bundle: dict) -> tuple[int, int]:
     """The Report names a jump target only by its text, so jumps to empty
     anchor messages or duplicate-text messages stay ambiguous after enrich
@@ -278,6 +314,7 @@ async def resolve_jumps_live(page, cdp, wid, bundle: dict) -> tuple[int, int]:
             for key in ("jumpMessageIfTrue", "jumpMessageIfFalse"):
                 if isinstance(br.get(key), dict) and br[key].get("unresolved"):
                     todo.append((mds[n["microDialogUid"]], n, bi, key))
+    name = bundle["coaching"].get("name")
     resolved = 0
     for md, node, bi, key in todo:
         labels = md["folderPath"] + [md["name"]]
@@ -285,26 +322,45 @@ async def resolve_jumps_live(page, cdp, wid, bundle: dict) -> tuple[int, int]:
         tag = f"{md['path']} row {node['order']} rule {bi} {label[-5:]}"
         D.step(f"phase 3b: {tag}")
         br = node["branches"][bi]
-        try:
-            prev = await M.table_signature(page)
-            await _navigate_retrying(page, cdp, wid, labels, tag)
-            await M.wait_round_trip(page)
-            if await M.wait_dialog_ready(page, labels, prev):
-                await M.wait_dialog_ready(page, labels, "")
-            if not await DN.open_row_editor(page, node["order"]):
-                raise RuntimeError("decision point editor did not open")
-            dpw = page.locator(".v-window").last
-            count = await DN.dp_expand_all(page, dpw)
-            if count != len(node["branches"]):
-                raise RuntimeError(f"{count} rules on screen, Report has {len(node['branches'])}")
-            await DN.dp_open_branch_rule(page, dpw, bi)
-            sel = await DN.read_jump_selection(page, page.locator(".v-window").last, label)
-        except Exception as e:  # noqa: BLE001
-            sel, err = None, e
-        else:
-            err = None
-        finally:
-            await R.close_windows(page)
+        # a failed read gets one retry from a freshly reloaded Edit view
+        # (2026-09-29: 'editor did not open' / 'popup never opened' on 7 of
+        # 14, then a rule window whose Close stayed 'not enabled' killed the
+        # whole export)
+        for attempt in (1, 2):
+            try:
+                # consecutive targets often share a dialog: re-opening its menu
+                # path right after a DP editor was the main 'popup never
+                # opened' source (2026-09-29), so skip it when already there
+                if await page.evaluate(M.BREADCRUMB_JS) != " > ".join(labels):
+                    prev = await M.table_signature(page)
+                    await _navigate_retrying(page, cdp, wid, labels, tag)
+                    await M.wait_round_trip(page)
+                    if await M.wait_dialog_ready(page, labels, prev):
+                        await M.wait_dialog_ready(page, labels, "")
+                if not await DN.open_row_editor(page, node["order"]):
+                    raise RuntimeError("decision point editor did not open")
+                dpw = page.locator(".v-window").last
+                count = await DN.dp_expand_all(page, dpw)
+                if count != len(node["branches"]):
+                    raise RuntimeError(f"{count} rules on screen, Report has {len(node['branches'])}")
+                if not await DN.dp_open_branch_rule(page, dpw, bi):
+                    raise RuntimeError("rule window did not open")
+                sel = await DN.read_jump_selection(page, page.locator(".v-window").last, label)
+            except Exception as e:  # noqa: BLE001
+                sel, err = None, e
+            else:
+                # an unset jump reads as {'value': ''}; None means the read failed
+                err = None if sel is not None else RuntimeError("jump dropdown read nothing")
+            try:
+                await R.close_windows(page)
+                stuck = False
+            except RuntimeError as e:
+                print(f"  ~ {tag}: {e} — reloading")
+                stuck = True
+            if stuck:
+                await _reload_edit_view(page, name)
+            if not err:
+                break
         msgs = [x for x in sorted(by_md[md["uid"]], key=lambda x: x["order"])
                 if x["type"] != "decision"]
         uid = (msgs[sel["index"]]["uid"]
@@ -605,7 +661,7 @@ async def main() -> int:
                     fetched.rename(report_path)
                     report = str(report_path)
                     print(f"  fetched -> {report_path}")
-                    if not await RF.enter_edit_view(page, name):
+                    if not await _enter_edit_view_retrying(page, name):
                         if await S.session_expired(page):
                             sys.exit(f"fetched the Report, then {S.EXPIRED_HINT}.")
                         sys.exit(f"fetched the Report but could not re-enter {name!r}'s "
@@ -614,7 +670,7 @@ async def main() -> int:
                     raise
                 except Exception as e:  # noqa: BLE001
                     print(f"  ! auto-fetch failed ({e!r}) — continuing without a Report HTML")
-                    if not await RF.enter_edit_view(page, name):
+                    if not await _enter_edit_view_retrying(page, name):
                         if await S.session_expired(page):
                             sys.exit(f"Report auto-fetch failed: {S.EXPIRED_HINT}.")
                         sys.exit(f"Report auto-fetch failed AND could not get back into "

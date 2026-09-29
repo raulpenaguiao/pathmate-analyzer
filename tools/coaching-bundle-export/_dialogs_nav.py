@@ -105,8 +105,13 @@ async def open_row_editor(page, row_index: int) -> bool:
         return False
     btn = await _enabled_row_button(page, "Edit")
     await R._click_retry(page, btn)
-    await page.wait_for_timeout(1000)
-    return await page.locator(".v-window").count() > 0
+    # a fixed 1s missed slow openings ('decision point editor did not
+    # open', 2026-09-29 daytime)
+    for _ in range(32):
+        await page.wait_for_timeout(250)
+        if await page.locator(".v-window").count():
+            return True
+    return False
 
 
 async def click_new_row_button(page, label: str) -> bool:
@@ -243,8 +248,13 @@ async def dp_open_branch_rule(page, dp_window, branch_index: int) -> bool:
     n = await edits.count()
     if not await R._click_retry(page, edits.nth(n - 1)):
         return False
-    await page.wait_for_timeout(900)
-    return await page.locator(".v-window").count() > (1 if dp_window else 0)
+    # poll: a fixed 0.9s sometimes returned before the stacked 'Edit rule:'
+    # window existed, and callers then read the DP window instead (2026-09-29)
+    for _ in range(32):
+        await page.wait_for_timeout(250)
+        if await page.locator(".v-window").count() > (1 if dp_window else 0):
+            return True
+    return False
 
 
 async def set_branch_operator(page, operator_text: str, verify: bool = True) -> bool:
@@ -417,8 +427,14 @@ async def read_jump_selection(page, rule_window, label: str) -> dict | None:
     if not value.strip():
         return {"value": "", "text": None, "index": None}
     await fs.locator(".v-filterselect-button").click()
-    await page.wait_for_timeout(1200)
-    pop = await page.evaluate(JUMP_POPUP_JS)
+    # the popup fills in after a server round trip; a fixed 1.2s read it
+    # before the highlight arrived on ~half the reads (2026-09-29)
+    pop = None
+    for _ in range(24):
+        await page.wait_for_timeout(250)
+        pop = await page.evaluate(JUMP_POPUP_JS)
+        if pop and any(it["selected"] for it in pop["items"]):
+            break
     await page.keyboard.press("Escape")
     await page.wait_for_timeout(400)
     if not pop:
