@@ -109,6 +109,49 @@ def _fmt_date(d: date) -> str:
     return f"{d.day:02d}.{d.month:02d}.{d.year}"
 
 
+def _split_by_lang(value: str, languages) -> dict[str, str] | None:
+    """A multilingual variable's value, "en-GB: 2 tickets / ro-RO: 2 bilete",
+    -> {"en-GB": "2 tickets", "ro-RO": "2 bilete"}. None when the value
+    isn't in that form (e.g. already a single language's part).
+    ASSUMPTION: this is how the export writes the per-language cells of a
+    "Multilingual Array Variable"; the PMCP 6.0 docs don't describe it."""
+    langs = [l for l in (languages or []) if l]
+    if not langs or not value:
+        return None
+    pattern = r"(?:^|\s+/\s+)(" + "|".join(re.escape(l) for l in langs) + r"):\s*"
+    parts = re.split(pattern, str(value))
+    if len(parts) < 3 or parts[0].strip():
+        return None
+    return {lang: text.strip() for lang, text in zip(parts[1::2], parts[2::2])}
+
+
+# answerType (lower-cased) -> (input kind, multiline). PMCP 6.0 docs (Micro
+# Dialogs, answer types): free text / free text multiline / free numbers are
+# typed inputs, date / time are pickers; the typed value is stored directly.
+_FREE_INPUT_TYPES = {
+    "free text": ("text", False),
+    "free text raw": ("text", False),
+    "free text multiline": ("text", True),
+    "free text multiline raw": ("text", True),
+    "free numbers": ("number", False),
+    "date": ("date", False),
+    "time": ("time", False),
+}
+_INPUT_PARAM_RE = re.compile(r"^\s*(min|max|placeholder)\s*:\s*(.*?)\s*$", re.I)
+
+
+def _time_to_decimal_hour(text) -> str:
+    """"22:30" -> "22.5". The docs don't say how a Time answer is stored;
+    ALEX v01's own content treats it as a decimal hour ($userSetBedtime
+    "calculated value is smaller or equal than 18.0", and the send-hour
+    variables are decimal hours), so the engine stores that. Anything that
+    isn't hh:mm is stored as typed."""
+    m = re.match(r"^\s*(\d{1,2}):(\d{2})\s*$", str(text or ""))
+    if not m:
+        return str(text or "").strip()
+    return _fmt(round(int(m.group(1)) + int(m.group(2)) / 60, 4))
+
+
 def _abs_minutes(clock: dict) -> int:
     return clock["day"] * 1440 + clock["hour"] * 60 + clock["minute"]
 
@@ -229,7 +272,7 @@ class Simulator:
             # seeded from the coaching's configured values (bundle only) -
             # without them e.g. ALEX v01's $hyperparameter*EndHour day-slot
             # gates compare against "" and $currentDaySlot reads "night" at 09:00
-            "vars": dict(self.model.variable_defaults) if self.model else {},
+            "vars": self._default_vars(),
             "open_dialog": None,
             "pending": None,
             "transcript": [],
@@ -253,6 +296,22 @@ class Simulator:
         self._refresh_system_vars(state)
         self._log(state, "system", "Simulation reset. Clock at day 0, 08:00.")
         return state
+
+    def _default_vars(self) -> dict:
+        if not self.model:
+            return {}
+        values = dict(self.model.variable_defaults)
+        # a multilingual variable starts as this simulation's language part
+        for name in getattr(self.model, "multilingual_variables", ()):
+            if name in values:
+                values[name] = self._lang_value(values[name])
+        return values
+
+    def _lang_value(self, value) -> str:
+        parts = _split_by_lang(value, self.model.languages if self.model else [])
+        if not parts:
+            return value
+        return parts.get(self.lang) or next(iter(parts.values()), "")
 
     # -- public step ----------------------------------------------------
     def initial_state_from_import(self, import_data: dict) -> dict:
@@ -626,7 +685,17 @@ class Simulator:
         if not pending:
             self._log(state, "system", "No question is waiting for an answer.")
             return
-        label = next((o["label"] for o in pending["options"] if o["value"] == value), value)
+        spec = pending.get("input")
+        if spec:
+            # typed input: the bubble shows the template with the value in
+            # place of "_"; the variable gets the value itself
+            value = str(value).strip()
+            template = spec.get("template") or ""
+            label = template.replace("_", value, 1) if "_" in template else value
+            if spec.get("kind") == "time":
+                value = _time_to_decimal_hour(value)
+        else:
+            label = next((o["label"] for o in pending["options"] if o["value"] == value), value)
         self._log(state, "user", label)
         node = self._node_at(pending["dialog_i"], pending["node_idx"])
         if node and node.writes_var:
@@ -702,12 +771,16 @@ class Simulator:
                 text = self._render_text(self._pick(node.text_by_lang), variables)
                 if text:
                     self._log(state, "coach", text)
-                if node.answer_options_by_lang:
+                input_spec = self._input_spec(node, variables)
+                if input_spec or node.answer_options_by_lang:
                     pending = {
                         "dialog_i": od["dialog_i"],
                         "node_idx": od["node_idx"],
-                        "options": self._options(node, variables),
+                        # a typed-input question has `input` and no options
+                        "options": [] if input_spec else self._options(node, variables),
                     }
+                    if input_spec:
+                        pending["input"] = input_spec
                     # timeout_at: absolute minutes (same unit as
                     # _abs_minutes), None when no not-answered timeout applies
                     pending["timeout_at"] = None
@@ -871,10 +944,40 @@ class Simulator:
     def _render_text(self, text: str, variables: dict) -> str:
         if not text or text == "[not set]":
             return ""
-        return VARIABLE_RE.sub(
-            lambda m: _fmt(variables[m.group(0)]) if m.group(0) in variables else m.group(0),
-            _apply_date_modifiers(text, variables),
-        )
+        multilingual = getattr(self.model, "multilingual_variables", ()) if self.model else ()
+
+        def value(m):
+            name = m.group(0)
+            if name not in variables:
+                return name
+            # also covers a multilingual value set mid-sim via set_var
+            v = self._lang_value(variables[name]) if name in multilingual else variables[name]
+            return _fmt(v)
+
+        return VARIABLE_RE.sub(value, _apply_date_modifiers(text, variables))
+
+    def _input_spec(self, node, variables: dict) -> dict | None:
+        """The typed-input description for a free text / numbers / date /
+        time question, or None for a button question. Options hold a
+        template line with "_" where the input goes ("Please call me _"),
+        plus optional "min:"/"max:"/"placeholder:" lines, or "[not set]"."""
+        kind = _FREE_INPUT_TYPES.get((node.answer_type or "").strip().lower())
+        if not kind:
+            return None
+        raw = self._pick(node.answer_options_by_lang) or ""
+        spec = {"kind": kind[0], "multiline": kind[1], "template": "",
+                "min": None, "max": None, "placeholder": None}
+        if raw.strip() == "[not set]":
+            return spec
+        template_lines = []
+        for line in raw.splitlines():
+            m = _INPUT_PARAM_RE.match(line)
+            if m:
+                spec[m.group(1).lower()] = self._render_text(m.group(2), variables) or None
+            elif line.strip():
+                template_lines.append(line.strip())
+        spec["template"] = self._render_text("\n".join(template_lines), variables)
+        return spec
 
     def _stamp(self, state: dict) -> str:
         c = state["clock"]

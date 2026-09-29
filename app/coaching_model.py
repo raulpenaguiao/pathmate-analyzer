@@ -274,6 +274,9 @@ class CoachingModel:
     # (bundle path only - the HTML report doesn't carry them); the chat
     # engine seeds a fresh simulation's vars from this.
     variable_defaults: dict[str, str] = field(default_factory=dict)
+    # variables flagged "Multilingual Array Variable: yes" in the export -
+    # their value holds one part per language ("en-GB: … / ro-RO: …")
+    multilingual_variables: set[str] = field(default_factory=set)
 
     # -- convenience accessors used by templates -------------------------------
     def rules_by_context(self) -> list[tuple[str, list[Rule]]]:
@@ -723,6 +726,12 @@ def parse_bundle(data: dict) -> CoachingModel:
         for v in (data.get("variables") or [])
         if isinstance(v, dict) and v.get("Variable Name")
     }
+    multilingual_variables = {
+        v["Variable Name"]
+        for v in (data.get("variables") or [])
+        if isinstance(v, dict) and v.get("Variable Name")
+        and str(v.get("Multilingual Array Variable") or "").strip().lower() == "yes"
+    }
 
     return CoachingModel(
         rules=rules,
@@ -732,6 +741,7 @@ def parse_bundle(data: dict) -> CoachingModel:
         languages=languages,
         source="bundle",
         variable_defaults=variable_defaults,
+        multilingual_variables=multilingual_variables,
     )
 
 

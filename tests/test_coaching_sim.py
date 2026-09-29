@@ -590,6 +590,99 @@ class DialogWalkerTest(unittest.TestCase):
         state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
         self.assertEqual(self._coach(state), ["s", "other"])
 
+    # -- typed-input answer types (PMCP 6.0 docs, Micro Dialogs, answer types)
+    def _user(self, state):
+        return [l["text"] for l in state["transcript"] if l["kind"] == "user"]
+
+    def test_free_text_is_a_typed_input_not_a_button(self):
+        # ALEX Welcome "How may I call you?" shape
+        q = self._msg(0, "How may I call you?", writes_var="$participantName",
+                      answer_type="free text raw",
+                      answer_options_by_lang={"en-GB": "Please call me _"})
+        sim = self._sim(("Welcome", [q, self._msg(1, "Hello $participantName!")]))
+        state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual(state["pending"]["options"], [])
+        self.assertEqual(state["pending"]["input"], {
+            "kind": "text", "multiline": False, "template": "Please call me _",
+            "min": None, "max": None, "placeholder": None})
+        state = sim.step(state, {"type": "answer", "value": "Ana"})
+        self.assertEqual(self._user(state), ["Please call me Ana"])
+        self.assertEqual(state["vars"]["$participantName"], "Ana")
+        self.assertEqual(self._coach(state)[-1], "Hello Ana!")
+
+    def test_time_input_renders_min_max_and_stores_decimal_hour(self):
+        q = self._msg(0, "When?", writes_var="$doseTime", answer_type="time",
+                      answer_options_by_lang={"en-GB": "Please enter the time in the format hh:mm: _\nmin:0\nmax:$pseudoBedTime"})
+        sim = self._sim(("T", [q]))
+        state = sim.initial_state()
+        state["vars"]["$pseudoBedTime"] = "22.5"
+        state = sim.step(state, {"type": "launch_dialog", "dialog_i": 0})
+        spec = state["pending"]["input"]
+        self.assertEqual((spec["kind"], spec["min"], spec["max"]), ("time", "0", "22.5"))
+        self.assertEqual(spec["template"], "Please enter the time in the format hh:mm: _")
+        state = sim.step(state, {"type": "answer", "value": "07:30"})
+        self.assertEqual(state["vars"]["$doseTime"], "7.5")
+        self.assertEqual(self._user(state), ["Please enter the time in the format hh:mm: 07:30"])
+
+    def test_not_set_template_date_input_stores_value_as_typed(self):
+        q = self._msg(0, "Enrollment date?", writes_var="$enrolled", answer_type="date",
+                      answer_options_by_lang={"en-GB": "[not set]"})
+        sim = self._sim(("D", [q]))
+        state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual(state["pending"]["input"]["kind"], "date")
+        self.assertEqual(state["pending"]["input"]["template"], "")
+        state = sim.step(state, {"type": "answer", "value": "03.02.2026"})
+        self.assertEqual(state["vars"]["$enrolled"], "03.02.2026")
+        self.assertEqual(self._user(state), ["03.02.2026"])
+
+    def test_select_one_still_uses_buttons(self):
+        q = self._msg(0, "Took it?", writes_var="$ans", answer_type="select one",
+                      answer_options_by_lang={"en-GB": "Yes:1\nNo:0"})
+        sim = self._sim(("Q", [q]))
+        state = sim.step(sim.initial_state(), {"type": "launch_dialog", "dialog_i": 0})
+        self.assertNotIn("input", state["pending"])
+        self.assertEqual(len(state["pending"]["options"]), 2)
+
+
+class MultilingualVariableTest(unittest.TestCase):
+    """ASSUMPTION (docs are silent): a 'Multilingual Array Variable' value in
+    the export is 'en-GB: … / ro-RO: …', one part per language."""
+
+    def _sim(self, lang, text="Your prize: $prize"):
+        from app.coaching_model import CoachingModel, MicroDialog, Node
+        node = Node(n=0, type="message", comment="", channel="", writes_var=None,
+                    text_by_lang={"en-GB": text, "ro-RO": text})
+        md = MicroDialog(i=0, name="P", comment="", nodes=[node], uid="md-000")
+        model = CoachingModel(
+            rules=[], micro_dialogs=[md], message_groups=[], variables={},
+            languages=["en-GB", "ro-RO"], source="bundle",
+            variable_defaults={"$prize": "en-GB: 2 tickets to the movies / ro-RO: 2 bilete la cinema",
+                               "$plain": "en-GB: not / multilingual"},
+            multilingual_variables={"$prize"})
+        return Simulator(model, lang=lang)
+
+    def _coach(self, state):
+        return [l["text"] for l in state["transcript"] if l["kind"] == "coach"]
+
+    def test_seeded_value_is_the_simulation_language_part(self):
+        for lang, expected in (("en-GB", "2 tickets to the movies"), ("ro-RO", "2 bilete la cinema")):
+            sim = self._sim(lang)
+            state = sim.initial_state()
+            self.assertEqual(state["vars"]["$prize"], expected)
+            state = sim.step(state, {"type": "launch_dialog", "dialog_i": 0})
+            self.assertEqual(self._coach(state), [f"Your prize: {expected}"])
+
+    def test_unflagged_variable_is_left_alone(self):
+        state = self._sim("en-GB").initial_state()
+        self.assertEqual(state["vars"]["$plain"], "en-GB: not / multilingual")
+
+    def test_multilingual_value_set_mid_sim_is_split_when_rendered(self):
+        sim = self._sim("ro-RO")
+        state = sim.step(sim.initial_state(), {"type": "set_var", "name": "$prize",
+                                               "value": "en-GB: a bike / ro-RO: o bicicletă"})
+        state = sim.step(state, {"type": "launch_dialog", "dialog_i": 0})
+        self.assertEqual(self._coach(state), ["Your prize: o bicicletă"])
+
 
 if __name__ == "__main__":
     unittest.main()
