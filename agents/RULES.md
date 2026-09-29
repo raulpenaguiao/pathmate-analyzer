@@ -93,9 +93,12 @@ nothing about any agent is scattered elsewhere in the repo:
    Mail can matter enough to act on quickly. `inotifywait` is **not
    installed on this machine** — don't reach for it, the background
    process will just fail silently and you'll have no listener at all
-   without realizing it. Use a plain poll loop instead, started as a
-   background Bash command and watched with `Monitor` (only fires a
-   notification when the count actually goes up, not every tick):
+   without realizing it. Use a plain poll loop instead, run **by the
+   `Monitor` tool itself** (it's allow-listed, so it never prompts; a
+   background Bash loop does prompt, so don't use one). Use absolute paths,
+   `timeout_ms: 1800000`, and re-arm it every time it expires. It only
+   fires a notification when the count actually goes up, not every tick.
+   This is part of the wake sequence (`agents/wake_prompt.txt`):
 
    ```
    prev=0
