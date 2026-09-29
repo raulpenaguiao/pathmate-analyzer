@@ -5,6 +5,29 @@ they grouped it. Status updated as work lands. For the dependency-ordered
 game plan and full detail on each item, see `README.md`'s "Roadmap: five
 workstreams" section — this file is the checklist, that's the writeup.
 
+## ▶ Today (2026-09-29): Raul's two tasks
+
+**Live-write exception (Raul, 09-29):** task 2 may write to PMCP (the ALEX
+v01 sandbox, `alex-v01-zum-ausprobieren`), even though the 09-25 freeze
+still holds for everything else. Browser order: Warden → Loom → Warden.
+
+- [ ] **1. Clean export** (Warden). A full export of ALEX v01 whose log has
+      zero errors and zero warnings. It's also the **"before"** snapshot
+      for task 2.
+- [ ] **2. r_ apply test + before/after comparison** (Loom, with Warden
+      for the export). Generation is already done:
+      `data/rgroups/rgroups_generated_260929093415.csv`, 802/804 OK, and
+      the 2 flagged duplicates get skipped.
+      - [ ] 2a. Apply **all 802 variants** to the sandbox with
+            `rgroup_apply.py` in one run (Raul confirmed 09-29, no sample
+            batch). It takes several hours of browser time. Claim the
+            browser lock.
+      - [ ] 2b. Re-export: the **"after"** snapshot (Warden).
+      - [ ] 2c. Diff before vs after `.json`. The expected result is
+            exactly the added variants in the right r_ groups, and
+            nothing else changed.
+      - [ ] 2d. **New artifact for Raul** showing the comparison (Loom).
+
 ## ▶ Raul's decisions + today's priorities (2026-09-25)
 
 **Standing rule: no writes to the live pathmate tool** until Raul sets up

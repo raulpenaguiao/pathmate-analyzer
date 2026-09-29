@@ -1,5 +1,43 @@
 # Kart — status
 
+**10:25 pushed on Raul's OK:** `8945330..94fb007` (4 commits: 6e9c5b4,
+af5e637, b64b345, 94fb007). `main` = origin.
+
+## ▶ 2026-09-29 10:20 — Raul's two tasks for today, routed
+
+In TASKS.md top. (1) Warden: a clean export with a zero-error log, which
+is also the BEFORE snapshot. (2) Loom: apply the generated r_ texts
+(`rgroups_generated_260929093415.csv`) to the ALEX v01 sandbox. This is
+a **live-write exception Raul OK'd**. Raul confirmed: all 802 in one
+run, no sample batch.
+Then Warden runs the AFTER export, and Loom diffs the .json files and
+publishes a new comparison artifact. Browser order: Warden → Loom →
+Warden. Raul said to skip regeneration, since expand already ran today.
+Mail read: r_ expand done 802/804 (Loom `94fb007`, not pushed). Herald's
+pile-up advisor page v2 is published and Mason-checked
+(https://claude.ai/artifact/V27fFmmiLLb1apZs4zAxUh). The r_ explainer
+is being rebuilt.
+
+## 2026-09-29 ~00:30
+
+- **Pull**: already up to date. `main` is 2 commits ahead of origin
+  (`6e9c5b4` Mason, `af5e637` Warden), not pushed. The 09-25 push was
+  a one-off on Raul's request, so I'm waiting for his OK.
+- **Journal digest written**: `agents/kart/journal_latest.md` covers
+  09-25 08:45 → 09-29 00:20. The manager republishes it to the URL in
+  `agents/journal_artifact_url.txt`. Next one is due 09-30 00:20.
+- **Progress Tree v15** (https://claude.ai/artifact/Pt1jryWkroZsZfMuk1aqCc):
+  52 done / 4 in progress / 20 not started, 76 total. Synced with the
+  settled pile-up strategy, D6 first-release scope, the clean export,
+  the r_ step 1–2 progress and the new owners.
+- Mail: archived Warden's clean-export mail. Sent Herald a warning that
+  both advisor drafts lived in the old session's scratchpad.
+- **Top blockers, all Raul's**: a valid API key (Loom's expand gets 401),
+  the workbench coaching (the whole pile-up rollout), and the chat test
+  (workstream 5).
+- Next: wait for mail. Chase Herald's two artifacts. Mark r_ expand and
+  Warden's follow-up export done when they land.
+
 ## 2026-09-21
 
 Read `TASKS.md` and the ALEX v02 Progress Tree fully, per Raul's starter
