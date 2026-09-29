@@ -16,11 +16,37 @@ unblocks back-burner items. **Coaching names (RULES.md "PMCP coachings"):**
 - **sandbox** = `Minimal Coaching for Development 2 for Raul`: free to
   change.
 
-- [ ] **3. Clean export of alex-live** (Warden, **top priority**). Same bar
-      as task 1, with zero writes. It needs a working login (see task 2's
-      blocker).
-- [ ] **4. r_ CSVs from that export** (Loom): report → prepare → expand.
-      No apply. Files and counts go to Kart + Herald.
+- [x] **3. Clean export of alex-live**. **DONE ~16:55:**
+      `data/exports/coaching_alex-v01-zum-ausprobieren-2_20260929-162548.json`.
+      - Coherence OK and complete: 0 dialog errors, 0 missing folders,
+        98 dialogs, 37 senders.
+      - 1 warning: 4 of 26 jump targets are still ambiguous (fixes
+        queued, Warden).
+      - Raul's first 4 runs died because the screen went to sleep.
+        Guards added: `2baf7ee`, plus a systemd-inhibit wrapper.
+      - Loom has the path.
+
+      History: **13:28 update: Raul runs it
+      himself** with the full program. He accepted the editors' no-op
+      re-saves on alex-live through a new explicit flag,
+      `--allow-noop-resaves`. Loom was told not to start. Warden passes
+      the output path to Loom + Kart, then Loom does task 4. (Earlier:
+      **Loom**, per Raul ~13:30, using
+      Warden's exporter; Warden supports). **Due today, ahead of task
+      2.** Same bar as task 1, with zero writes. **Blocked on the PMCP
+      login:** `.env` has been rejected since ~13:10. Proposed fix: Raul
+      logs in by hand in the visible :9222 Chromium, and Loom attaches
+      and runs at once. Warden: that's safe, but **the screen must stay on**
+      during the run.
+      - **Known limit (Warden):** "never change alex-live" means no
+        editor modals, because their Close is a no-op re-save. So this
+        export has **no sender-rule details, and about 14 jump targets
+        stay ambiguous**. It's below the task-1 bar. Warden is testing a
+        read-only close that could lift this (~5 min of browser on
+        alex-sandbox after Loom).
+      - Per-coaching baselines are in `935d7a8`.
+- [ ] **4. r_ CSVs from that export** (Loom, **due today**): report →
+      prepare → expand. No apply. Files and counts go to Kart + Herald.
 - Unblocked, after 3: questionnaire `multiSubmit` (Warden). It needs
   Raul's OK before any write.
 
@@ -196,6 +222,23 @@ Also queued:
         decide on.
       - Then integrate the result into the portal with Smith.
       - Any live checks go through Warden's browser lock.
+      - **Raul 09-29: this is the most important part.** There are 2
+        exports: the `.html` is PMCP's Report (from its Export button),
+        and the `.json` is ours, read from the editor tables. The study
+        proposes extending the `.json`.
+      - Warden does **one batched live pass** for all the new fields
+        once Mirror sends the list, starting on sandbox (~810 messages ≈
+        1 h on alex-sandbox).
+      - Fields so far:
+        - "clears the current dialog cascade" per message (Mason's test
+          A1)
+        - stop-intervention on rules
+        - questionnaire→variable bindings
+        - why every sender's messageGroup is empty
+        - does-not-answer rules
+      - Notes: `agents/mirror/context/export-study.md`. Mirror's other
+        09-29 commits: `dbfc05d` (typed inputs, multilingual variables)
+        and `cfa2c7e` (A2 same-pass switch).
 
 ## r_ task
 
