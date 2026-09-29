@@ -66,6 +66,11 @@ still holds for everything else. Browser order: Warden → Loom → Warden.
 
 ## ▶ Raul's decisions + today's priorities (2026-09-25)
 
+**09-29 update:** RULES.md "PMCP coachings" now makes alex-sandbox and
+sandbox free to change, and alex-live is export-only. There's no
+workbench. The freeze below looks superseded, but Raul hasn't confirmed
+that yet.
+
 **Standing rule: no writes to the live pathmate tool** until Raul sets up
 a new test workbench coaching (and an export of it). Until then, the
 current coaching is used only for testing tools. The live-write queue is
@@ -139,9 +144,11 @@ Also queued:
             interactions for the advisor showing v02 resolving the
             pile-up. **Unblocked 09-25:** the strategy is settled, and
             Mason is coordinating the advisor-facing artifact with Herald.
-      - [ ] **Blocked on the workbench coaching**: the whole rollout
-            (Phase A onward), since there are no PMCP writes until Raul
-            creates it.
+      - [ ] ~~Blocked on the workbench coaching~~. **09-29: there's no
+            workbench.** The rollout builds into **alex-sandbox**, and
+            tests run on **sandbox** (per Herald's v4 page, confirmed by
+            Mason; RULES.md "PMCP coachings"). Kart has asked Raul to
+            confirm the 09-25 freeze is lifted before Phase A starts.
 - [ ] **ro-RO duplicate wording**: it's in the **existing v01 content**,
       not LLM output. "within reach" and "nearby" are both "Este
       spirometrul la îndemână?", and "handy" is near-identical (md-020
@@ -169,7 +176,10 @@ Also queued:
       confirmed it. **Owner: Mason.** Fix it in the workbench build, not
       the sandbox (writes are frozen). The generated r_ variants don't
       carry it. It's on Mason's checklist in `docs/pileup/build-steps.md`.
-- [ ] **PMCP docs knowledge base** (Mason; Raul 09-29). Built from the
+- [x] **PMCP docs knowledge base** (Mason; Raul 09-29). **Done `a2cb347`:**
+      `docs/pmcp-docs/` holds all 49 v6.0 pages in 19 files, plus a README
+      with an index, a pile-up summary and a "not documented" list.
+      Everyone has been mailed. Built from the
       official v6.0 docs (https://my.pathmate.app/pmcp-documentation/doc-6-0).
       - One markdown page per docs section plus an index, with page
         citations and a "not documented" list.
