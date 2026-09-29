@@ -262,12 +262,19 @@ async def sweep_variables_phase(page) -> list[dict]:
 async def _enter_edit_view_retrying(page, name: str) -> bool:
     """RF.enter_edit_view, plus one retry from the sidebar's Coachings list:
     it intermittently leaves the row selected without opening it
-    (2026-09-29 09:26, right after a Report fetch; a retry went in fine)."""
-    if await RF.enter_edit_view(page, name):
-        return True
-    await page.get_by_text("Coachings", exact=True).first.click()
-    await page.wait_for_timeout(2000)
-    return await RF.enter_edit_view(page, name)
+    (2026-09-29 09:26, right after a Report fetch; a retry went in fine).
+    It can also raise (row lookup timeout, 11:12) - same retry."""
+    for attempt in (1, 2):
+        try:
+            if await RF.enter_edit_view(page, name):
+                return True
+        except Exception as e:  # noqa: BLE001
+            if attempt == 2:
+                raise
+            print(f"  ~ entering the Edit view: {str(e).splitlines()[0][:100]} — retrying")
+        await page.get_by_text("Coachings", exact=True).first.click()
+        await page.wait_for_timeout(2000)
+    return False
 
 
 async def _reload_edit_view(page, name: str) -> None:

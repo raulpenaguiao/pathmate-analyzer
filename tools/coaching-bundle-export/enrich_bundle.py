@@ -16,6 +16,7 @@ Writes  <OUT_DIR>/coaching.bundle.v2.json
 """
 from __future__ import annotations
 
+import html
 import json
 import re
 import os
@@ -71,6 +72,14 @@ def _grid_en(grid_text: str) -> str:
     g = re.sub(r"\s+", " ", grid_text or "").strip().lower()
     m = re.match(r"en-gb:\s*(.*?)(?:\s*/\s*ro-ro:.*)?$", g)
     return (m.group(1) if m else g).rstrip(".…").strip()
+
+
+def _html_to_plain(markup: str) -> str:
+    """Plain text of a message's HTML body: line breaks kept, tags dropped
+    (Smith's tested fallback, 2026-09-29)."""
+    markup = re.sub(r"<br\s*/?>|</p>|</div>|</li>", "\n", markup, flags=re.IGNORECASE)
+    text = html.unescape(re.sub(r"<[^>]+>", "", markup))
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
 def _text_agreement(bnodes: list[dict], rd) -> tuple[int, int]:
@@ -167,7 +176,14 @@ def enrich_dict(bundle: dict, report_html: Path) -> dict:
         md["textResolved"] = True
         merged += 1
         for bn, rn in zip(bnodes, rd.nodes):
-            bn["textByLang"] = rn.text_by_lang
+            # formatted messages have only a "Text (html):" row in the Report,
+            # so text_by_lang came back {} and the chat showed blank prompts
+            # (Smith/Raul, 2026-09-29: Welcome rows 37, 39, 40, ...)
+            bn["textByLang"] = rn.text_by_lang or {
+                lang: _html_to_plain(t)
+                for lang, t in (getattr(rn, "text_html_by_lang", None) or {}).items()}
+            if getattr(rn, "text_html_by_lang", None):
+                bn["textHtmlByLang"] = rn.text_html_by_lang
             bn["answerOptionsByLang"] = rn.answer_options_by_lang
             bn["commandByLang"] = rn.command_by_lang
             bn["triggerExprs"] = rn.trigger_exprs
