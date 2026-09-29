@@ -24,7 +24,9 @@ The shared infrastructure and planning ahead are included too.
 
 ## Order
 
-**Step 0: three quick platform tests** (workbench coaching, one browser session via Warden). These settle the unverified points in [interruptions.md](interruptions.md#not-yet-verified-needs-one-test-on-the-workbench-coaching-booked-through-warden). They must come first, because the design depends on them.
+> **2026-09-29:** "workbench" below now means **alex-sandbox** for the build and **sandbox** for the step-0 tests (see [README.md](README.md#status-at-a-glance-2026-09-25)).
+
+**Step 0: three quick platform tests** (on sandbox, one browser session via Warden). These settle the unverified points in [interruptions.md](interruptions.md#not-yet-verified-needs-one-test-on-the-workbench-coaching-booked-through-warden). They must come first, because the design depends on them.
 
 **Step 1: build spirometry and medication on the workbench**, reusing what the sandbox prototype proved (the reminder pattern, the gates, the build tooling), plus the new interrupt design:
 1. Add the shared markers (`$openDialogName`, `$openDialogRank`, `$openDialogStaleAt`) and each dialog's `…_resumeMode`.

@@ -30,7 +30,8 @@
 
 ## Status at a glance (2026-09-25)
 
-- **Nothing is live.** Spirometry and medication were prototyped on the **sandbox** coaching, which will be reset. They get rebuilt on the new workbench coaching, with the restart design, from the start.
+- **Nothing is live.** Spirometry and medication were prototyped on **alex-sandbox**, still with the old "delete when interrupted" design.
+- **Target changed (Raul, 2026-09-29; RULES.md "PMCP coachings").** There is no separate workbench. The pile-up solution is built into **alex-sandbox** (`ALEX v01 zum Ausprobieren`) itself. Platform tests and throwaway versions go on **sandbox** (`Minimal Coaching for Development 2 for Raul`). **alex-live** (`… Ausprobieren 2`) is never changed. Where these pages still say "workbench", read alex-sandbox for the build and sandbox for the Phase A tests. Still open: does the existing prototype get retrofitted, or rebuilt from scratch?
 - **Designed, not built:** everything else. See [rollout.md](rollout.md).
 
 A note on words: PMCP (the platform ALEX runs on) has no built-in priority setting. "Rank" here is our own design, and it is built out of ordinary rule conditions and variables.

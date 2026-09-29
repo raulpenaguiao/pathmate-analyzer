@@ -4,7 +4,7 @@
 
 ## The design flaw: returning without context
 
-v01 interrupts dialogs on purpose and brings them back afterwards. That is intended behaviour, and PMCP's own v6.0 guidance calls bringing interrupted dialogs back the *preferred* approach, because patients can answer at their own pace ("Defining the conversational coaching flow" best-practice page).
+v01 interrupts dialogs on purpose and brings them back afterwards. That is intended behaviour, and PMCP's own v6.0 guidance marks bringing interrupted dialogs back as the "typically used" option, because it "allows users to respond to all open questions at their own pace". It also warns that this "requires more sophisticated dialogue state management and careful planning to avoid overwhelming the user with too many interruptions" ("Defining the conversational coaching flow" best-practice page; see [../pmcp-docs/](../pmcp-docs/README.md)).
 
 **What v01 gets wrong is how a dialog comes back.** It resumes the parked question at the exact point it stopped. The only framing is one generic transition line ("we had previously stopped somewhere else… let us resume the previous conversation"). The patient is dropped mid-conversation, hours later, and is expected to remember what was being asked and why. The dialog assumes a context the patient no longer has.
 
