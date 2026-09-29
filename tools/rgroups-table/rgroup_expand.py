@@ -7,6 +7,13 @@ the number of API calls is always an explicit, bounded choice.
   ANTHROPIC_API_KEY=sk-... .venv/bin/python rgroup_expand.py --limit 10
   OPENAI_API_KEY=sk-...    .venv/bin/python rgroup_expand.py --limit 10 --provider chatgpt
   .venv/bin/python rgroup_expand.py --limit 10 --dry-run   # prompts only, no calls
+  .venv/bin/python rgroup_expand.py --limit 10 --resume    # only the unfilled pools
+
+A bad key, no credits, or rate limiting that outlasts the retries aborts the
+run (exit 1): the pools already done are still written, the rest are marked
+"failed: not run". --resume then calls the API only for pools the latest
+rgroups_generated_*.csv lacks or left unfilled (a truncated reply is asked
+for just its missing count) and writes a new, merged generated file.
 
 Provider auto-detects from whichever key env var is set (ANTHROPIC_API_KEY ->
 claude, OPENAI_API_KEY -> chatgpt, also read from <repo>/.env if not already
@@ -36,6 +43,7 @@ import re
 import sys
 import time
 import unicodedata
+import urllib.error
 import urllib.request
 from collections import OrderedDict
 from pathlib import Path
@@ -166,6 +174,43 @@ def _log_raw_failure(pool: str, text: str, error: Exception) -> None:
         fh.write(f"\n{'='*80}\npool: {pool}\nerror: {error!r}\n{'-'*80}\n{text}\n")
 
 
+class AccountError(Exception):
+    """An API error no other pool could get past either: bad/revoked key
+    (401/403), no credits left, or rate limiting that outlasted the retries.
+    expand() stops the run on it instead of burning through every remaining
+    pool with the same failure."""
+
+
+RETRIES = 3          # for 429 / 5xx / 529 overloaded, before giving up
+_NO_CREDIT = re.compile(r"credit balance|insufficient_quota|billing", re.I)
+
+
+def _post(req: urllib.request.Request) -> dict:
+    """urlopen + JSON, with backoff on transient errors and AccountError on
+    account-level ones. Anything else (a 400 about the request itself, a
+    network blip after the retries) is raised as-is and stays per-pool."""
+    for attempt in range(RETRIES + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", "replace")[:300]
+            if e.code in (401, 403):
+                raise AccountError(f"HTTP {e.code}: API key rejected ({body})") from e
+            if _NO_CREDIT.search(body):
+                raise AccountError(f"HTTP {e.code}: out of credits ({body})") from e
+            if e.code == 429 or e.code >= 500:
+                if attempt == RETRIES:
+                    if e.code == 429:
+                        raise AccountError(f"HTTP 429 after {RETRIES} retries ({body})") from e
+                    raise
+                wait = float(e.headers.get("retry-after") or 0) or 5 * 2 ** attempt
+                time.sleep(min(wait, 120))
+                continue
+            raise
+    raise AssertionError("unreachable")
+
+
 def call_llm(provider: str, prompt: str, api_key: str | None = None,
              max_tokens: int = 2000, pool: str = "?") -> list[dict]:
     if provider == "claude":
@@ -178,8 +223,7 @@ def call_llm(provider: str, prompt: str, api_key: str | None = None,
             method="POST",
             headers={"x-api-key": key, "anthropic-version": "2023-06-01",
                      "content-type": "application/json"})
-        with urllib.request.urlopen(req, timeout=120) as r:
-            data = json.loads(r.read())
+        data = _post(req)
         text = "".join(b.get("text", "") for b in data.get("content", []))
     elif provider == "chatgpt":
         key = api_key or os.environ["OPENAI_API_KEY"]
@@ -192,8 +236,7 @@ def call_llm(provider: str, prompt: str, api_key: str | None = None,
             method="POST",
             headers={"Authorization": f"Bearer {key}",
                      "content-type": "application/json"})
-        with urllib.request.urlopen(req, timeout=120) as r:
-            data = json.loads(r.read())
+        data = _post(req)
         text = data["choices"][0]["message"]["content"]
     else:
         sys.exit(f"unknown provider {provider!r} (use claude or chatgpt)")
@@ -266,6 +309,7 @@ def expand(requests, provider, limit, dry=False, progress=None, api_key=None):
     reqs = list(requests)[:limit]
     n = len(reqs)
     gen_rows, prompt_log = [], []
+    aborted = ""   # set by an AccountError; every later pool is skipped
     for i, req in enumerate(reqs, 1):
         pool = req["pool"]
         prompt = build_prompt(req)
@@ -274,7 +318,9 @@ def expand(requests, provider, limit, dry=False, progress=None, api_key=None):
             progress(i, n, pool, "start")
         need = int(req["needVariants"])
         variants, status = [], "dry-run"
-        if not dry:
+        if aborted:
+            status = f"failed: not run (run aborted: {aborted})"
+        elif not dry:
             # Scale the token budget with how much was actually asked for -
             # a fixed 2000 is plenty for a couple of variants but can run
             # close to the edge for a pool needing many, making truncation
@@ -297,6 +343,10 @@ def expand(requests, provider, limit, dry=False, progress=None, api_key=None):
                 else:
                     variants = []
                     status = f"failed: {e.original!r} - raw response in {RAW_FAILURES.name}"
+            except AccountError as e:
+                variants = []
+                aborted = str(e).split(" (")[0]
+                status = f"failed: {e} - run aborted, rerun with --resume"
             except Exception as e:  # noqa: BLE001 -- one bad pool must not abort the run
                 variants = []
                 status = f"failed: {e!r}"
@@ -328,8 +378,63 @@ def expand(requests, provider, limit, dry=False, progress=None, api_key=None):
     return gen_rows, prompt_log
 
 
+def _unfilled(row: dict) -> bool:
+    """A generated row that still needs an API call: no wording came back
+    (failed pool, aborted run, or the tail a truncated reply lost). Rejected
+    duplicates DO have a wording - they're for review, not a retry."""
+    return not (row.get("en-GB") or "").strip() and row.get("status") != "ok"
+
+
+def resume_plan(reqs: list[dict], prev_rows: list[dict]) -> list[dict]:
+    """The request rows a --resume run still has to call the API for: pools
+    the previous generated file doesn't have at all, and pools with unfilled
+    rows. A partly filled pool is asked only for its missing count, with the
+    wordings it already got added to its "existing" list, so the new ones
+    can't repeat them."""
+    by_pool = OrderedDict()
+    for r in prev_rows:
+        by_pool.setdefault(r["pool"], []).append(r)
+    todo = []
+    for req in reqs:
+        rows = by_pool.get(req["pool"])
+        if rows is None:
+            todo.append(req)
+            continue
+        missing = sum(1 for r in rows if _unfilled(r))
+        if not missing:
+            continue
+        filled = [r for r in rows if not _unfilled(r)]
+        req = dict(req)
+        req["needVariants"] = str(missing)
+        req["haveVariants"] = str(int(req["haveVariants"]) + len(filled))
+        for col, lang in (("existing_enGB", "en-GB"), ("existing_roRO", "ro-RO")):
+            req[col] = "\n".join([req.get(col) or ""] + [r[lang] for r in filled]).strip("\n")
+        todo.append(req)
+    return todo
+
+
+def merge_resumed(reqs: list[dict], prev_rows: list[dict], new_rows: list[dict]) -> list[dict]:
+    """Previous rows with the unfilled ones replaced by this run's rows, pool
+    by pool, in request order; variantIndex renumbered per pool. A pool this
+    run didn't reach (past --limit) keeps its previous rows unchanged."""
+    prev, new = OrderedDict(), OrderedDict()
+    for r in prev_rows:
+        prev.setdefault(r["pool"], []).append(r)
+    for r in new_rows:
+        new.setdefault(r["pool"], []).append(r)
+    order = [q["pool"] for q in reqs] + [p for p in prev if p not in {q["pool"] for q in reqs}]
+    out = []
+    for pool in order:
+        rows = [r for r in prev.get(pool, []) if not (pool in new and _unfilled(r))]
+        rows += new.get(pool, [])
+        for j, r in enumerate(rows, 1):
+            out.append({**r, "variantIndex": j})
+    return out
+
+
 def main() -> None:
     dry = "--dry-run" in sys.argv
+    resume = "--resume" in sys.argv
     provider = "dry-run" if dry else detect_provider()
     if "--limit" not in sys.argv:
         sys.exit("--limit N is required (it caps the number of API calls). "
@@ -341,6 +446,17 @@ def main() -> None:
     print(f"using {requests_csv.name}")
 
     reqs = list(csv.DictReader(requests_csv.open(encoding="utf-8")))
+    todo, prev_rows = reqs, None
+    if resume:
+        prev_csv = latest(DATA_DIR, "rgroups_generated", ".csv")
+        if prev_csv is None:
+            sys.exit(f"--resume: no rgroups_generated_*.csv in {DATA_DIR} to resume from")
+        prev_rows = list(csv.DictReader(prev_csv.open(encoding="utf-8")))
+        todo = resume_plan(reqs, prev_rows)
+        print(f"resuming {prev_csv.name}: {len(todo)} pool(s) still to call"
+              f" ({sum(int(q['needVariants']) for q in todo)} variants)")
+        if not todo:
+            sys.exit("nothing to resume - every pool in the requests is filled")
 
     def _p(i, n, pool, status):
         if status == "start":
@@ -348,7 +464,10 @@ def main() -> None:
         else:
             print(f" {status}")
 
-    gen_rows, prompt_log = expand(reqs, provider, limit, dry=dry, progress=_p)
+    gen_rows, prompt_log = expand(todo, provider, limit, dry=dry, progress=_p)
+    run_rows = gen_rows
+    if resume:
+        gen_rows = merge_resumed(reqs, prev_rows, gen_rows)
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     ts = now_ts()
@@ -361,9 +480,14 @@ def main() -> None:
     prompts.write_text("\n".join(prompt_log))
     ok = sum(1 for r in gen_rows if r["status"] == "ok")
     dup = sum(1 for r in gen_rows if r["status"].startswith("duplicate"))
-    print(f"\nprovider={provider}  pools processed={min(limit, len(reqs))}/{len(reqs)}  "
+    print(f"\nprovider={provider}  pools processed={min(limit, len(todo))}/{len(todo)}  "
           f"variants ok={ok}/{len(gen_rows)}  duplicates rejected={dup}")
     print(f"wrote {out} and {prompts}")
+    aborted = next((r["status"] for r in run_rows if "run aborted" in r["status"]), "")
+    if aborted:
+        print(f"\nRUN ABORTED - {aborted}\nfix the account/key, then: "
+              f"rgroup_expand.py --resume --limit N")
+        sys.exit(1)
     if dry:
         print(f"dry run — no API calls; review {prompts.name}, then rerun with a key")
 

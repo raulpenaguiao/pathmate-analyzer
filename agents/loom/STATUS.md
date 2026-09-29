@@ -1,5 +1,43 @@
 # Loom — status
 
+## 2026-09-29 ~00:20 — CURRENT: r_ steps 1-3 on the clean export
+
+Input: Warden's clean export `coaching_alex-v01-zum-ausprobieren_20260925-161248.json`
+(still the newest). Step 1 report: 89 r_ groups (95 incl. r1-3 and
+IntroductionOfWeeklyIncentive_*, matches Warden's count), 424 msgs,
+117 pools, 102 thin -> `rgroups_table_260929001638.csv`. Step 2 prepare:
+102 API calls / 804 variants -> `rgroups_requests_260929001638.csv`.
+**09:24: expand DONE** -> `data/rgroups/rgroups_generated_260929092409.csv`
+(+ `expand_prompts_260929092409.txt`). 102/102 pools, 798/804 variants ok.
+Not ok (apply skips them): 2 duplicates rejected by the new post-check
+(Evening Greetings "Good evening! 🌙" repeats an existing en-GB;
+one CompassionateFeedbackAndQueryMedicalHelp ro-RO repeats a sibling),
+and 4 empty rows in r_ConfirmThatClinicVisitWillBeRescheduled (reply cut
+off mid-JSON, 5/9 salvaged). Facts sent to Herald + Kart.
+**09:34 FINAL: `--resume` refilled the 4 clinic-visit rows ->
+`rgroups_generated_260929093415.csv`, 802/804 ok (2 duplicates flagged).
+Committed ("r_ expand: abort on bad key...", not pushed; Kart pushes). Herald has the final numbers
++ a Stage3 correction (clean export: v02 rows 3-6 tagged = 4/6, row 15
+stray; missing "close by", "access to").**
+**Built (Raul OK'd)**: `rgroup_expand.py` now aborts the run on
+account-level errors (401/403, no credits, 429 after 3 backoff retries;
+5xx retried too), writes what's done, marks the rest "failed: not run", and
+exits 1. `--resume --limit N` calls only the pools the latest generated file
+lacks or left unfilled (partial pools: just the missing count, salvaged
+wordings added to "existing") and writes a new merged file. Tested offline
+with a mocked API (scratchpad test_expand_guard.py). On the real 09-29 file,
+--resume would do 1 call: the clinic-visit pool, 4 variants. Not run yet.
+(Earlier: Raul updated the key ~00:30.)
+(Earlier:) **Step 3 expand BLOCKED: the ANTHROPIC_API_KEY in `.env` gets HTTP 401
+Unauthorized on every call** (key revoked/expired). I stopped the run
+after ~60 failures. No generated file was written, so there's nothing to
+clean up. **Needs Raul: a valid key in `.env`.** Then rerun:
+`.venv/bin/python tools/rgroups-table/rgroup_expand.py --limit 102`
+(it picks up requests_260929001638 automatically). Step 4 apply:
+dry-run/offline only; still no live PMCP writes (Stage3 stopped per Raul).
+Next after expand: check output (duplicate check, counts), send Herald
+the facts for the advisor artifact, update Kart.
+
 ## 2026-09-25 ~09:50 — CURRENT
 
 **Stage3 STOPPED; no live PMCP writes until further notice** (Raul via
@@ -12,6 +50,13 @@ morning's runs also fixed rgroup_apply.py: the first row of a pool counts
 as in the pool (was a false "not adjacent"), plus the en_cell_matches fix
 below. I missed Warden's hold mails while my run was going, and Raul waited
 for the browser. Next time: check mail right before any live run.
+
+**16:45 update**: pushed b35d0a1; committed e23355e (expand dedup + browser
+lock, not pushed yet). Waiting on Warden's clean export (~16:50, the 093313
+one has stale Timeless Greetings rows and can't be repaired offline).
+Rehearsed steps 1-3 (expand dry-run) on 093313: 87 groups / 421 msgs /
+118 pools / 103 thin -> 103 API calls, 831 variants. The real run = same
+3 commands on the clean file, expand --limit 103.
 
 **Today**: commit+push -> rerun r_ steps 0-3 (report/prepare/expand) for the
 advisor CSV, apply dry-run/offline only; send Herald the facts; add a
