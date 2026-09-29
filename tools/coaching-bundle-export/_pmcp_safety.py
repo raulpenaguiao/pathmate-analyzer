@@ -38,6 +38,7 @@ import re
 DEFAULT_EXPECTED = "ALEX v01 zum Ausprobieren"
 ENV_VAR = "PMCP_EXPECTED_COACHING"
 
+# "alex-live" (agents/RULES.md short names; alex-sandbox = DEFAULT_EXPECTED).
 # Clean reference copies: export only, NEVER written - not even a no-op
 # re-save, and not overridable by $PMCP_EXPECTED_COACHING (Raul, 2026-09-29;
 # agents/RULES.md "PMCP coachings"). Note the sandbox's name is a PREFIX of
