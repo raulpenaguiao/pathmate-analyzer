@@ -75,6 +75,7 @@ import _browser_lock as BL
 import _menu_nav as M
 import _pmcp_safety as S
 import _run_diag as D
+import _render_guard as RG
 import _report_fetch as RF
 import _rules_nav as R
 import _variables_nav as V
@@ -151,12 +152,33 @@ async def _widen_for_menubar(page, cdp, wid) -> None:
              "session, or set PMCP_WIDE higher.")
 
 
+RUN = {"name": None}  # the coaching this run works on (read at start)
+
+
+async def _reenter_micro_dialogs(page) -> None:
+    if not await _enter_edit_view_retrying(page, RUN["name"]):
+        sys.exit(f"could not get back into {RUN['name']!r}'s Edit view after a pause — rerun.")
+    if not await M.ensure_micro_dialogs(page):
+        sys.exit("Micro Dialogs menubar missing after a pause — rerun.")
+
+
+async def _guard(page, reenter) -> None:
+    """Pause while the browser isn't rendering / is logged out, then resume
+    in place (see _render_guard). Exits only if it can't recover."""
+    if not await RG.guard(page, reenter):
+        sys.exit("the browser stopped rendering (screen asleep?) or the session "
+                 "expired, and the run could not recover — rerun.")
+
+
 async def _navigate_retrying(page, cdp, wid, labels, label: str, tries: int = 3):
     """navigate_and_select with retries. Menu clicks/popups time out now and
     then on a perfectly healthy page (2026-09-25: 3 of 87 dialogs lost to
     single-shot click timeouts - the failure snapshots showed nothing wrong).
-    An overflowed menubar is re-widened first (see MenuOverflowError)."""
+    An overflowed menubar is re-widened first (see MenuOverflowError).
+    Each attempt first checks the browser is rendering and logged in, and
+    pauses for the operator if not (screen asleep, 2026-09-29)."""
     for attempt in range(1, tries + 1):
+        await _guard(page, lambda: _reenter_micro_dialogs(page))
         try:
             await M.navigate_and_select(page, labels)
             return
@@ -166,11 +188,14 @@ async def _navigate_retrying(page, cdp, wid, labels, label: str, tries: int = 3)
             if attempt == tries:
                 raise
         except Exception as e:  # noqa: BLE001
-            # an expired session looks exactly like a flaky click - check it
-            # first, and stop: retries can't help (2026-09-25, misread once)
-            if await S.session_expired(page):
-                raise SystemExit(f"{label}: {S.EXPIRED_HINT}") from e
+            # an expired session or a sleeping screen looks exactly like a
+            # flaky click: the guard at the top of the next attempt pauses
+            # for it; on the last attempt, give the guard one more chance
             if attempt == tries:
+                if not (await RG.rendering(page)) or await S.session_expired(page):
+                    await _guard(page, lambda: _reenter_micro_dialogs(page))
+                    await M.navigate_and_select(page, labels)
+                    return
                 raise
             print(f"  {label}  navigation failed (try {attempt}/{tries}): "
                   f"{str(e).splitlines()[0][:120]} — retrying")
@@ -182,6 +207,7 @@ async def sweep_micro_dialogs(page, cdp, wid) -> tuple[list[dict], list[dict]]:
     if not await M.ensure_micro_dialogs(page):
         sys.exit("Micro Dialogs menu not on screen — open the coaching's Edit "
                  "view, deactivate Monitoring, then rerun.")
+    M.GUARD = lambda: _guard(page, lambda: _reenter_micro_dialogs(page))
     targets = await M.all_targets(page)
     print(f"  {len(targets)} menu targets "
           f"({sum(t['isFolder'] for t in targets)} folders)")
@@ -420,7 +446,15 @@ async def sweep_rules(page, open_modals: bool) -> dict:
         sending_rules, committed = [], 0
         print(f"  reading {len(senders)} sender modals "
               f"(~{len(senders)} no-op re-saves)...")
+        async def reenter_rules():
+            if not await _enter_edit_view_retrying(page, RUN["name"]):
+                sys.exit(f"could not get back into {RUN['name']!r} after a pause — rerun.")
+            if not await R.ensure_rules_tree(page):
+                sys.exit("Rules tab not on screen after a pause — rerun.")
+            await R.expand_all(page)  # same expansion -> same treeIndex positions
+
         for k, r in enumerate(senders):
+            await _guard(page, reenter_rules)
             await R.close_windows(page)
             dump = await R.open_rule_modal(page, 0, r["treeIndex"])
             if not dump:
@@ -662,6 +696,7 @@ async def main() -> int:
         name = await page.evaluate(
             r"""(()=>{const m=(document.body?document.body.innerText:'')
                  .match(/Coaching\s+"([^"]+)"/); return m?m[1]:null;})()""")
+        RUN["name"] = name
         if S.is_protected(name):
             # clean reference copy: export only. Phase 3b and phase 4's
             # modals close editors with 'Close' = a no-op re-save (same

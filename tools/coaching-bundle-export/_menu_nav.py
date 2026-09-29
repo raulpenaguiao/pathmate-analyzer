@@ -40,6 +40,10 @@ TREE_JSON = OUT / "rgroups_tree.json"
 
 BAR = ".v-menubar.md-menu > .v-menubar-menuitem"
 
+# optional async no-arg hook run before each folder expansion; the exporter
+# sets it to its render guard (pause while the screen sleeps, 2026-09-29)
+GUARD = None
+
 SWEEP_JS = r"""
 async () => {
   const table = document.querySelector('.v-table');
@@ -325,6 +329,8 @@ async def discover(page) -> list[dict]:
         # (2026-09-29: 'daily spirometry' failed 3 quick tries in a row, then
         # the rest of the bar worked), and only then counts as missing
         for attempt in range(1, tries + 1):
+            if GUARD is not None:
+                await GUARD()  # pause if the browser stopped rendering
             try:
                 await expand(labels)
                 return True

@@ -63,14 +63,24 @@ if [ "$ASSUME_YES" -eq 0 ]; then
   read -r _
 fi
 
+# keep the screen/system awake while a (headed) run needs rendered frames:
+# a sleeping screen stalls every click (2026-09-29). Best effort - whether
+# the desktop honors a logind idle inhibitor varies; _render_guard.py pauses
+# and asks to resume if it doesn't.
+INHIBIT=()
+if command -v systemd-inhibit >/dev/null 2>&1; then
+  INHIBIT=(systemd-inhibit --what=idle:sleep --who="PMCP export"
+           --why="export_coaching.py is driving the PMCP browser" --mode=block)
+fi
+
 if [ "$WITH_RGROUPS" -eq 0 ]; then
-  exec "$PY" "$HERE/export_coaching.py" "${PASS[@]}"
+  exec ${INHIBIT[@]+"${INHIBIT[@]}"} "$PY" "$HERE/export_coaching.py" "${PASS[@]}"
 fi
 
 OUT_LOG="$(mktemp)"
 trap 'rm -f "$OUT_LOG"' EXIT
 set +e
-"$PY" "$HERE/export_coaching.py" "${PASS[@]}" | tee "$OUT_LOG"
+${INHIBIT[@]+"${INHIBIT[@]}"} "$PY" "$HERE/export_coaching.py" "${PASS[@]}" | tee "$OUT_LOG"
 RC=${PIPESTATUS[0]}
 set -e
 
