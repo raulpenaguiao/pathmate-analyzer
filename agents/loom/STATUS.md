@@ -1,5 +1,61 @@
 # Loom — status
 
+## 2026-09-29 ~14:30 — two queued tasks
+**Coaching names (RULES.md 'PMCP coachings'):** alex-live = 'ALEX v01 zum
+Ausprobieren 2', EXPORT ONLY, never write. alex-sandbox = 'ALEX v01 zum
+Ausprobieren', the task-2 target. sandbox = 'Minimal Coaching for Development 2
+for Raul'. rgroup_apply was audited: no coaching-name substring match;
+assert_expected_coaching is exact and refuses alex-live.
+**Task 3 (Kart 122140):** when Warden mails the alex-live export path, run
+report -> prepare -> expand on it (NO apply). Mail Kart + Herald the file
+names + counts, and flag big differences from alex-sandbox (89 groups / 102
+thin pools).
+**Task 2 MUST pin its CSV** now that data/rgroups/ will hold alex-live
+files too: `rgroup_apply.py --limit 802 --csv rgroups_generated_260929093415.csv`
+(new --csv flag). Still blocked on the PMCP login.
+
+## 2026-09-29 ~13:20 — BLOCKED: PMCP login rejected
+The session expired again while idle (~30 min). start_pmcp.sh then got
+"The username/password combination is unknown to the system" with the same
+.env. Not retrying (lockout risk). Asked Raul (terminal), Warden, Kart.
+Once fixed, run in ONE go: start_pmcp.sh --headless &&
+`.venv/bin/python agents/loom/context/enter_edit.py` (finds the logged-in tab, closes dead tabs, opens Edit view +
+Micro Dialogs) && the apply. Idle gaps kill the session.
+Warden (105319): not from their side; the account changed server-side after
+12:40. Neither of us retries until Raul confirms. Herald's explainer reviewed
+(3 fixes sent; v2 is up). Owes Herald: the diff numbers + the comparison
+artifact link after task 2. Kart routed the typo to Mason (workbench); 0
+generated variants carry it.
+
+## 2026-09-29 ~12:45 — (earlier) RESUME notes
+Warden handed over the browser (BEFORE export `..._20260929-111706.json`).
+First apply attempt exited safely with 0 writes: the PMCP session had expired
+(all tabs "Session expired!"). Re-logged in with `tools/start_pmcp.sh
+--headless` (OK, page on Home). NEXT: click Coachings ->
+`_report_fetch.enter_edit_view(page, "ALEX v01 zum Ausprobieren")`, then
+rerun the apply command below (log to data/logs/rgroup_apply_20260929.log).
+Watch it with a Monitor that greps for `  ! ` errors and stop it if they
+pile up. The browser has 5 tabs, 4 of them on the login form; apply picks
+the md-menu tab, or else tab 0. Herald's mail 260929102842 (review the
+r_ explainer draft + the live typo `$particpantName` in
+r_TimelessGreetings) is still unanswered.
+
+## 2026-09-29 ~10:00 — task 2 (live apply, Raul's exception)
+
+Kart 260929081811 + 081847, TASKS.md top: apply ALL 802 ok variants of
+`rgroups_generated_260929093415.csv` to the ALEX v01 sandbox in ONE run, no
+sample batch. Order: Warden's BEFORE export -> browser hand-off to me ->
+`PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python tools/rgroups-table/rgroup_apply.py --limit 802`
+(claims the browser lock) -> Warden's AFTER export -> I diff before/after
+.json -> NEW artifact for Raul (counts per pool, examples, surprises) ->
+link to Kart. Stop and tell Kart if apply starts failing (apply itself
+doesn't stop on errors: watch the output and TaskStop). The dry-run
+plan is checked: 802 across 41 dialogs. Heads-up sent to Kart + Mason: 6 new
+Stage3 rows in v02 will inherit the Yes/No bug. Mason (102800): fine,
+the sandbox gets reset and the Yes/No fix was dropped; the workbench build
+enters the options correctly (noted in context/). **Waiting on Warden's
+hand-off.** Mailbox listener: Monitor, re-arm every 30 min.
+
 ## 2026-09-29 ~00:20 — CURRENT: r_ steps 1-3 on the clean export
 
 Input: Warden's clean export `coaching_alex-v01-zum-ausprobieren_20260925-161248.json`

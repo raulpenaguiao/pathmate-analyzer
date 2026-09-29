@@ -26,3 +26,10 @@ anyone to.
    On a "new mail" event, read it with plain `checkmail.sh` calls.
 4. Check mail by hand right before any live browser run and after each step.
 5. State codename and role, then resume the next step from STATUS.md.
+
+## Future: r_ apply on the workbench coaching (Mason, 09-29)
+
+apply duplicates an existing row of the group, so copies inherit its
+options. Before applying to the workbench spirometry dialog, check that
+the source row's options are correct (Yes:1 / No:0 on TWO lines). The
+sandbox's Stage3 rows have them on one line (the bug); don't carry that over.

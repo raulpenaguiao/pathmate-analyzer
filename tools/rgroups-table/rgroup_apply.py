@@ -151,9 +151,16 @@ def build_plan(args):
     count."""
     if args.restore_from:
         return build_restore_plan(args)
-    generated = latest(DATA_DIR, "rgroups_generated", ".csv")
+    # --csv pins the file: with exports of more than one coaching in
+    # data/rgroups/ (alex-live and alex-sandbox, 2026-09-29), "the latest"
+    # can be another coaching's generated set.
+    generated = Path(args.csv) if args.csv else latest(DATA_DIR, "rgroups_generated", ".csv")
     if generated is None:
         sys.exit(f"no rgroups_generated_*.csv in {DATA_DIR} — run rgroup_expand.py first")
+    if not generated.is_file():
+        generated = DATA_DIR / args.csv
+    if not generated.is_file():
+        sys.exit(f"--csv: not found: {args.csv}")
     print(f"using {generated.name}")
     rows = list(csv.DictReader(generated.open(encoding="utf-8")))
     meta = {}
@@ -812,6 +819,9 @@ def main():
     ap.add_argument("--limit", type=int, required=True,
                     help="REQUIRED: cap the number of variants added/undone")
     ap.add_argument("--pool", help="only this pool (e.g. 'r_X @ Micro Dialog')")
+    ap.add_argument("--csv", metavar="FILE",
+                    help="generated CSV to apply (path, or a name in data/rgroups/); "
+                         "default: the latest rgroups_generated_*.csv")
     ap.add_argument("--dedup", action="store_true",
                     help="delete rows in --pool whose text exactly copies an "
                          "earlier sibling in the same group (clean up failed runs)")
