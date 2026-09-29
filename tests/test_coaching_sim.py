@@ -644,6 +644,42 @@ class DialogWalkerTest(unittest.TestCase):
         self.assertEqual(len(state["pending"]["options"]), 2)
 
 
+class SamePassVisibilityTest(unittest.TestCase):
+    """Pile-up A2 (unverified): does a PERIODIC rule see a value written by
+    an earlier rule in the same pass? Switchable via settings."""
+
+    def _run(self, visible: bool) -> dict:
+        from app.coaching_model import CoachingModel, Rule
+
+        def rule(i, expr):
+            return Rule(i=i, context="PERIODIC BASIS", depth=0, raw_expr=expr, comment="",
+                        writes_var=None, sends_message=False, stops_intervention=False,
+                        is_js_snippet=False, supported=True, uid=f"r-{i:03}")
+        model = CoachingModel(
+            rules=[rule(0, "1 calculate value but result is always true → $openDialogRank"),
+                   rule(1, "$openDialogRank calculate value but result is always true → $seen")],
+            micro_dialogs=[], message_groups=[], variables={}, languages=["en-GB"])
+        sim = Simulator(model)
+        state = sim.initial_state(seed=1)
+        state["vars"]["$openDialogRank"] = "0"
+        state = sim.step(state, {"type": "set_setting", "name": "same_pass_visibility", "value": visible})
+        return sim.step(state, {"type": "run_periodic"})["vars"]
+
+    def test_default_is_visible_at_once(self):
+        self.assertEqual(Simulator(None).initial_state()["settings"]["same_pass_visibility"], True)
+        self.assertEqual(_num_str(self._run(True)["$seen"]), "1")
+
+    def test_off_reads_values_from_the_start_of_the_pass(self):
+        vars_ = self._run(False)
+        self.assertEqual(_num_str(vars_["$seen"]), "0")
+        self.assertEqual(_num_str(vars_["$openDialogRank"]), "1")  # the write itself still lands
+
+
+def _num_str(v) -> str:
+    f = float(v)
+    return str(int(f)) if f.is_integer() else str(f)
+
+
 class MultilingualVariableTest(unittest.TestCase):
     """ASSUMPTION (docs are silent): a 'Multilingual Array Variable' value in
     the export is 'en-GB: … / ro-RO: …', one part per language."""

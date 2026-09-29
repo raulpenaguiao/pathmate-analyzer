@@ -291,7 +291,9 @@ class Simulator:
             # (the pre-Phase-E behaviour). Off, PERIODIC BASIS only runs on
             # an explicit `run_periodic` step; DAILY BASIS, due-sender
             # checks and not-answered timeouts are clock-driven either way.
-            "settings": {"auto_periodic": True},
+            # same_pass_visibility: an UNVERIFIED PMCP behaviour (pile-up
+            # A2), switchable so a day can be simulated under both outcomes
+            "settings": {"auto_periodic": True, "same_pass_visibility": True},
         }
         self._refresh_system_vars(state)
         self._log(state, "system", "Simulation reset. Clock at day 0, 08:00.")
@@ -517,6 +519,14 @@ class Simulator:
         if not rules:
             return
         variables = state["vars"]
+        # UNVERIFIED (pile-up A2, docs/pileup/interruptions.md): whether a
+        # rule sees a variable written by an earlier rule in the same pass.
+        # Default True (writes are visible at once); False evaluates every
+        # rule against the values from the start of the pass.
+        if state.get("settings", {}).get("same_pass_visibility", True):
+            view = variables
+        else:
+            view = dict(variables)
         # stack of (depth, active) - a rule is skipped if any ancestor is inactive
         stack: list[tuple[int, bool]] = []
         fired = 0
@@ -533,7 +543,7 @@ class Simulator:
                 stack.append((r.depth, False))
                 continue
 
-            result, assignment = eval_expr(r.raw_expr, variables)
+            result, assignment = eval_expr(r.raw_expr, view)
             if assignment:
                 variables[assignment[0]] = assignment[1]
             truthy = bool(result)
