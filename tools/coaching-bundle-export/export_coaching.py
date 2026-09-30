@@ -404,6 +404,10 @@ async def sweep_rules(page, open_modals: bool) -> dict:
             dump = await R.open_rule_modal(page, 0, r["treeIndex"])
             if not dump:
                 print(f"  [{k + 1}/{len(senders)}] {r['caption'][:50]!r} FAILED")
+                # say WHY (session gone? window stuck? not selected?): on
+                # 2026-09-30 0/6 failed with nothing to go on
+                await D.snapshot(page, f"sender{k + 1:02d}",
+                                 f"sender modal did not open: {r['caption'][:60]}")
                 continue
             parsed = R.parse_rule_fields(dump)
             parsed["uid"] = r["uid"]
