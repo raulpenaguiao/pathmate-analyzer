@@ -65,18 +65,6 @@ from _rgroups_files import latest
 HERE = Path(__file__).resolve().parent
 DATA_DIR = HERE.parents[1] / "data" / "rgroups"
 CDP = os.environ.get("PMCP_CDP", "http://127.0.0.1:9222")
-# Vaadin's top-level MenuBar collapses items past the visible width into a
-# `►` overflow popup that scripted clicks can't open (same issue
-# export_coaching.py's _widen_for_menubar works around, same PMCP_WIDE env
-# var and default). 3600 (this file's width until 2026-09-23) is fine for
-# top-level items positioned early, but a top item deep enough in the menu
-# (confirmed live: "Prompt patient to conduct daily spirometry", one of the
-# later top-level dialogs) sits right at that boundary - its button is
-# still found by caption match (so navigate_and_select doesn't fail with
-# "top X not found"), but clicking it never opens its popup, surfacing as
-# "popup 1 for X never opened" instead. Widening removes the ambiguity
-# rather than chasing where exactly the boundary sits.
-WIDE = int(os.environ.get("PMCP_WIDE", "12000"))
 
 
 def en_cell_matches(cell: str, en: str) -> bool:
@@ -461,27 +449,11 @@ async def run_apply(plan, args, meta):
         print(f"confirmed coaching: {coaching!r}")
         # accept native confirm() dialogs (Playwright dismisses them by default)
         page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
-        cdp = await ctx.new_cdp_session(page)
-        wid = (await cdp.send("Browser.getWindowForTarget"))["windowId"]
-        # Switch to Micro Dialogs BEFORE widening: widening while another tab
-        # (e.g. Information) is showing leaves the menubar laid out narrow
-        # with a `►` overflow once it does render (seen live 2026-09-24).
+        # No window resizing (Raul, 2026-09-30: one window size). _menu_nav
+        # opens top menus collapsed into the `►` overflow through its list.
         if not await S.ensure_micro_dialogs(page):
             sys.exit("Micro Dialogs menu not on screen - open the coaching's "
                      "Edit view (Monitoring off), then rerun.")
-        bar = ".v-menubar.md-menu > .v-menubar-menuitem"
-        await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
-            "left": 0, "top": 0, "width": WIDE, "height": 1800, "windowState": "normal"}})
-        last = "►"
-        for _ in range(20):
-            await page.wait_for_timeout(500)
-            if await page.locator(bar).count():
-                last = (await page.locator(bar).last.inner_text()).strip()
-                if last != "►":
-                    break
-        if last == "►":
-            sys.exit(f"Micro Dialogs menubar still overflows (`►`) at {WIDE}px - "
-                     "window didn't widen; set PMCP_WIDE higher and rerun.")
 
         NEG = {"cancel", "no", "abbrechen", "nein", "close", "anulează", "nu"}
 
@@ -804,8 +776,7 @@ async def run_apply(plan, args, meta):
                     errors += 1
                     await dismiss(page)
         finally:
-            await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
-                "left": 60, "top": 60, "width": 1500, "height": 1000, "windowState": "normal"}})
+            await S.close_menus(page)  # leave no menu popup open for the next tool
     print(f"\nadded={added}  skipped={skipped}  errors={errors}")
 
 

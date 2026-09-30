@@ -1,5 +1,16 @@
 # Loom — status
 
+## 2026-09-30 ~12:40 — CURRENT
+**alex-live r_ CSVs DONE**: `rgroups_generated_260930123725.csv`, 1314 rows /
+159 pools / 125 groups: 1312 ok, 2 dup (r_EveningGreetings), 0 failed. Kart +
+Herald mailed. Fix: expand's max_tokens gets +2500 headroom (thinking tokens
+count against it; long pools came back empty).
+**rgroup_apply: no window resizing anymore** (Raul 09-30 via Warden): widen,
+restore and PMCP_WIDE removed; relies on _menu_nav overflow handling. Untested live.
+**NEXT: task 2** (alex-sandbox apply, 802, `--csv rgroups_generated_260929093415.csv`).
+Waiting for the browser: Raul's export is running, so NO browser use until he
+or Warden frees it. The PMCP .env login status is unknown (rejected 09-29).
+
 **~16:57 alex-live r_ steps:** export `coaching_alex-v01-zum-ausprobieren-2_20260929-162548.json`
 (Raul ran it). Report: 138 r_ groups, 538 msgs, 175 pools, 159 thin ->
 `rgroups_table_260929165622.csv`; requests 159 calls / 1314 variants

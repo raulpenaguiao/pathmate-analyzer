@@ -327,7 +327,10 @@ def expand(requests, provider, limit, dry=False, progress=None, api_key=None):
             # a fixed 2000 is plenty for a couple of variants but can run
             # close to the edge for a pool needing many, making truncation
             # (an unterminated string at the cutoff) more likely.
-            max_tokens = max(2000, 400 * need + 500)
+            # +2500: the model's thinking tokens count against max_tokens
+            # too (~1000 seen 2026-09-30); without headroom, long multi-line
+            # pools came back cut off or empty.
+            max_tokens = max(2000, 400 * need + 3000)
             try:
                 variants = call_llm(provider, prompt, api_key=api_key,
                                      max_tokens=max_tokens, pool=pool)
