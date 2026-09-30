@@ -50,7 +50,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from _rgroups_files import latest, now_ts
+from _rgroups_files import latest, norm_text, now_ts
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from _agent_guard import refuse_in_agent_session  # noqa: E402  (manager-only API, RULES.md)
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -215,6 +218,8 @@ def _post(req: urllib.request.Request) -> dict:
 
 def call_llm(provider: str, prompt: str, api_key: str | None = None,
              max_tokens: int = 2000, pool: str = "?") -> list[dict]:
+    if provider in ("claude", "chatgpt"):
+        refuse_in_agent_session("an LLM API call from rgroup_expand.py")
     if provider == "claude":
         key = api_key or os.environ["ANTHROPIC_API_KEY"]
         model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-5")
@@ -274,13 +279,7 @@ def build_prompt(req: dict) -> str:
                          need=req["needVariants"], existing=existing)
 
 
-def _norm(text: str) -> str:
-    """Comparison key for duplicate wordings: case-, diacritic-, punctuation-
-    and emoji-insensitive (so 's-cedilla' vs 's-comma' or a trailing '!' don't
-    hide a repeat)."""
-    t = unicodedata.normalize("NFKD", text or "").casefold()
-    t = "".join(ch for ch in t if not unicodedata.combining(ch))
-    return " ".join(re.sub(r"[^\w$]+", " ", t).split())
+_norm = norm_text  # shared with rgroup_dupcheck.py
 
 
 def duplicate_reason(v: dict, existing_en, existing_ro, taken_en, taken_ro) -> str:
@@ -439,6 +438,8 @@ def merge_resumed(reqs: list[dict], prev_rows: list[dict], new_rows: list[dict])
 
 def main() -> None:
     dry = "--dry-run" in sys.argv
+    if not dry:
+        refuse_in_agent_session("rgroup_expand.py (it calls the Anthropic/OpenAI API)")
     resume = "--resume" in sys.argv
     provider = "dry-run" if dry else detect_provider()
     if "--limit" not in sys.argv:
