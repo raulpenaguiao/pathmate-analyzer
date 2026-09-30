@@ -35,7 +35,17 @@ workstreams" section — this file is the checklist, that's the writeup.
       to the deployed portal's `.env` login can create accounts, and one
       gets created for the advisor. The local admin/change-me login is
       for testing only. Smith proposes the change first, and there are no
-      deployment changes without Raul's OK.
+      deployment changes without Raul's OK. **Proposal in (09-30 14:21):**
+      - The `.env` user stays admin. Extra users go in
+        `DATA_DIR/users.json` with hashed passwords and a role. Login
+        checks the admin first, then the file.
+      - An admin-only Users page (create/reset/delete), plus a
+        change-own-password page. Cookie hardening comes with it.
+      - No deploy or secret changes. Raul deploys with the usual release
+        tag.
+      - **Open with Raul:** the deployed URL, and the advisor's rights:
+        full, or a read-only "viewer". The portal's Randomisation Groups
+        step 3 spends API credit, which matters for the API rule.
 - [ ] **Chat improvements: keep testing until it's good** (backlog, **not
       a priority** right now).
 
@@ -152,6 +162,9 @@ still holds for everything else. Browser order: Warden → Loom → Warden.
             `..._ausprobieren-2_20260930-143134.json`: ok=True, 98 dialogs,
             37/37 senders, 0 retries, 3 of 26 jumps ambiguous. **The browser
             is released to Loom, and the apply is under way.**
+            **~14:58: POSTPONED by Raul.** He wants to create the CSV files
+            himself first. Nothing was written, and the browser is back
+            with Warden.
       - [ ] 2b. Re-export: the **"after"** snapshot (Warden).
       - [ ] 2c. Diff before vs after `.json`. The expected result is
             exactly the added variants in the right r_ groups, and
