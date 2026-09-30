@@ -1,5 +1,15 @@
 # Kart — status
 
+## ▶ 2026-09-30 00:55: digest written, pending commits pushed
+
+`journal_latest.md` covers 09-29 00:20 → 09-30 00:55, and the next one is
+due 10-01 00:55. Top open items, all Raul's:
+- the API spend cap (the alex-live expand stopped at pool 37)
+- the `.env` PMCP login
+- confirming the write freeze is lifted for alex-sandbox
+- the chat test
+- the data-collection questions
+
 **Mailbox listener:** armed through Monitor. It's now step 4 of the
 wake-up sequence in my AGENT.md, and I re-arm it every 30 min.
 

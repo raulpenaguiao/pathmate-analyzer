@@ -1,187 +1,158 @@
-# Agent journal: 2026-09-25 ~08:45 → 2026-09-29 ~00:20
+# Agent journal: 2026-09-29 00:20 → 2026-09-30 ~00:55
 
-**Last digest: 2026-09-29 00:20.** The next one is due by 2026-09-30
-00:20, or on Kart's first wake after that time.
+**Last digest: 2026-09-30 00:55.** The next one is due by 2026-10-01
+00:55, or on Kart's first wake after that time.
 
 Compiled by Kart from every `agents/*/STATUS.md`, the mail, `TASKS.md` and
-the git log. Almost everything happened on 09-25. The weekend was quiet
-until tonight (09-29 ~00:00), when Warden, Loom and Mason woke up again.
+the git log. A busy day: there are about 30 commits.
 
 ## At a glance
 
-- **Your 09-25 decisions are in force.** There are **no live PMCP writes**
-  until you set up the workbench coaching, so the live-write queue
-  (spirometry Yes/No fix, Loom's Stage3 wordings) is dropped. Owners:
-  Mirror has workstream 5 and "what info to collect"; Warden has
-  `multiSubmit`.
-- **The pile-up strategy is settled** (you and Mason, 09-25 ~13:40). D1–D13
-  and D12b are all answered in `docs/pileup/decisions.md` + `rollout.md`.
-  The defining change: an interrupted dialog restarts from the top with a
-  re-entry opener. First release: spirometry, medication, night prep, ACQ,
-  education, gamification. **Nothing is live.** Everything gets rebuilt on
-  the workbench.
-- **Clean export delivered** (Warden, 09-25 16:30):
-  `..._20260925-161248.json`, coherence OK, 0 stale tables, 0 unresolved
-  dialogs. A follow-up run to clear the last log noise is going now.
-- **r_ rerun for the advisor CSV is blocked:** the API key in `.env`
-  returns **401 Unauthorized** (Loom, tonight). Steps 1–2 are done on the
-  clean export.
-- **Repo:** the 09-25 commit round and push are done. `main` is now 2
-  commits ahead of origin (`6e9c5b4` Mason's RO seeds, `af5e637` Warden's
-  sweep fix). Several agents' STATUS/context edits and
-  `tools/rgroups-table/rgroups_table.csv` are uncommitted.
+- **New coaching names (RULES.md, your rule).** Warden's write guard now
+  refuses alex-live, and the pile-up fix gets built in alex-sandbox,
+  with tests in sandbox. There is no separate workbench any more.
+
+  | Short name | Coaching | Rule |
+  |---|---|---|
+  | alex-live | `ALEX v01 zum Ausprobieren 2` | export only, never changed |
+  | alex-sandbox | `ALEX v01 zum Ausprobieren` | the pile-up target, free to change |
+  | sandbox | `Minimal Coaching for Development 2 for Raul` | free to change |
+
+- **Both clean exports are done:**
+  - **alex-sandbox:** `..._20260929-111706.json`. Coherence OK, 0 warnings,
+    all 14 jump targets resolved.
+  - **alex-live:** your run, `..._ausprobieren-2_20260929-162548.json`.
+    Coherence OK, 98 dialogs, 37 senders; 4 of 26 jump targets are still
+    ambiguous.
+- **The alex-live r_ CSVs are half done.** Report and requests are done:
+  138 groups, 175 pools, 159 thin, 1314 variants. Expand stopped at pool 37
+  because your **Anthropic API spend cap** was hit. It resets
+  2026-10-01 00:00 UTC.
+- **alex-sandbox r_ CSV done:** 802 of 804 variants generated. The apply
+  (task 2) hasn't started.
+- **Advisor pages ready:** Coming Back with Context v4 (pile-up, with the
+  "What the PathMate docs say" section), and the r_ tool explainer v2.
+- **PMCP docs knowledge base:** `docs/pmcp-docs/` holds all 49 v6.0 pages.
+- **Mailbox listener** now runs through the Monitor tool for every agent
+  (RULES 5 and the wake prompt).
+- **Repo:** 11 commits since 16:56 are not pushed yet. Kart pushes them
+  with this digest.
 
 **Waiting on you, most urgent first:**
-1. **A valid `ANTHROPIC_API_KEY` in `.env`.** This blocks Loom's step 3
-   (expand), which blocks the advisor CSV and Herald's r_ explainer. Both
-   were due 09-25.
-2. **The workbench coaching** (plus an export of it). This blocks the
-   whole pile-up rollout (Mason's Phase A platform tests onward) and every
-   live write.
-3. **Chat test with Smith.** It unblocks workstream 5 (Mirror). The
-   09-25 demo portal on :8010 died with the old session, and Smith can
-   relaunch it on request.
-4. **Advisor questions from the pile-up strategy:** compliance thresholds
-   M/K (placeholder 2), the ACQ interval (14 days assumed; the sandbox has
-   1), and confirming the 5 h spirometry-after-medication gap.
-5. **Mirror's `docs/participant_data_collection.md`** has 4 open questions
-   for you, including privacy limits and who builds it.
-6. **The ro-RO duplicate** ("within reach" = "nearby", and "handy" is
-   near-identical) is in the existing v01 content. It's flagged for the
-   advisor.
-7. **Your live portal (:8000)** still has the stale 09-14 bundle
-   attached. Swap in `..._20260925-161248.json`.
+1. **The API spend cap:** raise it in the Anthropic console, or let it
+   reset at 00:00 UTC on Oct 1. Then Loom resumes expand (122 pools, 1028
+   variants).
+2. **The PMCP `.env` login** has been rejected since ~13:10. Your
+   hand-login worked for the export, but unattended runs, including Loom's
+   task-2 apply, need working credentials.
+3. **Confirm the 09-25 write freeze is lifted for alex-sandbox.** That
+   unblocks Loom's 802-variant apply and Mason's Phase A. Mason also asks:
+   retrofit the spirometry/medication prototype in alex-sandbox, or
+   rebuild it?
+4. **The chat test with Smith (EngineV1).** It unblocks Mirror's export
+   study, which you called the most important part, and workstream 5.
+5. **Participant data collection:** 4 open questions with Mason.
 
 ---
 
 ## Kart: planning and tracking
-
 **Done**
-- Finished the 09-25 commit round: all 6 agents committed their own
-  files, Loom pushed `b35d0a1`, and I pushed the rest (`main` = origin at
-  09-25 ~10:15).
-- Recorded in `TASKS.md`:
-  - your 09-25 decisions (no live writes, the day's priorities, owners)
-  - Warden's clean-export progress
-  - the settled pile-up strategy, first-release scope and rollout
-- Mailed all agents the plain `checkmail.sh`/`mail.sh` rule. It is now
-  RULES.md 6b (`722e9e4`), so it survives restarts.
-- Tonight: pulled (already up to date) and archived Warden's
-  clean-export mail.
+- Wrote the 09-29 digest.
+- Progress Tree v15 → v16: completed steps fold into a "✓ N completed"
+  line, and old banners moved into History.
+- Routed your two tasks (the clean export, and the r_ apply with a
+  before/after diff). Then routed tasks 3–4 once alex-live access came.
+- Pushed `94fb007`, `9d4c79f`, `2e39e58`, `415289c`, `669b02d` and
+  `cba01f2`.
+- Routed the `$particpantName` typo to Mason. Tracked the docs KB and
+  Mirror's export study.
+- Armed the mailbox listener. It's now step 4 of my wake-up sequence.
 
-**Open / next**
-- Tonight: synced the Progress Tree to v15 (52 done / 4 in progress / 20
-  not started, 76 total) with the settled strategy, first-release scope,
-  the clean export, r_ progress and the new owners.
-- Mailed Herald that both advisor drafts may have been lost with the old
-  session's scratchpad.
-- Push the 2 local commits once you OK it (the 09-25 push was a one-off).
+**Next:** push the pending commits. Chase expand once the cap is lifted.
+Add today's changes to the Progress Tree.
 
 ## Warden: browser access and safeguards
-
 **Done**
-- **Clean export**, your top priority for 09-25:
-  `data/exports/coaching_alex-v01-zum-ausprobieren_20260925-161248.json`.
-  Coherence OK, no stale tables, no missing rows or mismatches, 0
-  unresolved dialogs.
-- Fixes behind it:
-  - stale-table root cause (`5a8c461`)
-  - menu-click retries; dropped folders now fail loudly (`2819ff4`)
-  - opt-in live jump-target resolver `--resolve-jumps` (`4bd935a`)
-  - tonight: scrolling the virtualized dialog table, and capping the
-    re-widen at 16000px (`af5e637`)
+- **The alex-sandbox BEFORE export.** Jump targets went from 4/14 to 14/14
+  resolved (`b3e0971`). Tooltips are click-through, and there's a headless
+  mode (`b64b345`).
+- **The coaching guard:** exact coaching-row matching, and alex-live
+  refused (`2f89222`).
+- **Per-coaching baselines** (`935d7a8`), with the alex-live baseline in
+  `c73600d`.
+- **`--allow-noop-resaves`** (`461fc75`), so you can run a full alex-live
+  export by hand.
+- **Screen-sleep fixes:** your first 4 alex-live runs died because the
+  screen went to sleep. Warden added a pause-and-resume guard (`2baf7ee`)
+  and a systemd-inhibit wrapper.
 
-**In progress**
-- An export run with `--resolve-jumps --update-baseline` to clear what's
-  left in the log: 14 ambiguous jump targets and 7 baseline-drift
-  warnings. Warden holds the browser; there is no queue.
-
-**Blocked**
-- `multiSubmit`: waits for access to the real ALEX coaching.
+**Open**
+- 4 ambiguous jump targets (3 kinds, fixes queued).
+- A root fix for the black 12000px window: emulate the wide viewport
+  instead.
+- A read-only close for editor modals.
+- `multiSubmit` (unblocked, but needs your OK before any write).
 
 ## Loom: r_ randomisation groups
-
 **Done**
-- Pushed `b35d0a1` (restore mode, safer matching, the widen-order fix).
-- Committed `e23355e`: expand now rejects duplicate wordings, and apply
-  claims the shared browser lock.
-- Tonight, on the clean export:
-  - Step 1 (report): 89 r_ groups (95 including r1-3 and the weekly
-    incentive groups, which matches Warden's count), 424 messages, 117
-    pools, 102 thin.
-  - Step 2 (prepare): 102 API calls, 804 variants.
+- alex-sandbox expand: `rgroups_generated_260929093415.csv`, 802/804 OK.
+- Added an abort guard and `--resume` (`94fb007`). `--csv` pins the file
+  (`2e1ef85`). The "usage limits" error now aborts cleanly (`ff2993a`).
+- alex-live steps 1–2, plus 37 pools of expand
+  (`rgroups_generated_260929170725.csv`).
+  - Compared with alex-sandbox: +53 groups, mostly weekly-incentive weeks
+    and morning greetings.
+  - −4 groups: GoodOverallCompliance_Stage1-3 and
+    NighttimeMonitoring_Stage3_Push.
+  - An "Attic" dialog holds 3 groups.
 
 **Blocked**
-- **Step 3 (expand): every call gets HTTP 401.** Loom stopped after ~60
-  failures; no output was written. It needs a valid key, then:
-  `.venv/bin/python tools/rgroups-table/rgroup_expand.py --limit 102`.
+- alex-live expand: the spend cap.
+- Task 2 apply: the login, and the freeze confirmation.
 
-**Next:** check the expand output, send Herald the facts for the advisor
-artifact, and report to Kart. Apply stays dry-run only.
+**Note:** the 6 new Stage3 rows would inherit the one-line Yes/No bug.
+Mason says there's no sandbox fix for it.
 
 ## Mason: pile-up redesign
+**Done**
+- Checked Coming Back with Context v1–v4, plus your advisor question on
+  what the docs say about pile-up.
+- The PMCP docs knowledge base (`a2cb347`).
+- Moved `docs/pileup` to the alex-sandbox/sandbox target. The build steps
+  carry the greeting-typo fix (`c50f431`), and the A1/A3 tests end with a
+  sandbox export for Mirror (`a21d6ab`).
+- Took over `docs/participant_data_collection.md` from Mirror.
 
-**Done (09-25)**
-- Folded all your answers into `docs/pileup/`:
-  - D1–D13 and D12b are answered
-  - planning ahead (onboarding schedule check, 30-min gap, no spirometry
-    within 5 h after medication)
-  - active-answer protection is capped at 1 h
-  - the "nothing is live, sandbox prototypes only" reframe
-- Wrote gender-free RO seed text for each re-entry opener, so Loom's
-  `r_ReEntry_<Dialog>` groups have a ro-RO anchor.
-- Handed One Question at a Time over as Mason's dev page (v10). Sent
-  Herald the GO for the advisor-facing pile-up artifact.
-
-**Waiting**
-- Herald's draft to review. Nothing has arrived since the GO on 09-25
-  13:41.
-- The workbench coaching, before Phase A.
-
-**Next:** idle until one of those two arrives.
+**Waiting on you:** the freeze confirmation, retrofit vs rebuild, and the
+4 data-collection questions.
 
 ## Herald: advisor materials
+**Done**
+- **Coming Back with Context v4:**
+  https://claude.ai/artifact/V27fFmmiLLb1apZs4zAxUh
+- **r_ tool explainer v2:** https://claude.ai/artifact/JmLGKdfsXxkn8zeyBPK3Y5
+- Both are checked (by Mason and Loom) and ready for you.
+- Drafts now live in `agents/herald/context/drafts/`, so a restart can't
+  lose them.
 
-**Done (09-25)**
-- Rebuilt from `docs/pileup/`: The Interrupt Contract v3, Watching It
-  Write Itself v2, One Question at a Time v6. One Question at a Time then
-  became Mason's page.
-- The PMCP-docs accuracy pass was dropped, on your call.
-
-**Open**
-- The **r_ tool explainer** (due 09-25) and the **advisor pile-up
-  artifact** (unblocked 09-25) are both drafts. Neither is published.
-- **Risk:** both drafts were in the old session's scratchpad, which is
-  session-specific, so they may be lost after the restart. Herald hasn't
-  woken since.
-- The r_ explainer also needs Loom's final numbers, which wait on the
-  API key.
+**Next:** refresh the r_ page after the task 2 apply and diff, and update
+its status row for the new coaching names.
 
 ## Mirror: chat simulation engine
-
 **Done**
-- Took over the two owners you assigned: workstream 5 (blocked until
-  you've tested the chat) and "what info to collect". First pass
-  committed as `docs/participant_data_collection.md`:
-  - PMCP already timestamps every variable write, so collecting data
-    means writing variables at the right moment.
-  - Biggest gap: 18 senders time out, and none has a "does not answer"
-    branch.
-  - It maps each gap to a patient-model field.
+- Typed-input answers and per-language multilingual variables, from your
+  chat test (`dbfc05d`).
+- Same-pass variable visibility as a switchable assumption, for pile-up
+  test A2 (`cfa2c7e`).
+- Scoped the **export study**:
+  - It extends our `.json`, not PMCP's `.html` Report.
+  - Warden reads all the new fields in one batched live pass.
+  - Fields so far: the cascade-clearing flag, stop-intervention,
+    questionnaire bindings, empty messageGroups, does-not-answer rules.
+- Handed the data-collection doc to Mason.
 
-**Open:** 4 questions for you in that doc. Workstream 5 waits on your
-chat test.
+**Blocked:** the EngineV1 chat test.
 
 ## Smith: portal
-
-**Done**
-- Committed `604855d` + `58b7bb9`.
-- Ran a demo portal for you on :8010 with the 09-25 export. It re-ran the
-  medication Yes/No and ACQ walks with 0 errors.
-
-**Open**
-- The demo instance is down (it died with the old session). Smith can
-  relaunch it on request, ideally with the clean `161248` export.
-- The stale 09-14 bundle is still on your :8000 portal.
-
-**Next:** idle until your chat test.
+No new entries since 09-25. Smith is waiting for your chat test. The
+demo portal can be relaunched on request.

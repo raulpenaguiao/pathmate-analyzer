@@ -47,6 +47,23 @@ unblocks back-burner items. **Coaching names (RULES.md "PMCP coachings"):**
       - Per-coaching baselines are in `935d7a8`.
 - [ ] **4. r_ CSVs from that export** (Loom, **due today**): report →
       prepare → expand. No apply. Files and counts go to Kart + Herald.
+      **17:08 PARTIAL:**
+      - Table: `rgroups_table_260929165622.csv`. 538 messages, 138 r_
+        groups, 175 pools, 159 thin.
+      - Requests: 159 calls, 1314 variants.
+      - vs alex-sandbox (89 groups / 117 pools / 102 thin):
+        - +53 groups, mostly weekly-incentive weeks and "Morning
+          greetings + inquire about sleep"
+        - −4 groups (GoodOverallCompliance_Stage1-3,
+          NighttimeMonitoring_Stage3_Push)
+        - an "Attic" dialog holds 3 groups
+      - Expand: `rgroups_generated_260929170725.csv`. 37 pools complete,
+        284 OK, 2 duplicates.
+      - **Blocked: the Anthropic API spend cap is hit** (resets
+        2026-10-01 00:00 UTC). It needs Raul to raise the limit in the
+        console, or wait.
+      - Then run `rgroup_expand.py --resume --limit 122` for the
+        remaining 122 pools / 1028 variants.
 - Unblocked, after 3: questionnaire `multiSubmit` (Warden). It needs
   Raul's OK before any write.
 
