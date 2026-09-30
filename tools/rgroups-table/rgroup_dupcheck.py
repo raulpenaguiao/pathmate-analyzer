@@ -1,12 +1,16 @@
 """Duplicate-wording check for r_ pools — report only, never blocking. No API.
 
-Within each pool (`group @ micro dialog`) and each language, every pair of
-wordings is compared after normalising case, diacritics, punctuation, emoji
+Within each pool and each language, every pair of wordings is compared after normalising case, diacritics, punctuation, emoji
 and whitespace (`$placeholders` are kept):
 
   exact  the normalised texts are equal
   near   difflib similarity >= THRESHOLD (default 0.95) - a one-word or
          one-letter change, e.g. a typo copy
+
+A pool here is one run of consecutive rows of an r_ group, since that is
+what PMCP randomises: a block of the group copied into another branch of
+the same dialog is a separate pool, so the copies aren't flagged as
+repeats of each other.
 
 Clearly different wordings stay unflagged ("Do you have your spirometer
 handy?" vs "Is your spirometer within reach?" is ~0.6).
@@ -69,8 +73,31 @@ def load(path: Path, source: str) -> list[dict]:
         else:
             ref = f"#{r['order']}"
         out.append({"pool": r["pool"], "ref": ref, "source": source,
+                    "order": int(r["order"]) if "order" in r else None,
+                    "cond": (r.get("triggerExprs") or "").strip() if "order" in r else None,
                     "en-GB": r.get("en-GB") or "", "ro-RO": r.get("ro-RO") or ""})
+    _mark_blocks(out)
     return out
+
+
+def _mark_blocks(items: list[dict]) -> None:
+    """PMCP randomises only within a run of CONSECUTIVE rows of one group
+    (docs/pmcp-docs micro-dialogs §8). A dialog can hold several such runs
+    of the same group, e.g. the same block copied into each branch (Streak
+    Week rows 5-10, 11-16, ...). Those copies are separate pools at run
+    time, so they aren't repeats of each other: tag each existing row with
+    its run number, and check() only pairs rows of the same run."""
+    by_pool = defaultdict(list)
+    for it in items:
+        if it["order"] is not None:
+            by_pool[it["pool"]].append(it)
+    for rows in by_pool.values():
+        rows.sort(key=lambda it: it["order"])
+        block, prev = 0, None
+        for it in rows:
+            if prev is not None and it["order"] != prev + 1:
+                block += 1
+            it["block"], prev = block, it["order"]
 
 
 def check(items: list[dict], threshold: float) -> list[dict]:
@@ -83,9 +110,13 @@ def check(items: list[dict], threshold: float) -> list[dict]:
             keyed = [(m, norm_text(m[lang])) for m in members]
             keyed = [(m, k) for m, k in keyed if k and k != "not set"]
             for (a, ka), (b, kb) in combinations(keyed, 2):
-                if a["source"] == b["source"] == "existing" and any(
-                        m["source"] == "new" for m in members):
-                    continue  # generated-CSV mode: only pairs touching a new wording
+                if a["source"] == b["source"] == "existing":
+                    if any(m["source"] == "new" for m in members):
+                        continue  # generated-CSV mode: only pairs touching a new wording
+                    if a.get("block") != b.get("block"):
+                        continue  # separate consecutive runs = separate pools
+                    # (a new wording is compared with every run: apply adds it
+                    # next to one of them, and a repeat of any is still a repeat)
                 if ka == kb:
                     kind, ratio = "exact", 1.0
                 else:
@@ -93,8 +124,13 @@ def check(items: list[dict], threshold: float) -> list[dict]:
                     if ratio < threshold:
                         continue
                     kind = "near"
+                # rows of one pool with different send conditions ("Shown
+                # when") may be meant as alternatives, not siblings - e.g. one
+                # question worded identically per branch. Flag, but say so.
+                cond = ("n/a" if a["cond"] is None or b["cond"] is None
+                        else "same" if a["cond"] == b["cond"] else "different")
                 hits.append({"pool": pool, "lang": lang, "kind": kind,
-                             "ratio": round(ratio, 3),
+                             "ratio": round(ratio, 3), "cond": cond,
                              "a": a["ref"], "a_text": a[lang].strip(),
                              "b": b["ref"], "b_text": b[lang].strip()})
     hits.sort(key=lambda h: (h["pool"], h["lang"], h["kind"] != "exact", -h["ratio"]))
@@ -104,18 +140,23 @@ def check(items: list[dict], threshold: float) -> list[dict]:
 def report(hits: list[dict], label: str, n_items: int, n_pools: int,
            threshold: float) -> str:
     exact = sum(h["kind"] == "exact" for h in hits)
+    diff = sum(h["cond"] == "different" for h in hits)
     lines = [f"# r_ duplicate check: {label}", "",
              f"{n_items} wordings in {n_pools} pools. Threshold for near "
-             f"matches: {threshold}. Report only.", "",
+             f"matches: {threshold}. Emoji, punctuation, case and accents are "
+             f"ignored. Report only.", "",
              f"**{len(hits)} flagged pairs**: {exact} exact, {len(hits) - exact} near, "
-             f"in {len({h['pool'] for h in hits})} pools.", ""]
+             f"in {len({h['pool'] for h in hits})} pools. {diff} of them are between "
+             f"rows with different send conditions (`cond = different`): those may "
+             f"be deliberate alternatives rather than repeats.", ""]
     if not hits:
         return "\n".join(lines + ["Nothing flagged."]) + "\n"
-    lines += ["| pool | lang | kind | sim | A | B |", "|---|---|---|---|---|---|"]
+    lines += ["| pool | lang | kind | sim | cond | A | B |",
+              "|---|---|---|---|---|---|---|"]
     esc = lambda s: s.replace("|", "\\|").replace("\n", " ⏎ ")
     for h in hits:
         lines.append(f"| {esc(h['pool'])} | {h['lang']} | {h['kind']} | {h['ratio']} | "
-                     f"{h['a']}: {esc(h['a_text'])} | {h['b']}: {esc(h['b_text'])} |")
+                     f"{h['cond']} | {h['a']}: {esc(h['a_text'])} | {h['b']}: {esc(h['b_text'])} |")
     return "\n".join(lines) + "\n"
 
 
@@ -141,7 +182,9 @@ def main() -> None:
     out.write_text(report(hits, label, len(items), len({i["pool"] for i in items}),
                           args.threshold), encoding="utf-8")
     exact = sum(h["kind"] == "exact" for h in hits)
-    print(f"{len(hits)} flagged pairs ({exact} exact, {len(hits) - exact} near) "
+    diff = sum(h["cond"] == "different" for h in hits)
+    print(f"{len(hits)} flagged pairs ({exact} exact, {len(hits) - exact} near; "
+          f"{diff} across different send conditions) "
           f"in {len({h['pool'] for h in hits})} pools -> {out}")
 
 
