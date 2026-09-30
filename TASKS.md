@@ -7,11 +7,18 @@ workstreams" section — this file is the checklist, that's the writeup.
 
 ## ▶ 2026-09-30: Raul's follow-ups
 
-- [ ] **API key: manager only** (Warden builds the gate; the rule is in
-      RULES.md). No agent runs `rgroup_expand.py` or anything else that
-      calls the Anthropic API. On 09-29 it spent Raul's budget unnoticed.
-      Loom prepares the requests CSV, and the manager runs expand. Warden
-      makes the script refuse inside agent sessions.
+- [x] **API key: manager only** (the rule is in RULES.md). No agent runs
+      `rgroup_expand.py` or anything else that calls the Anthropic API.
+      On 09-29 it spent Raul's budget unnoticed. Loom prepares the
+      requests CSV, and the manager runs expand. **Gate done
+      `ed6ae85` (Warden):**
+      - `rgroup_expand.py` refuses any real run when `AGENT_SLUG` is set.
+        It checks at startup and again right before each API request.
+        The manager session has it empty.
+      - `rgroup_pipeline.sh` stops at step 3.
+      - The shared guard is `tools/_agent_guard.py`. No other API caller
+        exists in the repo.
+      - It's a speed bump: the key stays in `.env`.
 - [ ] **r_ duplicate checker, no API** (Loom). A deterministic check per
       pool and per language, **report only**. It flags only exact matches
       after normalization, plus near-matches at ≥0.95. Clearly different
@@ -141,6 +148,10 @@ still holds for everything else. Browser order: Warden → Loom → Warden.
             passed ok=True (`ef8f83a`, `3a88447`). Order now: Raul reruns
             his export test, then Loom gets the browser for the apply.
             Task 2 already has Raul's 09-29 live-write OK.
+            **09-30 14:50:** Raul's test rerun passed. alex-live
+            `..._ausprobieren-2_20260930-143134.json`: ok=True, 98 dialogs,
+            37/37 senders, 0 retries, 3 of 26 jumps ambiguous. **The browser
+            is released to Loom, and the apply is under way.**
       - [ ] 2b. Re-export: the **"after"** snapshot (Warden).
       - [ ] 2c. Diff before vs after `.json`. The expected result is
             exactly the added variants in the right r_ groups, and
