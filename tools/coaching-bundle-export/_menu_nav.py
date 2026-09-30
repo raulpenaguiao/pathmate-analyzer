@@ -90,12 +90,32 @@ async def popups(page):
     return page.locator(".v-menubar-popup")
 
 
+NEUTRAL_JS = r"""
+() => {  // the plain 'Coaching "..."' title label: clicking it does nothing
+  const t = [...document.querySelectorAll('.title-label')]
+    .find(e => /^Coaching "/.test(e.textContent.trim()));
+  if (!t) return null;
+  const r = t.getBoundingClientRect();
+  return [r.x + 5, r.y + r.height / 2];
+}
+"""
+
+
 async def close_menus(page):
-    for _ in range(6):
+    """Close every open menu popup. Escape first; if a popup survives (the
+    `►` overflow list ignores Escape, 2026-09-30), click away on the plain
+    coaching title label, as a person would."""
+    for _ in range(3):
         if await (await popups(page)).count() == 0:
             return
         await page.keyboard.press("Escape")
         await page.wait_for_timeout(110)
+    for _ in range(3):
+        if await (await popups(page)).count() == 0:
+            return
+        spot = await page.evaluate(NEUTRAL_JS) or [5, 5]
+        await page.mouse.click(*spot)
+        await page.wait_for_timeout(250)
 
 
 async def sub_loc(page, depth: int):
@@ -230,47 +250,85 @@ async def _require_micro_dialogs(page) -> None:
             "and that Monitoring is deactivated.")
 
 
-async def open_folder_path(page, labels: list[str]) -> int:
-    """Re-navigate from the bar and hover every segment of `labels` so the
-    folder's own submenu popup is open. Returns depth == len(labels)."""
-    await _require_micro_dialogs(page)
-    await close_menus(page)
+OVERFLOW_CAPTIONS = ("►", "▶", "»", "")
+
+
+async def _bar_item(page, label: str):
+    """(item, None) if `label` is on the bar itself, (None, overflow_item) if
+    not but the bar ends in the `►` overflow, (None, None) otherwise."""
     bar = await bar_loc(page)
     n = await bar.count()
-    top = None
     for i in range(n):
-        if await caption(bar.nth(i)) == labels[0]:
-            top = bar.nth(i)
-            break
-    if top is None:
-        await _raise_missing_top(page, labels[0])
-    # Vaadin MenuBar: from a closed state a top item opens on CLICK, not hover
-    # (hover only switches between already-open top menus). Nudge the virtual
-    # mouse first so the click definitely dispatches a fresh move. Retry: a
-    # stray click can toggle it shut.
-    opened = False
+        if await caption(bar.nth(i)) == label:
+            return bar.nth(i), None
+    if n:
+        last = bar.nth(n - 1)
+        if (await last.inner_text()).strip() in OVERFLOW_CAPTIONS:
+            return None, last
+    return None, None
+
+
+async def _click_open(page, item, label: str) -> None:
+    """Click a bar item (a top-level menu or the `►`) until its dropdown
+    (popup 1) is open. Vaadin MenuBar: from a closed state a bar item opens on
+    CLICK, not hover (hover only switches between already-open bar menus).
+    Nudge the virtual mouse first so the click dispatches a fresh move. Retry:
+    a stray click can toggle it shut."""
     for attempt in range(1, 5):
         await page.mouse.move(3, 3)
         await page.wait_for_timeout(40)
         click_err = None
         try:
-            await top.click(timeout=6000)
+            await item.click(timeout=6000)
         except Exception as e:  # noqa: BLE001
             click_err = e
         if await wait_popup(page, 1, tries=15):
-            opened = True
-            break
-        rec = await menu_diag(page, labels[0], attempt)
+            return
+        rec = await menu_diag(page, label, attempt)
         if click_err is not None:
             print(f"    (click itself failed: {str(click_err).splitlines()[0][:100]})")
         if rec.get("after3s", {}).get("popups"):
-            opened = True  # it was only slow: the dropdown is open now
-            break
+            return  # it was only slow: the dropdown is open now
         await close_menus(page)
-    if not opened:
-        raise RuntimeError(f"popup 1 for {labels[0]!r} never opened")
+    raise RuntimeError(f"popup 1 for {label!r} never opened")
+
+
+async def _open_top(page, label: str):
+    """Open top-level menu `label` without resizing anything: straight from
+    the bar, or - when the bar has collapsed it into `►` - from the overflow
+    list (Raul, 2026-09-30: keep the window one size; hovering `►` lists
+    every hidden menu). Returns (base, item): popups up to `base` are already
+    used (0 = bar menu, its dropdown is popup 1; 1 = overflow list is popup 1),
+    and `item` is the overflow entry to hover/click (None for bar items)."""
+    await close_menus(page)
+    top, ov = await _bar_item(page, label)
+    if top is not None:
+        await _click_open(page, top, label)
+        return 0, None
+    if ov is None:
+        await _raise_missing_top(page, label)
+    await _click_open(page, ov, "►")
+    items = await sub_loc(page, 1)
+    for j in range(await items.count()):
+        if await caption(items.nth(j)) == label:
+            return 1, items.nth(j)
+    await close_menus(page)
+    raise RuntimeError(f"top {label!r} not found on the bar or in the `►` overflow")
+
+
+async def open_folder_path(page, labels: list[str]) -> int:
+    """Re-navigate from the bar and hover every segment of `labels` so the
+    folder's own submenu popup is open. Returns the popup depth holding the
+    folder's children: len(labels), +1 when its top menu sits in `►`."""
+    await _require_micro_dialogs(page)
+    base, ov_item = await _open_top(page, labels[0])
+    if ov_item is not None:
+        await ov_item.hover(timeout=8000)
+        if not await wait_popup(page, 2):
+            raise RuntimeError(f"popup 2 for {labels[0]!r} (via ►) never opened")
     for depth, lbl in enumerate(labels[1:], start=1):
-        items = await sub_loc(page, depth)
+        d = depth + base
+        items = await sub_loc(page, d)
         cnt = await items.count()
         tgt = None
         for j in range(cnt):
@@ -278,11 +336,33 @@ async def open_folder_path(page, labels: list[str]) -> int:
                 tgt = items.nth(j)
                 break
         if tgt is None:
-            raise RuntimeError(f"segment {lbl!r} not found at depth {depth}")
+            raise RuntimeError(f"segment {lbl!r} not found at depth {d}")
         await tgt.hover(timeout=8000)
-        if not await wait_popup(page, depth + 1):
-            raise RuntimeError(f"popup {depth+1} for {lbl!r} never opened")
-    return len(labels)
+        if not await wait_popup(page, d + 1):
+            raise RuntimeError(f"popup {d+1} for {lbl!r} never opened")
+    return len(labels) + base
+
+
+async def top_items(page) -> list[tuple[str, bool]]:
+    """Every top-level menu as (caption, is_folder), in bar order: the items
+    on the bar, then those collapsed into `►`."""
+    await close_menus(page)
+    bar = await bar_loc(page)
+    out, ov = [], None
+    for i in range(await bar.count()):
+        it = bar.nth(i)
+        lbl = await caption(it)
+        if (await it.inner_text()).strip() in OVERFLOW_CAPTIONS:
+            ov = it
+            continue
+        if lbl in ("", "·", "."):
+            continue
+        out.append((lbl, await has_indicator(it)))
+    if ov is not None:
+        await _click_open(page, ov, "►")
+        out += await read_children(page, 1)
+        await close_menus(page)
+    return out
 
 
 async def read_children(page, depth: int) -> list[tuple[str, bool]]:
@@ -311,7 +391,7 @@ async def discover(page) -> list[dict]:
         depth = await open_folder_path(page, labels)
         kids = await read_children(page, depth)
         await close_menus(page)
-        print(f"  {'  '*depth}{' / '.join(labels)} -> {len(kids)}")
+        print(f"  {'  '*len(labels)}{' / '.join(labels)} -> {len(kids)}")
         for lbl, folder in kids:
             if lbl in ("", "·", "►", "."):
                 continue
@@ -347,16 +427,8 @@ async def discover(page) -> list[dict]:
                     await page.wait_for_timeout(800 * attempt)
         return False
 
-    bar = await bar_loc(page)
-    n = await bar.count()
-    print(f"menubar: {n} top-level items")
-    tops: list[tuple[str, bool]] = []
-    for i in range(n):
-        it = bar.nth(i)
-        lbl = await caption(it)
-        if lbl in ("", "·", "►", "."):
-            continue
-        tops.append((lbl, await has_indicator(it)))
+    tops = await top_items(page)
+    print(f"menubar: {len(tops)} top-level items (bar + `►` overflow)")
     for lbl, folder in tops:
         if ABORT_FILE.exists():
             break
@@ -399,17 +471,19 @@ async def navigate_and_select(page, labels: list[str]):
     await _require_micro_dialogs(page)
     if len(labels) == 1:
         await close_menus(page)
-        bar = await bar_loc(page)
-        n = await bar.count()
-        await page.mouse.move(3, 3)
-        for i in range(n):
-            if await caption(bar.nth(i)) == labels[0]:
-                await bar.nth(i).click(timeout=8000)
-                return
-        await _raise_missing_top(page, labels[0], "top item")
+        top, ov = await _bar_item(page, labels[0])
+        if top is not None:
+            await page.mouse.move(3, 3)
+            await top.click(timeout=8000)
+            return
+        if ov is None:
+            await _raise_missing_top(page, labels[0], "top item")
+        # a top-level dialog collapsed into `►`: click it in the overflow list
+        _base, item = await _open_top(page, labels[0])
+        await item.click(timeout=8000)
+        return
     # reuse the folder-opening logic, then click the leaf in the deepest popup
-    await open_folder_path(page, labels[:-1])
-    depth = len(labels) - 1
+    depth = await open_folder_path(page, labels[:-1])
     items = await sub_loc(page, depth)
     cnt = await items.count()
     for j in range(cnt):

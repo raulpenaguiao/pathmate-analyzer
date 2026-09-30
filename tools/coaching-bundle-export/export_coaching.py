@@ -56,7 +56,7 @@ name a dialog or node across exports, in docs, tests or saved state. Across
 exports, use `path` (the dialog's full menu path) plus the node's order or
 comment.
 
-Env: PMCP_CDP (default http://127.0.0.1:9222), PMCP_WIDE (default 12000).
+Env: PMCP_CDP (default http://127.0.0.1:9222). The window is never resized.
 Exits non-zero if the coherence check fails (so it can gate a workflow).
 """
 from __future__ import annotations
@@ -83,7 +83,6 @@ import enrich_bundle
 
 HERE = Path(__file__).resolve().parent
 CDP = os.environ.get("PMCP_CDP", "http://127.0.0.1:9222")
-WIDE = int(os.environ.get("PMCP_WIDE", "12000"))
 BASELINE = HERE / "coherence_baseline.json"  # alex-sandbox's
 
 
@@ -102,55 +101,6 @@ _TYPE = {"Message": "message", "DECISION POINT": "decision",
 # ---------------------------------------------------------------------------
 # phase 1 — micro dialogs
 # ---------------------------------------------------------------------------
-
-async def _widen_for_menubar(page, cdp, wid) -> None:
-    """Widen the browser window until every Micro Dialogs top-level item
-    renders inline. Past a handful of items the Vaadin MenuBar collapses the
-    rest into a `►` overflow submenu that will not open under scripted input,
-    so discovery silently misses them (that's the ~40%-capture failure). Keep
-    doubling the width until the trailing `►` is gone; abort loudly if it
-    can't (usually the compositor clamped the window and it never actually
-    got wide)."""
-    bar = ".v-menubar.md-menu > .v-menubar-menuitem"
-    if not await M.ensure_micro_dialogs(page):
-        sys.exit("Micro Dialogs menu not on screen — open the coaching's Edit "
-                 "view, deactivate Monitoring, then rerun.")
-    w = WIDE
-    for _ in range(5):
-        await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
-            "left": 0, "top": 0, "width": w, "height": 1400,
-            "windowState": "normal"}})
-        # wait for the menubar to actually re-render at the new width before
-        # judging the `►` overflow (checking too early sees 0 items)
-        n = 0
-        for _ in range(20):
-            await page.wait_for_timeout(500)
-            n = await page.locator(bar).count()
-            if n:
-                break
-        actual = (await cdp.send("Browser.getWindowBounds",
-                                 {"windowId": wid}))["bounds"].get("width")
-        try:
-            last = (await page.locator(bar).last.inner_text()).strip() if n else "?"
-        except Exception:  # noqa: BLE001
-            last = "?"
-        print(f"  window: asked {w}px, got {actual}px  ->  {n} menubar items, "
-              f"last={last!r}")
-        if n and last != "►":
-            return
-        # the window is sometimes shrunk back mid-run (seen at 1400px, twice on
-        # 2026-09-25): retry the width that worked before doubling, and cap
-        # the size. Chromium died ~6s after a 24000px re-widen on 2026-09-25
-        # 13:43 (cause unproven, but giant windows are the suspect).
-        if actual is not None and actual < w:
-            continue
-        w = min(w * 2, 16000)
-    sys.exit("The Micro Dialogs menubar still shows a `►` overflow at the "
-             "widest window — top-level items are hidden and the sweep would "
-             "miss most dialogs. The browser window likely didn't actually "
-             "resize (compositor clamp). Try a non-maximized / non-Wayland "
-             "session, or set PMCP_WIDE higher.")
-
 
 RUN = {"name": None}  # the coaching this run works on (read at start)
 
@@ -174,7 +124,7 @@ async def _navigate_retrying(page, cdp, wid, labels, label: str, tries: int = 3)
     """navigate_and_select with retries. Menu clicks/popups time out now and
     then on a perfectly healthy page (2026-09-25: 3 of 87 dialogs lost to
     single-shot click timeouts - the failure snapshots showed nothing wrong).
-    An overflowed menubar is re-widened first (see MenuOverflowError).
+    Menus collapsed into `►` are reached through the overflow list.
     Each attempt first checks the browser is rendering and logged in, and
     pauses for the operator if not (screen asleep, 2026-09-29)."""
     for attempt in range(1, tries + 1):
@@ -182,11 +132,6 @@ async def _navigate_retrying(page, cdp, wid, labels, label: str, tries: int = 3)
         try:
             await M.navigate_and_select(page, labels)
             return
-        except M.MenuOverflowError as e:
-            print(f"  {label}  {e} — re-widening (try {attempt}/{tries})")
-            await _widen_for_menubar(page, cdp, wid)
-            if attempt == tries:
-                raise
         except Exception as e:  # noqa: BLE001
             # an expired session or a sleeping screen looks exactly like a
             # flaky click: the guard at the top of the next attempt pauses
@@ -689,8 +634,6 @@ async def main() -> int:
             sys.exit("not logged in to PMCP — run ../start_pmcp.sh first.")
         cdp = await ctx.new_cdp_session(page)
         wid = (await cdp.send("Browser.getWindowForTarget"))["windowId"]
-        orig = {"left": 60, "top": 60, "width": 1400, "height": 1000,
-                "windowState": "normal"}
 
         # coaching name from the editor header (Coaching "…")
         name = await page.evaluate(
@@ -751,7 +694,8 @@ async def main() -> int:
                 print("--- phase 1: micro dialogs ---")
                 D.step("phase 1: micro dialogs")
                 t = time.monotonic()
-                await _widen_for_menubar(page, cdp, wid)
+                # no window resizing: menus collapsed into `►` are reached
+                # through the overflow list (Raul, 2026-09-30)
                 md, nodes = await sweep_micro_dialogs(page, cdp, wid)
                 bundle["microDialogs"] = md
                 bundle["nodes"] = nodes
@@ -788,10 +732,6 @@ async def main() -> int:
                 print("--- phase 4: rules ---")
                 D.step("phase 4: rules")
                 t = time.monotonic()
-                await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": {
-                    "left": 0, "top": 0, "width": 2400, "height": 1600,
-                    "windowState": "normal"}})
-                await page.wait_for_timeout(800)
                 bundle["rules"] = await sweep_rules(
                     page, open_modals="--no-modals" not in flags)
                 timings["phase4_rules"] = time.monotonic() - t
@@ -801,8 +741,6 @@ async def main() -> int:
         except Exception as e:  # noqa: BLE001
             await D.snapshot(page, "fail", repr(e))
             raise
-        finally:
-            await cdp.send("Browser.setWindowBounds", {"windowId": wid, "bounds": orig})
 
     if "--update-baseline" in flags:
         write_baseline(bundle, report)

@@ -43,9 +43,9 @@ while [ $# -gt 0 ]; do
     --url)       URL="$2"; shift 2 ;;
     --env)       ENV_FILE="$2"; shift 2 ;;
     --no-login)  DO_LOGIN=0; shift ;;
-    # headless ignores Browser.setWindowBounds for the viewport, so start at
-    # the width the Micro Dialogs menubar needs (export's WIDE = 12000)
-    --headless)  HEADLESS=(--headless=new --window-size=12000,1400); shift ;;
+    # same fixed size as the visible window: the tools no longer resize it
+    # (menus collapsed into the menubar's `►` are reached through it)
+    --headless)  HEADLESS=(--headless=new --window-size=1400,1000); shift ;;
     -h|--help)   sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)           echo "unknown option: $1" >&2; exit 2 ;;
   esac
