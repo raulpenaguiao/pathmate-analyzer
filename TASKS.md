@@ -19,10 +19,22 @@ workstreams" section — this file is the checklist, that's the writeup.
       - The shared guard is `tools/_agent_guard.py`. No other API caller
         exists in the repo.
       - It's a speed bump: the key stays in `.env`.
-- [ ] **r_ duplicate checker, no API** (Loom). A deterministic check per
+- [x] **r_ duplicate checker, no API** (Loom). A deterministic check per
       pool and per language, **report only**. It flags only exact matches
       after normalization, plus near-matches at ≥0.95. Clearly different
-      wordings ("handy" vs "within reach") must not be flagged.
+      wordings ("handy" vs "within reach") must not be flagged. **Done:**
+      `tools/rgroups-table/rgroup_dupcheck.py` (`2703975`+).
+      - "handy" vs "within reach" scores 0.59, so it isn't flagged.
+      - A pool is one run of consecutive rows (PMCP docs, micro-dialogs
+        §8).
+      - Pairs whose send conditions differ are marked `cond=different`.
+      - Reports are in `data/rgroups/`. Real finds with the same
+        conditions were routed to Mason's alex-sandbox fix list:
+        - Stage3 "within reach" = "nearby" in ro-RO
+        - Timeless ro-RO rows 4/6 are both "Bună!"
+        - a Morning-greetings pair that differs only by an emoji
+        - Timeless row 2 has English in the ro-RO slot
+      - Next (approved): a report-only "ro-RO equals en-GB" check.
 - [ ] **Questionnaire `multiSubmit` = false in the plan.** Mason puts it
       in the internal page (One Question at a Time) and `docs/pileup`.
       Herald puts it in the advisor page (Coming Back with Context).
