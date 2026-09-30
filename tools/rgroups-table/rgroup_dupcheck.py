@@ -33,6 +33,7 @@ import argparse
 import csv
 import difflib
 import json
+import re
 import sys
 from collections import defaultdict
 from itertools import combinations
@@ -137,8 +138,39 @@ def check(items: list[dict], threshold: float) -> list[dict]:
     return hits
 
 
+def check_untranslated(items: list[dict]) -> list[dict]:
+    """ro-RO cells that hold English: the normalised ro-RO equals the en-GB
+    of its own row or of any row in the same pool (the 09-30 case: en 'Ciao
+    $participantName! 🤗' with ro 'Hi $participantName! 🤗', which is row 1's
+    en-GB). Texts with no letters outside $placeholders are skipped - an
+    emoji or a bare name reads the same in both languages."""
+    by_pool = defaultdict(list)
+    for it in items:
+        by_pool[it["pool"]].append(it)
+    out = []
+    for pool, members in by_pool.items():
+        en_of = {}
+        for m in members:
+            k = norm_text(m["en-GB"])
+            if k:
+                en_of.setdefault(k, m["ref"])
+        for m in members:
+            k = norm_text(m["ro-RO"])
+            if k == "not set" or not re.search(r"[^\W\d_]", re.sub(r"\$\w+", "", k)):
+                continue  # PMCP's empty-cell marker, or no words at all
+            if k == norm_text(m["en-GB"]):
+                src = "its own en-GB"
+            elif k in en_of:
+                src = f"the en-GB of {en_of[k]}"
+            else:
+                continue
+            out.append({"pool": pool, "ref": m["ref"], "en": m["en-GB"].strip(),
+                        "ro": m["ro-RO"].strip(), "matches": src})
+    return out
+
+
 def report(hits: list[dict], label: str, n_items: int, n_pools: int,
-           threshold: float) -> str:
+           threshold: float, untranslated: list[dict]) -> str:
     exact = sum(h["kind"] == "exact" for h in hits)
     diff = sum(h["cond"] == "different" for h in hits)
     lines = [f"# r_ duplicate check: {label}", "",
@@ -148,15 +180,27 @@ def report(hits: list[dict], label: str, n_items: int, n_pools: int,
              f"**{len(hits)} flagged pairs**: {exact} exact, {len(hits) - exact} near, "
              f"in {len({h['pool'] for h in hits})} pools. {diff} of them are between "
              f"rows with different send conditions (`cond = different`): those may "
-             f"be deliberate alternatives rather than repeats.", ""]
-    if not hits:
-        return "\n".join(lines + ["Nothing flagged."]) + "\n"
-    lines += ["| pool | lang | kind | sim | cond | A | B |",
-              "|---|---|---|---|---|---|---|"]
+             f"be deliberate alternatives rather than repeats.",
+             f"**{len(untranslated)} ro-RO cells hold English** (the ro-RO text "
+             f"equals an en-GB text of the pool).", ""]
     esc = lambda s: s.replace("|", "\\|").replace("\n", " ⏎ ")
-    for h in hits:
-        lines.append(f"| {esc(h['pool'])} | {h['lang']} | {h['kind']} | {h['ratio']} | "
-                     f"{h['cond']} | {h['a']}: {esc(h['a_text'])} | {h['b']}: {esc(h['b_text'])} |")
+    lines += ["## Repeats", ""]
+    if hits:
+        lines += ["| pool | lang | kind | sim | cond | A | B |",
+                  "|---|---|---|---|---|---|---|"]
+        for h in hits:
+            lines.append(f"| {esc(h['pool'])} | {h['lang']} | {h['kind']} | {h['ratio']} | "
+                         f"{h['cond']} | {h['a']}: {esc(h['a_text'])} | {h['b']}: {esc(h['b_text'])} |")
+    else:
+        lines.append("Nothing flagged.")
+    lines += ["", "## ro-RO holds English", ""]
+    if untranslated:
+        lines += ["| pool | row | en-GB | ro-RO | equals |", "|---|---|---|---|---|"]
+        for u in untranslated:
+            lines.append(f"| {esc(u['pool'])} | {u['ref']} | {esc(u['en'])} | "
+                         f"{esc(u['ro'])} | {u['matches']} |")
+    else:
+        lines.append("Nothing flagged.")
     return "\n".join(lines) + "\n"
 
 
@@ -175,17 +219,21 @@ def main() -> None:
         pools = {it["pool"] for it in items}
         items += [it for it in load(resolve(args.table), "existing") if it["pool"] in pools]
     hits = check(items, args.threshold)
+    untranslated = check_untranslated(items)
+    if args.table:  # generated mode: report only the new wordings' cells
+        untranslated = [u for u in untranslated if u["ref"].startswith("new")]
 
     label = src.name + (f" + {Path(args.table).name}" if args.table else "")
     out = Path(args.out) if args.out else DATA_DIR / f"dupcheck_{src.stem}.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(report(hits, label, len(items), len({i["pool"] for i in items}),
-                          args.threshold), encoding="utf-8")
+                          args.threshold, untranslated), encoding="utf-8")
     exact = sum(h["kind"] == "exact" for h in hits)
     diff = sum(h["cond"] == "different" for h in hits)
     print(f"{len(hits)} flagged pairs ({exact} exact, {len(hits) - exact} near; "
           f"{diff} across different send conditions) "
-          f"in {len({h['pool'] for h in hits})} pools -> {out}")
+          f"in {len({h['pool'] for h in hits})} pools; "
+          f"{len(untranslated)} ro-RO cells hold English -> {out}")
 
 
 if __name__ == "__main__":
