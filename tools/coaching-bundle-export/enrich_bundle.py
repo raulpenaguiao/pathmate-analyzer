@@ -60,7 +60,13 @@ def _resolve_jump_target(target: dict | None, dialog_nodes: list[dict]):
     live pass."""
     if not target:
         return None
-    hits = [n["uid"] for n in dialog_nodes if (n.get("textByLang") or {}) == target]
+    # a command message has no text; the Report names a jump to it by its
+    # COMMAND (2026-09-30, alex-live: 'increment-achievement main -4',
+    # 'set-achievement main 0' had no candidates at all)
+    hits = [n["uid"] for n in dialog_nodes
+            if (n.get("textByLang") or {}) == target
+            or (not any((n.get("textByLang") or {}).values())
+                and (n.get("commandByLang") or {}) == target)]
     if len(hits) == 1:
         return hits[0]
     return {"raw": target, "candidates": hits, "unresolved": True}

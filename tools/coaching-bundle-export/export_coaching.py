@@ -354,7 +354,15 @@ async def resolve_jumps_live(page, cdp, wid, bundle: dict) -> tuple[int, int]:
                 if x["type"] != "decision"]
         uid = (msgs[sel["index"]]["uid"]
                if sel and sel.get("index") is not None and 0 <= sel["index"] < len(msgs) else None)
-        if uid and uid in br[key]["candidates"]:
+        if sel is not None and not (sel.get("value") or "").strip():
+            # the dropdown is EMPTY: no jump is set at all. The Report's
+            # '[not set]' made it look like a jump to an empty anchor
+            # (2026-09-29, alex-live spirometry row 35)
+            br[key] = None
+            br.setdefault("resolvedLive", []).append(key)
+            resolved += 1
+            print(f"  jump resolved: {tag} -> (no jump set)")
+        elif uid and uid in br[key]["candidates"]:
             br[key] = uid
             br.setdefault("resolvedLive", []).append(key)
             resolved += 1
