@@ -34,11 +34,22 @@ workstreams" section — this file is the checklist, that's the writeup.
         - Timeless ro-RO rows 4/6 are both "Bună!"
         - a Morning-greetings pair that differs only by an emoji
         - Timeless row 2 has English in the ro-RO slot
-      - Next (approved): a report-only "ro-RO equals en-GB" check.
+      - **Done:** a report-only "ro-RO holds English" check. It compares
+        against the row's own en-GB and every en-GB in the pool.
+        - It finds 1 hit per coaching, the same row 2 of Timeless
+          Greetings, with different text in each copy and no Romanian in
+          either.
+        - The generated CSVs are clean. Detail passed to Mason.
 - [ ] **Questionnaire `multiSubmit` = false in the plan.** Mason puts it
       in the internal page (One Question at a Time) and `docs/pileup`.
       Herald puts it in the advisor page (Coming Back with Context).
       Warden owns the PMCP setting.
+      - [x] **Internal page done** (Mason, `962f429`): `build-steps.md`,
+        `rollout.md` steps 3–4, and One Question at a Time v11. It covers
+        the ACQ and the education quizzes.
+        - **Caveat:** the ACQ questionnaire id must be unique per round,
+          or false blocks later rounds.
+      - [ ] Advisor page (Herald), wording supplied by Mason.
 - [ ] **Follow-up email to Simone** (Raul sends it; Herald supports).
       Herald first asks Raul for a **screenshot, a description and a
       goal**, and doesn't go ahead until all three arrive. Warden and
