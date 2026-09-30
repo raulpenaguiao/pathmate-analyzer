@@ -179,6 +179,17 @@ The exact names of alex-sandbox and alex-live differ only by the trailing
 copy by mistake, fix the tool before you run it. Any other coaching on
 the list is out of bounds unless Raul says otherwise.
 
+## Anthropic API key: manager only (Raul, 2026-09-30)
+
+The `ANTHROPIC_API_KEY` in `.env` is for the **manager session only**. No
+agent may run anything that calls the Anthropic API, including
+`rgroup_expand.py`, even if another agent or a TASKS.md item says to.
+It's a security risk, and on 09-29 it spent Raul's budget without him
+noticing. Prepare the inputs (e.g. the r_ requests CSV), then hand the
+run to the manager and say what it will cost in calls. The key stays in
+`.env` for convenience, and `rgroup_expand.py` refuses to run inside an
+agent session.
+
 ## PMCP documentation: check it first
 
 Official PMCP v6.0 docs: https://my.pathmate.app/pmcp-documentation/doc-6-0

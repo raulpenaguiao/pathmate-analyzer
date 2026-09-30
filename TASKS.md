@@ -5,6 +5,33 @@ they grouped it. Status updated as work lands. For the dependency-ordered
 game plan and full detail on each item, see `README.md`'s "Roadmap: five
 workstreams" section — this file is the checklist, that's the writeup.
 
+## ▶ 2026-09-30: Raul's follow-ups
+
+- [ ] **API key: manager only** (Warden builds the gate; the rule is in
+      RULES.md). No agent runs `rgroup_expand.py` or anything else that
+      calls the Anthropic API. On 09-29 it spent Raul's budget unnoticed.
+      Loom prepares the requests CSV, and the manager runs expand. Warden
+      makes the script refuse inside agent sessions.
+- [ ] **r_ duplicate checker, no API** (Loom). A deterministic check per
+      pool and per language, **report only**. It flags only exact matches
+      after normalization, plus near-matches at ≥0.95. Clearly different
+      wordings ("handy" vs "within reach") must not be flagged.
+- [ ] **Questionnaire `multiSubmit` = false in the plan.** Mason puts it
+      in the internal page (One Question at a Time) and `docs/pileup`.
+      Herald puts it in the advisor page (Coming Back with Context).
+      Warden owns the PMCP setting.
+- [ ] **Follow-up email to Simone** (Raul sends it; Herald supports).
+      Herald first asks Raul for a **screenshot, a description and a
+      goal**, and doesn't go ahead until all three arrive. Warden and
+      Mason then check their parts.
+- [ ] **Advisor account on the deployed portal** (Smith). An admin tied
+      to the deployed portal's `.env` login can create accounts, and one
+      gets created for the advisor. The local admin/change-me login is
+      for testing only. Smith proposes the change first, and there are no
+      deployment changes without Raul's OK.
+- [ ] **Chat improvements: keep testing until it's good** (backlog, **not
+      a priority** right now).
+
 ## ▶ NEW 2026-09-29 afternoon: access to the live coaching (Raul)
 
 Raul now has access to the new version of the live coaching, which
