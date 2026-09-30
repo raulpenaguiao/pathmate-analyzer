@@ -162,10 +162,8 @@ def diagnose(state: dict) -> str:
         return "on the LOGIN screen - run tools/start_pmcp.sh"
     if state.get("windows"):
         return f"a modal window is open: {state['windows'][0][:80]!r}"
-    if state.get("menubarLast") == "►":
-        return (f"Micro Dialogs menubar OVERFLOWED ({state['menubarItems']} "
-                f"items then '►') - window too narrow (viewport "
-                f"{state['viewport'][0]}px)")
+    # a trailing '►' is normal now: hidden menus are reached through it
+    # (2026-09-30), so it is no longer a diagnosis on its own
     if state.get("onCoachingsList"):
         return "on the Coachings LIST, not inside a coaching's Edit view"
     if not state.get("coachingHeader"):

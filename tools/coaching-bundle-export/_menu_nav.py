@@ -293,6 +293,27 @@ async def _click_open(page, item, label: str) -> None:
     raise RuntimeError(f"popup 1 for {label!r} never opened")
 
 
+async def _open_overflow(page) -> None:
+    """Open the `►` overflow list. It opens on HOVER (0.1s) and never on a
+    click - the click's own mouse-move opens it and the click shuts it again
+    (measured 3/3 rounds, 2026-09-30; Raul: 'hover over the triangle')."""
+    _, ov = await _bar_item(page, "\x00")
+    if ov is None:
+        raise RuntimeError("no `►` overflow item on the menubar")
+    for attempt in range(1, 5):
+        await close_menus(page)
+        await page.mouse.move(3, 3)
+        await page.wait_for_timeout(100)
+        try:
+            await ov.hover(timeout=6000)
+        except Exception:  # noqa: BLE001
+            pass
+        if await wait_popup(page, 1, tries=30):
+            return
+        await menu_diag(page, "►", attempt)
+    raise RuntimeError("the `►` overflow list never opened on hover")
+
+
 async def _open_top(page, label: str):
     """Open top-level menu `label` without resizing anything: straight from
     the bar, or - when the bar has collapsed it into `►` - from the overflow
@@ -307,7 +328,7 @@ async def _open_top(page, label: str):
         return 0, None
     if ov is None:
         await _raise_missing_top(page, label)
-    await _click_open(page, ov, "►")
+    await _open_overflow(page)
     items = await sub_loc(page, 1)
     for j in range(await items.count()):
         if await caption(items.nth(j)) == label:
@@ -359,7 +380,7 @@ async def top_items(page) -> list[tuple[str, bool]]:
             continue
         out.append((lbl, await has_indicator(it)))
     if ov is not None:
-        await _click_open(page, ov, "►")
+        await _open_overflow(page)
         out += await read_children(page, 1)
         await close_menus(page)
     return out
