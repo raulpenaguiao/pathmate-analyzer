@@ -492,6 +492,20 @@ def coherence_check(bundle: dict, report_html: str | None) -> dict:
         warnings.append(f"{amb} decision-branch jump target(s) still ambiguous "
                         f"(see phase 3b)")
 
+    # every sender found in the rule tree must have been read. A failed
+    # sender modal used to be only a printed 'FAILED' line (2026-09-30: 0 of
+    # 6 captured, ok = True)
+    rules = bundle.get("rules") or {}
+    sr = rules.get("sendingRules")
+    if sr is not None:
+        found = [r for r in rules.get("ruleTree") or [] if r.get("kind") == "sender"]
+        got = {r.get("uid") for r in sr}
+        missing = [r.get("caption", "?")[:50] for r in found if r.get("uid") not in got]
+        if missing:
+            ok = False
+            warnings.append(f"SENDER RULES MISSING: captured {len(sr)} of {len(found)}; "
+                            f"not read: " + "; ".join(missing))
+
     html_vs_sweep = None
     if report_html:
         rc = enrich_bundle.report_dialog_counts(Path(report_html))
@@ -742,13 +756,22 @@ async def main() -> int:
             await D.snapshot(page, "fail", repr(e))
             raise
 
-    if "--update-baseline" in flags:
-        write_baseline(bundle, report)
+    # check FIRST, against the previous baseline, and only then (if it
+    # passed) refresh the baseline. Writing it first made a run compare
+    # against itself: on 2026-09-30 a run that lost 82 of 190 rule nodes and
+    # captured 0 of 6 senders still reported ok = True (Raul: "how is it even
+    # possible that it fails silently?").
     print("--- phase 5: coherence check ---")
     bundle["validation"] = coherence_check(bundle, report if do_dialogs else None)
     for w in bundle["validation"]["warnings"]:
         print(f"  ! {w}")
     print(f"  ok = {bundle['validation']['ok']}")
+    if "--update-baseline" in flags:
+        if bundle["validation"]["ok"]:
+            write_baseline(bundle, report)
+        else:
+            print("  ! NOT updating the baseline: this run failed the coherence "
+                  "check, so it can't become the new reference")
 
     elapsed = time.monotonic() - t0
     bundle["run"] = {"seconds": round(elapsed, 1),
