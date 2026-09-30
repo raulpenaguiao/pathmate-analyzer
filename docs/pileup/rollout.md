@@ -44,9 +44,9 @@ The shared infrastructure and planning ahead are included too.
 
 **Step 2: nighttime monitoring (sleep-prep)**, rank 1, end of day. The smartwatch-battery prompt folds into it. Window: 10 min before bedtime → bedtime + grace.
 
-**Step 3: ACQ** (rank 2). The reminder pattern plus rank. It already has a reschedule flag; it needs the "continue" split.
+**Step 3: ACQ** (rank 2). The reminder pattern plus rank. It already has a reschedule flag; it needs the "continue" split. Set the ACQ questionnaire to `multiSubmit = false`, and check that the id changes each round ([build-steps.md](build-steps.md#also-carried-into-the-workbench-build)).
 
-**Step 4: educational content (rank 4), then gamification (rank 5).** Education needs the "continue" split, and an idle timeout long enough for its longest video (D13 note). Gamification's weekly-status dialog is an empty stub; build it, or ship only the Monday announcement.
+**Step 4: educational content (rank 4), then gamification (rank 5).** Education needs the "continue" split, and an idle timeout long enough for its longest video (D13 note). Its quiz questionnaires also get `multiSubmit = false`. Gamification's weekly-status dialog is an empty stub; build it, or ship only the Monday announcement.
 
 **Step 5: first-release check.** Every first-release dialog is ranked; the onboarding schedule check covers all their times. Simulate a busy day to confirm that rank-1 reminders don't starve the ACQ, education or gamification ([priority.md](priority.md#a-known-risk-and-what-keeps-it-in-check)).
 
