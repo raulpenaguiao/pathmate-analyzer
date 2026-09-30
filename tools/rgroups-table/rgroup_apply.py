@@ -1,17 +1,18 @@
 """Step 4 of the r_ pipeline — rgroups_generated_*.csv -> the live PMCP editor.
 
-WRITES BY DEFAULT. Applies EVERY `ok` variant in the most RECENTLY-RUN
-``rgroups_generated_*.csv`` (by its embedded YYMMDDHHMMSS timestamp, from
-``rgroup_expand.py``) — there is no review gate beyond the LLM output
-itself. ``--limit N`` is REQUIRED and caps how many variants are added.
+WRITES BY DEFAULT. Applies EVERY `ok` variant in the ``--csv``
+``rgroups_generated_<ts>.csv`` (REQUIRED, from ``rgroup_expand.py``) — there
+is no review gate beyond the LLM output itself. ``--limit N`` is REQUIRED
+and caps how many variants are added.
 Pass ``--dry-run`` to preview instead (add/dedup: prints the plan, no
 browser at all; undo: does the live read but skips the delete click).
 Needs a logged-in PMCP tab on the CDP browser (``tools/start_pmcp.sh``).
 
-  PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py --limit 5
   PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py \
+      --csv rgroups_generated_<ts>.csv --limit 5
+  PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py --csv rgroups_generated_<ts>.csv \
       --limit 1 --pool 'r_MorningGreetings @ Morning greetings'
-  PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py \
+  PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py --csv rgroups_generated_<ts>.csv \
       --dry-run --limit 5   # preview only, nothing written
 
 Per variant (recipe mapped by
@@ -48,7 +49,8 @@ particularly useful default.
                               all (reports "not found", doesn't error).
 
   PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python rgroup_apply.py \
-      --undo --limit 1 --pool 'r_MorningGreetings @ Morning greetings'
+      --csv rgroups_generated_<ts>.csv --undo --limit 1 \
+      --pool 'r_MorningGreetings @ Morning greetings'
 """
 from __future__ import annotations
 
@@ -60,7 +62,7 @@ import re
 import sys
 from pathlib import Path
 
-from _rgroups_files import latest
+from _rgroups_files import input_file, latest
 
 HERE = Path(__file__).resolve().parent
 DATA_DIR = HERE.parents[1] / "data" / "rgroups"
@@ -133,22 +135,18 @@ def build_restore_plan(args):
 
 
 def build_plan(args):
-    """Read the most RECENTLY-RUN rgroups_generated_*.csv (from
-    rgroup_expand.py) and turn every `ok` variant into a plan item. No
-    review gate — everything generated is applied; `--limit` caps the
-    count."""
+    """Read the --csv rgroups_generated_*.csv (from rgroup_expand.py) and
+    turn every `ok` variant into a plan item. No review gate — everything
+    generated is applied; `--limit` caps the count."""
     if args.restore_from:
         return build_restore_plan(args)
-    # --csv pins the file: with exports of more than one coaching in
+    # --csv is required: with exports of more than one coaching in
     # data/rgroups/ (alex-live and alex-sandbox, 2026-09-29), "the latest"
     # can be another coaching's generated set.
-    generated = Path(args.csv) if args.csv else latest(DATA_DIR, "rgroups_generated", ".csv")
-    if generated is None:
-        sys.exit(f"no rgroups_generated_*.csv in {DATA_DIR} — run rgroup_expand.py first")
-    if not generated.is_file():
-        generated = DATA_DIR / args.csv
-    if not generated.is_file():
-        sys.exit(f"--csv: not found: {args.csv}")
+    if not args.csv:
+        sys.exit("--csv rgroups_generated_<ts>.csv is required (a path, or a name "
+                 "in data/rgroups/)")
+    generated = input_file(DATA_DIR, args.csv, "rgroups_generated")
     print(f"using {generated.name}")
     rows = list(csv.DictReader(generated.open(encoding="utf-8")))
     meta = {}
@@ -792,7 +790,7 @@ def main():
     ap.add_argument("--pool", help="only this pool (e.g. 'r_X @ Micro Dialog')")
     ap.add_argument("--csv", metavar="FILE",
                     help="generated CSV to apply (path, or a name in data/rgroups/); "
-                         "default: the latest rgroups_generated_*.csv")
+                         "REQUIRED except with --restore-from")
     ap.add_argument("--dedup", action="store_true",
                     help="delete rows in --pool whose text exactly copies an "
                          "earlier sibling in the same group (clean up failed runs)")

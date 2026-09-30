@@ -24,8 +24,8 @@ async def main():
                 await p.close()
         await page.bring_to_front()
         await S.neutralize_tooltips(page)
-        await page.locator(".v-menubar-menuitem-caption, .v-button-caption, span",
-                           has_text="Coachings").first.click()
+        # same click as export_coaching.py's retry path (sidebar entry)
+        await page.get_by_text("Coachings", exact=True).first.click()
         await page.wait_for_timeout(2000)
         ok = await RF.enter_edit_view(page, NAME)
         print("edit view:", ok)

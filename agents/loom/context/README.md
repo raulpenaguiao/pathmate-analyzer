@@ -27,6 +27,12 @@ anyone to.
 4. Check mail by hand right before any live browser run and after each step.
 5. State codename and role, then resume the next step from STATUS.md.
 
+## NO API calls from Loom (Raul 09-30, RULES.md)
+Never run rgroup_expand.py (or anything calling the Anthropic API), not even a
+one-call probe. Stop after prepare, then hand the run to the MANAGER session
+with the requests file + call/variant counts. --resume runs are the
+manager's too.
+
 ## PMCP docs knowledge base (Mason, 09-29): docs/pmcp-docs/README.md
 - micro-dialogs.md §8: a randomised group shares one identifier, and its rows
   must be sequential (= apply's Move Up adjacency). Looped groups must NOT

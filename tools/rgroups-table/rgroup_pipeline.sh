@@ -9,10 +9,9 @@
 #                                                 pass --dry-run to only preview step 4)
 #
 # Each step's own output is timestamped (YYMMDDHHMMSS, the run's own clock
-# time) and each downstream step defaults to the most RECENTLY-RUN input
-# matching file, not a fixed name - re-running an earlier step never
-# silently clobbers a prior run's file. The checkpoint messages below
-# resolve and print the actual filename each step just produced.
+# time), so re-running a step never clobbers a prior run's file. Each step
+# is handed the exact file the previous step printed (the steps have no
+# "latest file" default: several coachings share data/rgroups/).
 #
 # It does NOT run the coaching export — that's costly and rare. You must pass
 # a pre-made coaching.json.
@@ -52,9 +51,6 @@ done
 [ -n "$LIMIT" ] || { echo "--limit N is required" >&2; exit 2; }
 
 step() { printf '\n\033[1m=== step %s ===\033[0m\n' "$*"; }
-# most recent $DATA/<prefix>_*.csv by embedded timestamp (sorts correctly as
-# a plain string) - mirrors _rgroups_files.latest()'s own logic.
-latest_file() { ls -1 "$DATA/$1"_*.csv 2>/dev/null | sort | tail -1; }
 checkpoint() {   # $1 = what was produced, $2 = what's next
   [ "$STOP_AFTER" -le "$CUR" ] && { echo "(--stop-after $STOP_AFTER) stopping."; exit 0; }
   [ "$ASSUME_YES" -eq 1 ] && return 0
@@ -62,27 +58,40 @@ checkpoint() {   # $1 = what was produced, $2 = what's next
   read -r a; case "$a" in [yY]|[yY][eE][sS]) ;; *) echo "stopped."; exit 0 ;; esac
 }
 
+# Each step's output file is taken from what that step itself printed and
+# passed explicitly to the next one - never "the latest file in data/rgroups/",
+# which another coaching's run could have written in between.
+run_capture() {   # $1 = file prefix; rest = command. Echoes output, sets OUT_FILE.
+  local prefix="$1"; shift
+  local log; log="$("$@" | tee /dev/stderr)"
+  OUT_FILE="$(printf '%s\n' "$log" | grep -o "${prefix}_[0-9]\{12\}\.csv" | tail -1)"
+  [ -n "$OUT_FILE" ] || { echo "could not find the ${prefix}_*.csv this step wrote" >&2; exit 1; }
+}
+
 CUR=1
 step "1/4  rgroup_report.py"
-"$PY" "$HERE/rgroup_report.py" "$JSON"
-checkpoint "$(latest_file rgroups_table)" "step 2 — build the API-call manifest"
+run_capture rgroups_table "$PY" "$HERE/rgroup_report.py" "$JSON"
+TABLE="$OUT_FILE"
+checkpoint "$TABLE" "step 2 — build the API-call manifest"
 
 CUR=2
-step "2/4  rgroup_prepare.py"
-"$PY" "$HERE/rgroup_prepare.py"
-checkpoint "$(latest_file rgroups_requests)" "step 3 — call the LLM for up to $LIMIT pools"
+step "2/4  rgroup_prepare.py $TABLE"
+run_capture rgroups_requests "$PY" "$HERE/rgroup_prepare.py" "$TABLE"
+REQUESTS="$OUT_FILE"
+checkpoint "$REQUESTS" "step 3 — call the LLM for up to $LIMIT pools"
 
 CUR=3
-step "3/4  rgroup_expand.py --limit $LIMIT"
-"$PY" "$HERE/rgroup_expand.py" --limit "$LIMIT"
-checkpoint "$(latest_file rgroups_generated)" \
+step "3/4  rgroup_expand.py $REQUESTS --limit $LIMIT"
+run_capture rgroups_generated "$PY" "$HERE/rgroup_expand.py" "$REQUESTS" --limit "$LIMIT"
+GENERATED="$OUT_FILE"
+checkpoint "$GENERATED" \
   "step 4 — $([ "$DRY_RUN" -eq 1 ] && echo 'dry-run against' || echo 'WRITE to') the live coaching (--limit $LIMIT)"
 
 CUR=4
-step "4/4  rgroup_apply.py --limit $LIMIT $([ "$DRY_RUN" -eq 1 ] && echo --dry-run)"
+step "4/4  rgroup_apply.py --csv $GENERATED --limit $LIMIT $([ "$DRY_RUN" -eq 1 ] && echo --dry-run)"
 if [ "$DRY_RUN" -eq 1 ]; then
-  "$PY" "$HERE/rgroup_apply.py" --limit "$LIMIT" --dry-run
+  "$PY" "$HERE/rgroup_apply.py" --csv "$GENERATED" --limit "$LIMIT" --dry-run
 else
-  "$PY" "$HERE/rgroup_apply.py" --limit "$LIMIT"
+  "$PY" "$HERE/rgroup_apply.py" --csv "$GENERATED" --limit "$LIMIT"
 fi
 echo; echo "done."

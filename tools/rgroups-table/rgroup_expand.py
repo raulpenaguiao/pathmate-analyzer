@@ -4,16 +4,21 @@ For the first `--limit N` request rows (thin pools), build the prompt, call
 the LLM, and write one row per generated variant. `--limit` is REQUIRED so
 the number of API calls is always an explicit, bounded choice.
 
-  ANTHROPIC_API_KEY=sk-... .venv/bin/python rgroup_expand.py --limit 10
-  OPENAI_API_KEY=sk-...    .venv/bin/python rgroup_expand.py --limit 10 --provider chatgpt
-  .venv/bin/python rgroup_expand.py --limit 10 --dry-run   # prompts only, no calls
-  .venv/bin/python rgroup_expand.py --limit 10 --resume    # only the unfilled pools
+  .venv/bin/python rgroup_expand.py rgroups_requests_<ts>.csv --limit 10
+  .venv/bin/python rgroup_expand.py rgroups_requests_<ts>.csv --limit 10 --provider chatgpt
+  .venv/bin/python rgroup_expand.py rgroups_requests_<ts>.csv --limit 10 --dry-run
+  .venv/bin/python rgroup_expand.py rgroups_requests_<ts>.csv --limit 10 \
+      --resume rgroups_generated_<ts>.csv     # only that run's unfilled pools
+
+The requests file is REQUIRED (a path, or a name in data/rgroups/): there is
+no "latest file" default, since several coachings share that folder.
 
 A bad key, no credits, or rate limiting that outlasts the retries aborts the
 run (exit 1): the pools already done are still written, the rest are marked
-"failed: not run". --resume then calls the API only for pools the latest
-rgroups_generated_*.csv lacks or left unfilled (a truncated reply is asked
-for just its missing count) and writes a new, merged generated file.
+"failed: not run". --resume GENERATED then calls the API only for pools that
+file lacks or left unfilled (a truncated reply is asked for just its missing
+count) and writes a new, merged generated file. The run prints the exact
+resume command when anything is left unfilled.
 
 Provider auto-detects from whichever key env var is set (ANTHROPIC_API_KEY ->
 claude, OPENAI_API_KEY -> chatgpt, also read from <repo>/.env if not already
@@ -26,9 +31,7 @@ not next to this script - the directory is created if missing, and the path
 is computed from this file's own location, not the current working
 directory, so this runs the same regardless of where it's invoked from.
 
-The input defaults to the most RECENTLY-RUN rgroups_requests_*.csv (by its
-embedded YYMMDDHHMMSS timestamp, not file mtime); the output CSV and its
-matching prompt log share one fresh timestamp for this run, so a
+The output CSV and its matching prompt log share one fresh timestamp for this run, so a
 rgroups_generated_<ts>.csv and expand_prompts_<ts>.txt pair always
 correspond to the exact same run. expand_raw_failures.txt stays a single
 running append-only log across every run (not per-run timestamped) - it's
@@ -36,6 +39,7 @@ a diagnostic history, not a per-run artifact.
 """
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import os
@@ -50,7 +54,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from _rgroups_files import latest, norm_text, now_ts
+from _rgroups_files import input_file, norm_text, now_ts
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from _agent_guard import refuse_in_agent_session  # noqa: E402  (manager-only API, RULES.md)
@@ -437,26 +441,32 @@ def merge_resumed(reqs: list[dict], prev_rows: list[dict], new_rows: list[dict])
 
 
 def main() -> None:
-    dry = "--dry-run" in sys.argv
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("requests", help="rgroups_requests_<ts>.csv from rgroup_prepare.py "
+                                     "(a path, or a name in data/rgroups/)")
+    ap.add_argument("--limit", type=int, required=True,
+                    help="caps the number of API calls")
+    ap.add_argument("--resume", metavar="GENERATED_CSV",
+                    help="rgroups_generated_<ts>.csv of an earlier run on the SAME "
+                         "requests: call only its unfilled pools, write a merged file")
+    ap.add_argument("--dry-run", action="store_true", help="prompts only, no API calls")
+    ap.add_argument("--provider", choices=["claude", "chatgpt"])
+    args = ap.parse_args()
+
+    dry = args.dry_run
     if not dry:
         refuse_in_agent_session("rgroup_expand.py (it calls the Anthropic/OpenAI API)")
-    resume = "--resume" in sys.argv
     provider = "dry-run" if dry else detect_provider()
-    if "--limit" not in sys.argv:
-        sys.exit("--limit N is required (it caps the number of API calls). "
-                 "See rgroups_requests.csv for how many thin pools there are.")
-    limit = int(sys.argv[sys.argv.index("--limit") + 1])
-    requests_csv = latest(DATA_DIR, "rgroups_requests", ".csv")
-    if requests_csv is None:
-        sys.exit(f"no rgroups_requests_*.csv in {DATA_DIR} — run rgroup_prepare.py first")
+    limit = args.limit
+    requests_csv = input_file(DATA_DIR, args.requests, "rgroups_requests")
     print(f"using {requests_csv.name}")
 
     reqs = list(csv.DictReader(requests_csv.open(encoding="utf-8")))
     todo, prev_rows = reqs, None
+    resume = bool(args.resume)
     if resume:
-        prev_csv = latest(DATA_DIR, "rgroups_generated", ".csv")
-        if prev_csv is None:
-            sys.exit(f"--resume: no rgroups_generated_*.csv in {DATA_DIR} to resume from")
+        prev_csv = input_file(DATA_DIR, args.resume, "rgroups_generated")
         prev_rows = list(csv.DictReader(prev_csv.open(encoding="utf-8")))
         todo = resume_plan(reqs, prev_rows)
         print(f"resuming {prev_csv.name}: {len(todo)} pool(s) still to call"
@@ -489,11 +499,15 @@ def main() -> None:
     print(f"\nprovider={provider}  pools processed={min(limit, len(todo))}/{len(todo)}  "
           f"variants ok={ok}/{len(gen_rows)}  duplicates rejected={dup}")
     print(f"wrote {out} and {prompts}")
+    unfilled = len({r["pool"] for r in gen_rows if _unfilled(r)})
+    resume_cmd = (f"rgroup_expand.py {requests_csv.name} --resume {out.name} "
+                  f"--limit {unfilled}")
     aborted = next((r["status"] for r in run_rows if "run aborted" in r["status"]), "")
     if aborted:
-        print(f"\nRUN ABORTED - {aborted}\nfix the account/key, then: "
-              f"rgroup_expand.py --resume --limit N")
+        print(f"\nRUN ABORTED - {aborted}\nfix the account/key, then: {resume_cmd}")
         sys.exit(1)
+    if unfilled and not dry:
+        print(f"{unfilled} pool(s) still unfilled; to retry just those: {resume_cmd}")
     if dry:
         print(f"dry run — no API calls; review {prompts.name}, then rerun with a key")
 

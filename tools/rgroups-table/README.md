@@ -150,9 +150,14 @@ across (`existing_enGB` / `existing_roRO`, newline-joined inside the cell) so
 step 3 builds the prompt without re-reading the bundle.
 
 ```bash
-.venv/bin/python tools/rgroups-table/rgroup_prepare.py
-# -> 110 thin pools -> rgroups_requests.csv  (110 API calls, 880 variants to generate)
+.venv/bin/python tools/rgroups-table/rgroup_prepare.py rgroups_table_<ts>.csv
+# -> 159 thin pools -> rgroups_requests_<ts>.csv  (159 API calls, 1314 variants to generate)
 ```
+
+**Every step takes its input file explicitly** (a path, or a bare name in
+`data/rgroups/`). There is no "latest file" default, because several coachings
+share `data/rgroups/` (Raul, 2026-09-30). Each step prints the file it wrote
+and the exact next command.
 
 ## Step 3 — `rgroup_expand.py --limit N` → `rgroups_generated.csv`
 
@@ -166,11 +171,16 @@ and ro-RO** — ro-RO in the **informal "tu"** (never `dumneavoastră`), native
 
 ```bash
 # prompts only, no key, no calls:
-.venv/bin/python tools/rgroups-table/rgroup_expand.py --limit 10 --dry-run
-# for real — pick ONE key:
-ANTHROPIC_API_KEY=sk-ant-... .venv/bin/python tools/rgroups-table/rgroup_expand.py --limit 10
-OPENAI_API_KEY=sk-...        .venv/bin/python tools/rgroups-table/rgroup_expand.py --limit 10 --provider chatgpt
+.venv/bin/python tools/rgroups-table/rgroup_expand.py rgroups_requests_<ts>.csv --limit 10 --dry-run
+# for real (key from .env; the MANAGER runs this, never an agent session):
+.venv/bin/python tools/rgroups-table/rgroup_expand.py rgroups_requests_<ts>.csv --limit 159
+# retry only what an earlier run left unfilled (the run prints this command):
+.venv/bin/python tools/rgroups-table/rgroup_expand.py rgroups_requests_<ts>.csv --limit N \
+    --resume rgroups_generated_<ts>.csv
 ```
+
+A bad key, no credits or a spend cap aborts the run cleanly (exit 1); what's
+done is kept.
 
 Provider auto-detects from whichever key env var is set; `--provider claude` /
 `--provider chatgpt` forces it. Model overrides: `ANTHROPIC_MODEL` (default
@@ -199,13 +209,16 @@ randomisation group only fires when its messages are **consecutive**):
 
 ```bash
 # needs a Chromium logged in to PMCP on the coaching's Micro Dialogs view (CDP)
-PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python tools/rgroups-table/rgroup_apply.py --limit 5             # DRY RUN: plan only
-PMCP_CDP=... .venv/bin/python tools/rgroups-table/rgroup_apply.py --apply --limit 1 --pool 'r_X @ Micro Dialog'
-PMCP_CDP=... .venv/bin/python tools/rgroups-table/rgroup_apply.py --dedup --apply --limit 20 --pool 'r_X @ Micro Dialog'  # remove exact-dup rows from a failed run
+G=rgroups_generated_<ts>.csv
+.venv/bin/python tools/rgroups-table/rgroup_apply.py --csv $G --limit 5 --dry-run   # plan only, no browser
+PMCP_CDP=http://127.0.0.1:9222 .venv/bin/python tools/rgroups-table/rgroup_apply.py --csv $G --limit 1 --pool 'r_X @ Micro Dialog'
+PMCP_CDP=... .venv/bin/python tools/rgroups-table/rgroup_apply.py --csv $G --dedup --limit 20 --pool 'r_X @ Micro Dialog'  # remove exact-dup rows from a failed run
 ```
 
-`--limit N` is **required**. Default is a **dry run** (navigate + print the
-plan, no writes); `--apply` writes; `--pool` restricts to one pool; `--debug`
+**Writes by default** (the old `--apply` flag is gone); `--dry-run` previews.
+It refuses to write anywhere but alex-sandbox (`_pmcp_safety`).
+
+`--csv` and `--limit N` are **required**; `--pool` restricts to one pool; `--debug`
 dumps per-step state; `--dedup` deletes rows whose text exactly copies an
 earlier sibling in the same group. Idempotent: a variant already in the pool is
 skipped; one present but not adjacent is only repositioned.

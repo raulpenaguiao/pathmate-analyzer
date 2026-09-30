@@ -7,9 +7,14 @@ Herald mailed. Fix: expand's max_tokens gets +2500 headroom (thinking tokens
 count against it; long pools came back empty).
 **rgroup_apply: no window resizing anymore** (Raul 09-30 via Warden): widen,
 restore and PMCP_WIDE removed; relies on _menu_nav overflow handling. Untested live.
-**NEXT: task 2** (alex-sandbox apply, 802, `--csv rgroups_generated_260929093415.csv`).
+**Task 2 POSTPONED by Raul (09-30 ~15:00)**: he'll create the CSV files himself
+first. Nothing was written; the browser was released (Warden + Kart told).
+Don't restart it until Raul says so. NOW: the dupcheck tool (Kart 135004, no API).
+(old:) task 2 = alex-sandbox apply, 802, `--csv rgroups_generated_260929093415.csv`.
 Waiting for the browser: Raul's export is running, so NO browser use until he
-or Warden frees it. The PMCP .env login status is unknown (rejected 09-29).
+or Warden frees it. The .env login WORKS again (Warden 122808; 09-29's rejection
+was temporary), so start_pmcp.sh re-logs in. Then, in one go: enter_edit.py ->
+apply (the session dies after ~30 min idle).
 
 **~16:57 alex-live r_ steps:** export `coaching_alex-v01-zum-ausprobieren-2_20260929-162548.json`
 (Raul ran it). Report: 138 r_ groups, 538 msgs, 175 pools, 159 thin ->
