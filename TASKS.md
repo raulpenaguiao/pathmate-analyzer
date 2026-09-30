@@ -45,8 +45,15 @@ unblocks back-burner items. **Coaching names (RULES.md "PMCP coachings"):**
         read-only close that could lift this (~5 min of browser on
         alex-sandbox after Loom).
       - Per-coaching baselines are in `935d7a8`.
-- [ ] **4. r_ CSVs from that export** (Loom, **due today**): report →
-      prepare → expand. No apply. Files and counts go to Kart + Herald.
+- [x] **4. r_ CSVs from that export** (Loom): report → prepare → expand.
+      No apply. **DONE 09-30 ~12:37:**
+      `data/rgroups/rgroups_generated_260930123725.csv`.
+      - 1314 rows across 159 pools / 125 groups: 1312 OK, 0 failed.
+      - 2 duplicates, both in r_EveningGreetings: "Good evening! 🌙" and
+        "Good evening, $participantName 🌆" repeat existing wordings.
+      - The last 2 pools needed a bigger token budget, because reasoning
+        counts against max_tokens. Fixed in `rgroup_expand.py`.
+      - Earlier partial state, kept for history:
       **17:08 PARTIAL:**
       - Table: `rgroups_table_260929165622.csv`. 538 messages, 138 r_
         groups, 175 pools, 159 thin.
@@ -101,6 +108,12 @@ still holds for everything else. Browser order: Warden → Loom → Warden.
             min earlier), after two session expiries. 0 writes. Loom
             stopped retrying to avoid a lockout. Needs Raul to check the
             PMCP credentials/account.
+            **09-30 12:28: unblocked.** The `.env` login works again (it
+            was a temporary rejection). Warden also fixed a silent
+            phase-4 failure where an export reported 0/6 senders and still
+            passed ok=True (`ef8f83a`, `3a88447`). Order now: Raul reruns
+            his export test, then Loom gets the browser for the apply.
+            Task 2 already has Raul's 09-29 live-write OK.
       - [ ] 2b. Re-export: the **"after"** snapshot (Warden).
       - [ ] 2c. Diff before vs after `.json`. The expected result is
             exactly the added variants in the right r_ groups, and
