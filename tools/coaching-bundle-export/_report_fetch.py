@@ -65,6 +65,13 @@ async def enter_edit_view(page, coaching_name: str) -> bool:
     async def in_edit_view() -> bool:
         return want in await page.evaluate("() => document.body.innerText")
 
+    if await in_edit_view():
+        return True
+    # inside ANOTHER coaching's Edit view (a fresh login can restore the last
+    # view, 2026-10-01): leave it via 'Back To List' first. Clicking the text
+    # 'Coachings' there hits the page heading, not the sidebar, and does nothing.
+    if "Back To List" in await page.evaluate("() => document.body.innerText"):
+        await back_to_list(page)
     # the row-select retries can land as a DOUBLE-click, which opens the
     # coaching by itself: the row vanishes, selection "fails", and we used to
     # report failure while already in the Edit view (2026-09-25). So ask
