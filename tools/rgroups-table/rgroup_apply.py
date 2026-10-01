@@ -169,6 +169,43 @@ def build_plan(args):
     return plan, meta
 
 
+def precheck(plan, export: str) -> dict[str, str]:
+    """Offline: which of the plan's pools does this coaching export lack, and
+    why? (dialog missing from the menu, or dialog present without the group).
+    Informational - the live run checks again itself, since an export can be
+    stale."""
+    import json
+    p = Path(export)
+    if not p.is_file():
+        p = HERE.parents[1] / "data" / "exports" / export
+    if not p.is_file():
+        sys.exit(f"--export: not found: {export}")
+    bundle = json.loads(p.read_text(encoding="utf-8"))
+    md_path = {m["uid"]: tuple(m.get("folderPath") or []) + (m["name"],)
+               for m in bundle["microDialogs"]}
+    groups_at: dict[tuple, set] = {path: set() for path in md_path.values()}
+    for n in bundle["nodes"]:
+        g = (n.get("randomisationGroup") or "").strip()
+        if g and n.get("microDialogUid") in md_path:
+            groups_at[md_path[n["microDialogUid"]]].add(g)
+    missing: dict[str, str] = {}
+    for it in plan:
+        path = tuple(it["path"])
+        if it["pool"] in missing:
+            continue
+        if path not in groups_at:
+            missing[it["pool"]] = f"dialog {' / '.join(path)!r} not in this coaching"
+        elif it["group"] not in groups_at[path]:
+            missing[it["pool"]] = f"dialog exists, but has no row of group {it['group']!r}"
+    pools = {it["pool"] for it in plan}
+    variants = sum(1 for it in plan if it["pool"] in missing)
+    print(f"\nPRECHECK against {p.name}: {len(pools) - len(missing)}/{len(pools)} pools "
+          f"present; {len(missing)} missing ({variants} variants would be skipped)")
+    for pool, why in missing.items():
+        print(f"  MISSING {pool}: {why}")
+    return missing
+
+
 def print_plan(plan):
     by_dialog: dict[tuple, list] = {}
     for p in plan:
@@ -433,7 +470,11 @@ async def run_apply(plan, args, meta):
         await dismiss(page)  # close the outer message modal
         return True
 
-    added = errors = skipped = 0
+    added = errors = skipped = skipped_missing = 0
+    # pool -> why it can't be applied (dialog or group absent in this coaching).
+    # Raul 10-01: a CSV made from one coaching may name pools another lacks;
+    # report each once and move on, never abort the run.
+    missing: dict[str, str] = {}
     async with async_playwright() as pw:
         b = await pw.chromium.connect_over_cdp(CDP)
         ctx = b.contexts[0]
@@ -585,9 +626,22 @@ async def run_apply(plan, args, meta):
                 if p["skip_existing"]:
                     skipped += 1
                     continue
+                if p["pool"] in missing:   # reported once, then every variant skipped
+                    skipped_missing += 1
+                    continue
                 label = f"{' / '.join(p['path'])}  [{p['group']}]  {p['en'][:40]!r}"
                 try:
-                    await S.navigate_and_select(page, p["path"])
+                    try:
+                        await S.navigate_and_select(page, p["path"])
+                    except RuntimeError as e:
+                        if "not found" not in str(e):
+                            raise
+                        why = f"dialog not in the menu ({e})"
+                        missing[p["pool"]] = why
+                        skipped_missing += 1
+                        print(f"  SKIP pool {p['pool']!r}: {why} - moving on")
+                        await S.close_menus(page)
+                        continue
                     await S.wait_round_trip(page)
                     heads, rows = await read_table(page)
                     gi = rg_col(heads)
@@ -623,7 +677,11 @@ async def run_apply(plan, args, meta):
                                         if gi is not None and gi < len(r)
                                         and r[gi].strip() == p["group"]), None)
                     if src is None:
-                        print(f"  ! {label}: no existing row with this group"); errors += 1
+                        why = (f"no row of group {p['group']!r} in dialog "
+                               f"{' / '.join(p['path'])!r}")
+                        missing[p["pool"]] = why
+                        skipped_missing += 1
+                        print(f"  SKIP pool {p['pool']!r}: {why} - moving on")
                         continue
                     grp = grp_rows(rows, gi, p["group"])
                     # the grid truncates long text; en_cell_matches handles that.
@@ -775,7 +833,12 @@ async def run_apply(plan, args, meta):
                     await dismiss(page)
         finally:
             await S.close_menus(page)  # leave no menu popup open for the next tool
-    print(f"\nadded={added}  skipped={skipped}  errors={errors}")
+    print(f"\nadded={added}  skipped={skipped}  skipped-missing={skipped_missing}  "
+          f"errors={errors}")
+    if missing:
+        print(f"\n{len(missing)} pool(s) skipped as missing from this coaching:")
+        for pool, why in missing.items():
+            print(f"  - {pool}: {why}")
 
 
 def main():
@@ -791,6 +854,10 @@ def main():
     ap.add_argument("--csv", metavar="FILE",
                     help="generated CSV to apply (path, or a name in data/rgroups/); "
                          "REQUIRED except with --restore-from")
+    ap.add_argument("--export", metavar="COACHING_JSON",
+                    help="an export of the TARGET coaching: list up front, offline, "
+                         "the plan's pools whose dialog or group it lacks (the "
+                         "live run also detects and skips them itself)")
     ap.add_argument("--dedup", action="store_true",
                     help="delete rows in --pool whose text exactly copies an "
                          "earlier sibling in the same group (clean up failed runs)")
@@ -844,6 +911,8 @@ def main():
         asyncio.run(run_apply(plan, args, meta))
         return
 
+    if args.export:
+        precheck(plan, args.export)
     print_plan(plan)
     if args.dry_run:
         print("dry run - nothing written (this preview is CSV-only, so it "
