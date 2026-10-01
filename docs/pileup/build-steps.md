@@ -1,19 +1,21 @@
 # Build steps
 
-How to build the design in the PMCP editor, step by step. Written for the **new test-workbench coaching** Raul is setting up. **No writes happen before that coaching exists.** Every live step goes through Warden's browser lock.
+How to build the design in the PMCP editor, step by step. **Targets (Raul, 2026-09-29):** Phase A runs on **sandbox** (`Minimal Coaching for Development 2 for Raul`). The build goes into **alex-sandbox** (`ALEX v01 zum Ausprobieren`). **alex-live** is never changed. Where this page says "workbench", read alex-sandbox. Every live step goes through Warden's browser lock.
 
 Notation: *rule node* = a node in the Rules tree. Nested nodes act as AND: a child only runs if its parent was true (confirmed live, see the pile-up findings in the archive). An *assignment* is a node with the operator "calculate value (or create text) but result is always true" and a result variable.
 
 ---
 
-## Phase A: platform tests (one browser session, on the workbench)
+## Phase A: platform tests (on sandbox)
 
-The design depends on three behaviours the PMCP docs don't describe. Each test is small and throwaway.
+The design depends on three behaviours the PMCP docs don't describe ([../pmcp-docs/README.md](../pmcp-docs/README.md#not-documented-anywhere)). Each test is small and throwaway.
+
+**Needs a test participant on sandbox**, enrolled with monitoring active, so the rules actually fire. A2 and A3 can be read from Results → variables (including history and timestamps). A1 needs someone looking at the chat in the app (dev QR), because the docs don't list Results' message statuses.
 
 | # | Question | Setup | Pass means | If it fails |
 |---|---|---|---|---|
 | A1 | Does "clears the current dialog cascade" on dialog B's first message remove dialog A's open, unanswered question? | Test dialog A asks a Yes/No question. Test dialog B's first message has the clear setting. Start A, don't answer, then start B. Finish B. | A's question is gone and does not reappear by itself | Use PMCP's own recall instead and design around it (bigger change; back to Raul) |
-| A2 | Does a variable set by one PERIODIC rule show up in a later rule in the same pass? | Rule 1 sets `$t=1`; rule 2 (below it) fires a test message only if `$t==1`. Reset `$t=0` daily. | The message fires on the same pass | Add a "one start per pass" flag, or rely on rank-order spacing (note it in interruptions.md) |
+| A2 | Does a variable set by one PERIODIC rule show up in a later rule in the same pass? | Gate both rules on `$testOn==1`. Rule 1 (top): `$t = $t + 1`. Rule 2 (directly below): `$u = $t`. Let it run for about a minute, then set `$testOn=0`. (A plain "fire a message if `$t==1`" test can't tell same pass from next pass, which is only seconds later.) | `$u == $t` after every pass (same-pass visible). If `$u == $t − 1`, rule 2 saw the value from the start of the pass | Add a "one start per pass" flag, or rely on rank-order spacing (note it in interruptions.md) |
 | A3 | Do a sending rule's "does not answer" follow-up rules run when its question times out? | Test sender with a 1-minute timeout and one "does not answer" rule setting `$u=1`. Let it time out. | `$u == 1` in the participant's variables | Use the time-based cleanup rule (B5), which is the design default anyway. **Either way: export the sandbox coaching after A1 and A3 and send the export path to Mirror.** Its chat engine needs a sender with non-empty `doesNotAnswerRules` (A3) and, once Warden exports it, the clear-cascade flag (A1) to model both. |
 
 Log each result in `autochanges/`, then update [interruptions.md](interruptions.md#not-yet-verified-needs-one-test-on-the-workbench-coaching-booked-through-warden).
