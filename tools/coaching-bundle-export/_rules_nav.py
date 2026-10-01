@@ -883,6 +883,11 @@ def parse_rule_fields(dump: dict) -> dict:
         "actions": actions,
         "primaryAction": actions[0] if actions else None,
         "microDialogToStart": _clean_select(f.get("microDialogToStart")),
+        # exactly what the select shows, incl. '$participantNextMicroDialogIdentifier'
+        # (taken above as PMCP's 'not set' default; whether it instead means
+        # 'start the dialog this variable names' is an open question, 2026-10-01)
+        "microDialogToStartRaw": ((f.get("microDialogToStart") or {}).get("value") or "")
+                                 .replace(_DISABLED, "").strip() or None,
         "microDialogPath": (_clean_select(f.get("microDialogToStart")) or "").split(" > ") or None,
         "messageGroup": _clean_select(f.get("messageGroup")),
         "sendHourVariable": hour if (hour or "").startswith("$") else None,
