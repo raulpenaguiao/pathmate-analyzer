@@ -2,19 +2,18 @@
 
 _Updated 2026-10-01 14:25._
 
-## Now (2026-10-01 14:25)
-- **Raul's top priority: PMCP editor documentation** (Warden, Mirror, Mason, Kart).
-  - (a) Annotated screenshots of every editor on alex-sandbox: `docs/pmcp-ui/screens/`
-    (README maps each red box to its question). Red boxes = Mason's Unknown list. Done.
-  - (b) 15 rules sit outside the 4 execution sections in alex-sandbox. Exports
-    dropped them until cd25e59. Done.
-  - (c) The 'leaves' count now means rules without child rules. Done.
-  - (d) Richer export (mine; Mirror owns the field list, Mason the meanings). Done:
-    disabled state per sender (da60101), the raw dialog target (999787f). Next:
-    Mirror's coverage-map §6 list (message settings), plus Mirror's 2 suspected
-    scraper bugs (storeResultVariable on r-071; answerTabs.disabled always false).
-- **Browser:** mine, for docs/export work. Loom holds until Kart's GO (Raul).
-  My premature GO to Loom at 14:05 was withdrawn within a minute; nothing ran.
+## Now (2026-10-01 17:55)
+- **Running: the richer-exporter test** = a full alex-sandbox export with all of today's
+  exporter changes (list: tools/coaching-bundle-export/EXPORT_CHANGES_2026-10-01.md).
+  Path + results to Kart, Mirror and Mason when it's done (~25 min). alex-sandbox now also
+  holds 57 r_ variants from Loom's partial apply.
+- Done today: the annotated editor screenshots (docs/pmcp-ui/screens/, red boxes =
+  Mason's Unknown list), the 50 rule operators, the 25 answer types, 15 loose rules
+  found + kept in exports, 2 scraper bugs fixed (store variable, greyed tabs), a review
+  of Loom's apply (toolbar fine; a selection check was added, c945781).
+- Delay 17:13-17:50: the PMCP session expired and the auto-login couldn't type into
+  the form (nothing submitted); a fresh browser fixed it.
+- Loom is on the back burner (Raul). No GO from me; only Kart/Raul give one.
 
 ## Coachings (RULES.md, Raul 09-29)
 alex-live = "ALEX v01 zum Ausprobieren 2" (never changed; a full export needs a
