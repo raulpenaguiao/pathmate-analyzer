@@ -367,7 +367,11 @@ async def run_apply(plan, args, meta):
             for i in range(await loc.count()):
                 b = loc.nth(i)
                 box = await b.bounding_box()
-                if not box or box["x"] > 1600:      # row-action column, far right
+                # skip the per-row buttons INSIDE the table (row-action column).
+                # Was `box["x"] > 1600`, which only worked in the old 12000px
+                # window; at the fixed 1400px (Raul 09-30) every button is left
+                # of 1600 and a row's Edit (the comment editor) got clicked.
+                if not box or await b.evaluate("e => !!e.closest('.v-table')"):
                     continue
                 cls = await b.get_attribute("class") or ""
                 if "v-disabled" not in cls:
