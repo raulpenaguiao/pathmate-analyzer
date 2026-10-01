@@ -53,7 +53,15 @@ The export is thin, and nobody owned making it richer. Inputs:
       - [x] the disabled state per sender field (`da60101`)
       - [ ] next: variable dialog targets
         (`$participantNextMicroDialogIdentifier`), then Mirror's §6 list
-- [ ] Email to Simone (Herald)
+- [ ] **Test the richer export** (Raul, after task 2). Warden's AFTER
+      export of alex-sandbox, run with the newest exporter, is the test.
+      - Mirror checks it against coverage map §6: arrives / plausible /
+        the engine loads it.
+      - Mason checks the meanings.
+      - Loom's apply diff covers message rows and r_ pools only.
+        Exporter-only differences get their own section.
+- [ ] Email to Simone (Herald). **v10 is ready, with 22 questions.** Raul
+      sends it.
 - [ ] Richer export capturing every "needed" row (Warden; Mirror checks
       it, Mason checks the meanings)
 
