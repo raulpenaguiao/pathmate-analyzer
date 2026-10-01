@@ -127,3 +127,4 @@ New variables: `$lastDoseTakenAt` (number, reset daily), `$hyperparameterSpiroAf
   2. *Wording.* In the spirometry Stage3 pool, "within reach" and "nearby" are the same text in ro-RO (in both coachings). Reword one of them so the pool keeps distinct variants.
   3. *Wording.* In Timeless Greetings, ro-RO rows 4 and 6 are both "Bună!". Reword one.
   4. *Wording.* The morning greetings "Good morning!" and "Good morning! 🌞" differ only by an emoji. Low priority: keep both, or fold them into one.
+  5. **Typo** (Loom's masculine pass, `tools/rgroups-table/ro_masculine.py`; via Kart, 2026-10-01). The 3 weekly-incentive intros (lottery, streak, value retention) read "Ești Sigur/ă?" with a stray capital S. Under the masculine rule they become "Ești sigur?". All 5 masculine changes: `data/rgroups/masculine_alex-live_20260930-143134.md`.
