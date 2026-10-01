@@ -87,7 +87,13 @@ async def enter_edit_view(page, coaching_name: str) -> bool:
     # report failure while already in the Edit view (2026-09-25). So ask
     # "are we there?" first, not "did each step work?".
     if not await _select_coaching_row(page, coaching_name):
-        return await in_edit_view()
+        # a double-click already opened it: give the editor time to render
+        # before answering (2026-10-01: answered too early, failed a run)
+        for _ in range(16):
+            if await in_edit_view():
+                return True
+            await page.wait_for_timeout(500)
+        return False
     edit = page.locator(".v-button-caption", has_text="Edit")
     if not await edit.count():
         return await in_edit_view()
