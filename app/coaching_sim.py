@@ -134,6 +134,7 @@ _FREE_INPUT_TYPES = {
     "free text multiline": ("text", True),
     "free text multiline raw": ("text", True),
     "free numbers": ("number", False),
+    "free numbers raw": ("number", False),
     "date": ("date", False),
     "time": ("time", False),
 }
