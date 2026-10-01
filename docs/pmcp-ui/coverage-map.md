@@ -190,23 +190,24 @@ Report, so they need a read of each message's editor.
 
 ## 7. Open meanings (for Mason and PathMate)
 
-Numbers refer to the PathMate email in Mason's doc.
+Numbers refer to Herald's PathMate email, v8 (22 questions):
+`agents/herald/context/drafts/pathmate-email/draft.md`.
 
-| # | Option | Question |
-|---|---|---|
-| 1 | Message group | What it is, and when to use it instead of starting a dialog (Q2) |
-| 2 | Mark case solved | Does it also stop a periodic pass? (Q3) |
-| 3 | Hour to send | The hour has already passed, or two dialogs are due at once (Q4) |
-| 4 | Rule not-answered time | Is it really only for "Send message"? Does it cover the first message or every question? (Q5, Q15) |
-| 5 | DOES / DOES NOT answer | When they run (Q6, Q7) |
-| 6 | Starting a dialog while a question is open | Is the open question deactivated, queued or removed? (Q8) |
-| 7 | Same-pass visibility | (Q9) |
-| 8 | Memory settings | Parking and recall, last vs most recent still filled (Q10, Q13) |
-| 9 | Cascade settings | Clear current / clear all / exempt (Q14) |
-| 10 | Per-message "minutes until unanswered" vs the rule's | Which one applies; what "infinite" means (Q12) |
-| 11 | Value stored on no reply | Is it written when the timeout passes? (new) |
-| 12 | Message key | Is it the looped-message identifier? (new) |
-| 13 | Update transition point; update participant to newer coaching | What they do (new) |
+| # | Option | Question | Email |
+|---|---|---|---|
+| 1 | Message group | What it is, and when to use it instead of starting a dialog | Q3 |
+| 2 | Mark case solved | Does it also stop a periodic pass? | Q5 |
+| 3 | Hour to send | The hour has already passed, or two dialogs are due at once | Q7 |
+| 4 | Rule not-answered time | Is it really only for "Send message"? Does it cover the first message or every question? | Q8 |
+| 5 | DOES / DOES NOT answer | When they run | Q8 |
+| 6 | Starting a dialog while a question is open | Is the open question deactivated, queued or removed? | Q4 |
+| 7 | Same-pass visibility | Do later rules in a pass see earlier writes? | Q2 |
+| 8 | Memory settings | Parking and recall, last vs most recent still filled | Q15 |
+| 9 | Cascade settings | Clear current / clear all / exempt | Q16 |
+| 10 | Per-message "minutes until unanswered" vs the rule's | Which one applies; what "infinite" means | Q17 |
+| 11 | Value stored on no reply | Is it written when the timeout passes? | Q17 |
+| 12 | Message key | Is it the looped-message identifier? | Q9 |
+| 13 | Update transition point; update participant to newer coaching | What they do | Q18, Q19 |
 
 ## 8. What the chat engine assumes today
 
