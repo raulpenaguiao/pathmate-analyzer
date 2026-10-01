@@ -1,17 +1,20 @@
 # Warden — status
 
-_Updated 2026-09-30 13:30._
+_Updated 2026-10-01 14:25._
 
-## Now (2026-10-01 11:45)
-- **Task 2 BEFORE export of alex-sandbox: done.**
-  `data/exports/coaching_alex-v01-zum-ausprobieren_20261001-112433.json`. ok=True,
-  90/90 targets, 18/18 senders, 13/14 jumps. Loom + Kart have it.
-- **Browser order:** Mason's urgent capped ~30 min read-only slot on sandbox
-  (rule-modal options, Raul) -> Loom's alex-sandbox apply -> my AFTER export.
-- Fixed today: bar menus open by hover first (65697d8; headless lost 2 folders before).
-  The mail listener is now `agents/waitmail.sh` (Raul 10-01).
-- Herald's PathMate-email claims checked: claims 2 and 4 are done; the exact
-  captions come from Mason's live look.
+## Now (2026-10-01 14:25)
+- **Raul's top priority: PMCP editor documentation** (Warden, Mirror, Mason, Kart).
+  - (a) Annotated screenshots of every editor on alex-sandbox: `docs/pmcp-ui/screens/`
+    (README maps each red box to its question). Red boxes = Mason's Unknown list. Done.
+  - (b) 15 rules sit outside the 4 execution sections in alex-sandbox. Exports
+    dropped them until cd25e59. Done.
+  - (c) The 'leaves' count now means rules without child rules. Done.
+  - (d) Richer export (mine; Mirror owns the field list, Mason the meanings). Done:
+    disabled state per sender (da60101), the raw dialog target (999787f). Next:
+    Mirror's coverage-map §6 list (message settings), plus Mirror's 2 suspected
+    scraper bugs (storeResultVariable on r-071; answerTabs.disabled always false).
+- **Browser:** mine, for docs/export work. Loom holds until Kart's GO (Raul).
+  My premature GO to Loom at 14:05 was withdrawn within a minute; nothing ran.
 
 ## Coachings (RULES.md, Raul 09-29)
 alex-live = "ALEX v01 zum Ausprobieren 2" (never changed; a full export needs a
