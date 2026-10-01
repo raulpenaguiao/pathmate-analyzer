@@ -73,7 +73,13 @@ ready (Herald v10, 22 questions), and Loom is released.** Task 2: a
 then Loom's diff and artifact. **~15:00: the apply stopped after 57
 variants** (a toolbar issue in the spirometry dialog, plus Daytime
 Greetings row 6). **Raul: Loom goes to the back burner**, and Warden tests
-the new exporter on alex-sandbox now.
+the new exporter on alex-sandbox now. Warden's review (15:03):
+- The spirometry stop was probably the tool deselecting its own row. The
+  fix is to verify the selection before Duplicate.
+- Row 6 is correct.
+- `7359cac` is OK.
+
+Resume is safe after the selection check, but it waits for Raul.
 
 ## ▶ 2026-10-01: Raul's decisions
 
