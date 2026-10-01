@@ -119,8 +119,8 @@ Two results that come from the export itself, not from the editor:
 | Only a push notification / always pushed | no | later | doc (push pages) | — |
 | **Deactivates and remembers former open questions** | **no** | **soon** | unknown | Used by v01 to park interrupted questions (PathMate Q15) |
 | **Recalls deactivated questions (last / most recent still filled)** | **no** | **soon** | unknown | Q15 |
-| **Clears the current / all dialog cascades** | **no** | **soon** | unknown | Pile-up test A1, Q14 |
-| Not cleared on "clear all" | no | soon | unknown | Q14 |
+| **Clears the current / all dialog cascades** | **no** | **soon** | unknown | Pile-up test A1, Q16 |
+| Not cleared on "clear all" | no | soon | unknown | Q16 |
 | **Minutes until handled as unanswered (per message)** | **no** | **now** | label only | A per-message timeout, separate from the rule's. Which one wins? "infinite" may be what `$participantInfiniteBlockingMessages*` counts (Q17). |
 | Message rules (all must be TRUE) | yes (`triggerExprs`) | now | doc: AND, no nesting | — |
 
