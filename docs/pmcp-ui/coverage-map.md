@@ -18,6 +18,15 @@ Only the **.json export** counts here: that's our exporter reading the editor
 tables. The **.html export** (the Report from PMCP's Export button) is only
 an input to it.
 
+**The split of authority with Mason's editor documentation:** what a
+setting *means* (Confirmed / Inferred / Unknown) is settled in
+[PMCP editor: what every setting does](https://claude.ai/code/artifact/27405faa-5de0-4e32-a865-c5de349ef0cb).
+This map settles whether a setting is *exported* and whether the *engine
+uses it*. Mason copies those two columns into his doc. Where the Meaning
+column here and his doc differ, his doc wins; tell Mirror so this map can
+be fixed. For example, ALEX has **21 custom answer types**, which aren't
+covered in §3 yet.
+
 Sources:
 - Raul's notes and screenshots: `docs/pmcp-ui/raul-2026-10-01/`
 - Mason's live look on 1 Oct:
