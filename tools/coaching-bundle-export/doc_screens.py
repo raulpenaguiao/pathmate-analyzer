@@ -210,6 +210,60 @@ async def view_rule_editor(page):
     await relogin_sandbox(page)
 
 
+async def read_dropdown_pages(page, sel, nn: int, view: str, title: str) -> list[str]:
+    """Open a Vaadin filterselect and read ALL its pages (keyboard paging:
+    clicking the popup's page arrows closes it). Screenshots each page.
+    Nothing is selected (Escape at the end; the editor is discarded anyway)."""
+    await sel.locator(".v-filterselect-button").click()
+    await page.wait_for_timeout(1200)
+    status = """() => ((document.querySelector('.v-filterselect-suggestpopup .v-filterselect-status')
+                        || {}).textContent || '').trim()"""
+    for _ in range(8):
+        if (await page.evaluate(status)).startswith("1-"):
+            break
+        await page.keyboard.press("PageUp")
+        await page.wait_for_timeout(500)
+    items, k = [], 0
+    while True:
+        k += 1
+        items += await page.evaluate("""() => [...document.querySelectorAll(
+            '.v-filterselect-suggestpopup .gwt-MenuItem')].map(e => e.textContent.trim())""")
+        await shot(page, nn, f"{view}-p{k}", f"{title} (dropdown page {k})",
+                   ".v-filterselect-suggestpopup", "Opened only to read the list; nothing selected.")
+        m = re.match(r"(\d+)-(\d+)/(\d+)", await page.evaluate(status))
+        if not m or int(m.group(2)) >= int(m.group(3)) or k > 8:
+            break
+        await page.keyboard.press("PageDown")
+        await page.wait_for_timeout(700)
+    await page.keyboard.press("Escape")
+    if items:
+        (OUT / f"{nn:02d}-{view}.md").write_text(
+            f"# {nn:02d} {title} (all pages)\n\n" + "\n".join(
+                f"{i + 1}. {t or '(blank)'}" for i, t in enumerate(items)) + "\n", encoding="utf-8")
+    print(f"  {view}: {len(items)} entries over {k} page(s)")
+    return items
+
+
+async def view_operators(page):
+    """The comparison-operator dropdown of a rule (between Rule [x] and
+    Comparison term [y]), all pages (Mason, 2026-10-01)."""
+    assert await R.ensure_rules_tree(page)
+    await R.expand_all(page)
+    nodes = (await R.dump_tree(page))[0]["nodes"]
+    target = next(r for r in R.build_rule_tree(nodes) if r["kind"] == "sender"
+                  and r["section"] != R.OUTSIDE_SECTIONS)
+    if not await R.open_rule_modal(page, 0, target["treeIndex"]):
+        raise SystemExit("rule editor did not open")
+    win = page.locator(".v-window").last
+    fs = win.locator(".v-filterselect")
+    for i in range(await fs.count()):
+        val = await fs.nth(i).locator(".v-filterselect-input").input_value()
+        if "value" in val:     # 'calculated value equals', 'text value ...'
+            await read_dropdown_pages(page, fs.nth(i), 15, "rule-operators", "Rule comparison operators")
+            break
+    await relogin_sandbox(page)
+
+
 async def view_message_editor(page):
     """A message's editor: full, additional settings in the answer and the
     no-answer state, and the answer-type list."""
@@ -329,7 +383,7 @@ async def view_rules_tab(page):
     await shot(page, 5, "rules-tab", "Rules tab (collapsed): the 4 sections and rules outside them", None)
 
 
-VIEWS = {"rules-tab": view_rules_tab, "rule": view_rule_editor, "message": view_message_editor,
+VIEWS = {"rules-tab": view_rules_tab, "rule": view_rule_editor, "operators": view_operators, "message": view_message_editor,
          "decision-point": view_decision_point, "event": view_event, "variables": view_variables}
 
 
