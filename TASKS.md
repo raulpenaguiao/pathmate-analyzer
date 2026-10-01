@@ -5,6 +5,39 @@ they grouped it. Status updated as work lands. For the dependency-ordered
 game plan and full detail on each item, see `README.md`'s "Roadmap: five
 workstreams" section — this file is the checklist, that's the writeup.
 
+## ▶ TOP PRIORITY (Raul 2026-10-01 afternoon): PMCP editor documentation + richer export
+
+The export is thin, and nobody owned making it richer. Inputs:
+- Raul's notes and screenshots, `docs/pmcp-ui/raul-2026-10-01/`
+  (`5a63f9b`)
+- Mason's rule-modal explainer
+
+**Owners:**
+- **Mirror:** the export coverage map. It decides what the `.json` must
+  hold: one row per editor option, with in-export / needed / meaning known
+  / open question. Mirror also captures the important questions for each
+  dialog.
+- **Warden:** explores **alex-sandbox only** and takes annotated
+  screenshots of every editor and state, with **red boxes** on unknowns,
+  in `docs/pmcp-ui/screens/`. Warden also implements the richer export.
+- **Mason:** semantics, and the **documentation artifact** (Raul's
+  choice).
+- **Herald:** turns the red boxes into the **Simone email** (extending the
+  v6 draft). Raul sends it.
+
+**Deliverables:**
+- [ ] Documentation artifact with red boxes (Mason)
+- [ ] Coverage map (Mirror), committed in `docs/pmcp-ui/`
+- [ ] Annotated screenshots (Warden)
+- [ ] Rules outside the 4 types, listed (Warden). Do we want them?
+- [ ] The exporter's "leaves" count: make it meaningful or drop it
+      (Warden)
+- [ ] Email to Simone (Herald)
+- [ ] Richer export capturing every "needed" row (Warden; Mirror checks
+      it, Mason checks the meanings)
+
+**Browser:** Warden's documentation pass comes first. Loom's apply waits.
+
 ## ▶ 2026-10-01: Raul's decisions
 
 - [x] **Masculine version of ALL messages.** **Done:**
