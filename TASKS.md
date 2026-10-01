@@ -40,7 +40,7 @@ workstreams" section — this file is the checklist, that's the writeup.
           Greetings, with different text in each copy and no Romanian in
           either.
         - The generated CSVs are clean. Detail passed to Mason.
-- [ ] **Questionnaire `multiSubmit` = false in the plan.** Mason puts it
+- [x] **Questionnaire `multiSubmit` = false in the plan.** Mason puts it
       in the internal page (One Question at a Time) and `docs/pileup`.
       Herald puts it in the advisor page (Coming Back with Context).
       Warden owns the PMCP setting.
@@ -49,7 +49,9 @@ workstreams" section — this file is the checklist, that's the writeup.
         the ACQ and the education quizzes.
         - **Caveat:** the ACQ questionnaire id must be unique per round,
           or false blocks later rounds.
-      - [ ] Advisor page (Herald), wording supplied by Mason.
+      - [x] Advisor page (Herald), wording supplied by Mason. **Done:**
+        Coming Back with Context v6, with a one-submission-per-participant
+        paragraph under Rollout. Mason confirmed it.
 - [ ] **Follow-up email to Simone** (Raul sends it; Herald supports).
       Herald first asks Raul for a **screenshot, a description and a
       goal**, and doesn't go ahead until all three arrive. Warden and
