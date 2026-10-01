@@ -1,6 +1,22 @@
 # Loom — status
 
-## 2026-09-30 ~12:40 — CURRENT
+## 2026-09-30 ~16:40 — CURRENT
+- **Every r_ step now takes its input file explicitly** (Raul): prepare TABLE,
+  expand REQUESTS [--resume GENERATED], apply --csv (required). The pipeline
+  passes the printed files along. Commit 2703975.
+- **Dupcheck done** (Kart 135004): rgroup_dupcheck.py; pools = consecutive runs;
+  cond=different labelled. Reports for alex-live/alex-sandbox in data/rgroups/
+  dupcheck_*.md; Kart mailed.
+- **Advisor page**: Herald's v5 (commands 'See it run') checked, accurate. Smith
+  was asked for portal screenshots, to go to Herald.
+- Task 2 still POSTPONED (Raul makes the CSVs first). No API runs by Loom.
+- Raul: masculine copy of rgroups_table_260930160010.csv (alex-sandbox, 424 rows)
+  -> `data/rgroups/rgroups_table_260930160010_masculine.csv`. Only 3 ro-RO cells
+  had gender alternations (sigur/ă, implicat/ă, consecvent(ă)); every other
+  user-directed form was already masculine, and the feminine forms modify
+  feminine nouns. Dupcheck: ro-RO-holds-English check added (43acb02).
+
+## 2026-09-30 ~12:40
 **alex-live r_ CSVs DONE**: `rgroups_generated_260930123725.csv`, 1314 rows /
 159 pools / 125 groups: 1312 ok, 2 dup (r_EveningGreetings), 0 failed. Kart +
 Herald mailed. Fix: expand's max_tokens gets +2500 headroom (thinking tokens

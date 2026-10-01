@@ -9,21 +9,12 @@ anyone to.
 
 1. Read RULES.md, every AGENT.md, my STATUS.md and this folder.
 2. `agents/checkmail.sh loom` and process everything.
-3. **Start the mailbox listener** (RULES.md rule 5). Use the `Monitor` tool
-   (allow-listed, no prompt; NOT a Bash background loop) with
-   `timeout_ms: 1800000`, description "new mail in Loom's inbox":
-   ```
-   d=/home/raul/projects/pathmate-analyzer/agents/loom/mailbox/inbox
-   prev=$(find "$d" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l)
-   while true; do
-     n=$(find "$d" -maxdepth 1 -name '*.md' 2>/dev/null | wc -l)
-     [ "$n" -gt "$prev" ] && echo "new mail: $n unread (was $prev)"
-     prev=$n
-     sleep 60
-   done
-   ```
-   Monitor expires after 30 min at most: **re-arm it on every expiry notice.**
-   On a "new mail" event, read it with plain `checkmail.sh` calls.
+3. **Start the mailbox listener** (RULES.md rule 5, Raul 10-01): run
+   `agents/waitmail.sh loom` as a background Bash command
+   (run_in_background: true). It's allow-listed with no time limit, and exits
+   only when unread mail is waiting. Then read with plain `checkmail.sh` and
+   start it again. NO Monitor loops: the 30-min restarts flooded Raul's
+   terminal.
 4. Check mail by hand right before any live browser run and after each step.
 5. State codename and role, then resume the next step from STATUS.md.
 
