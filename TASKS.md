@@ -59,7 +59,10 @@ The export is thin, and nobody owned making it richer. Inputs:
 
 **Browser:** Warden's documentation pass comes first. **Loom holds ALL
 work (apply, trial, masculine CSV) until the Simone email task is done**
-(Raul, 10-01). The restart needs Kart's GO.
+(Raul, 10-01). The restart needs Kart's GO. **~14:30: the Simone email is
+ready (Herald v10, 22 questions), and Loom is released.** Task 2: a
+`--limit 1` trial, then the full 793 if clean, then Warden's AFTER export,
+then Loom's diff and artifact.
 
 ## ▶ 2026-10-01: Raul's decisions
 
