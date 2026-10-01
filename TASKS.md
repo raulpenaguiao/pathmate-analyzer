@@ -7,7 +7,18 @@ workstreams" section — this file is the checklist, that's the writeup.
 
 ## ▶ 2026-10-01: Raul's decisions
 
-- [ ] **Masculine version of ALL messages** (Loom, **top priority** while
+- [x] **Masculine version of ALL messages.** **Done:**
+      `tools/rgroups-table/ro_masculine.py`, rule-based with no LLM. Files
+      are in `data/rgroups/masculine_*.csv` with an `.md` report each.
+      - alex-live: 1325 texts, **5 changed** (Sigur/ă ×3 in the incentive
+        intros, sigur/ă in Attic, consecvent(ă)), 0 for review.
+      - alex-sandbox (`111706`): 1048 texts, **3 changed**, 0 for review.
+        Loom reruns it on Warden's new export.
+      - Raul's task-2 CSV: 0 changed. Everything else was already
+        masculine.
+      - The stray capital in "Ești Sigur/ă?" is routed to Mason.
+
+      Original brief: (Loom, **top priority** while
       the BEFORE export runs; offline, no API, no PMCP writes).
       - Scope: every ro-RO message in alex-live `20260930-143134`, then
         alex-sandbox.
