@@ -38,38 +38,36 @@ OUT = REPO / "docs" / "pmcp-ui" / "screens"
 CDP = "http://127.0.0.1:9222"
 SANDBOX = "ALEX v01 zum Ausprobieren"   # alex-sandbox, the ONLY coaching touched
 
-# control-text substring -> the open question (a red box)
+# control-text substring -> the open question (a red box). Kept IN SYNC with
+# the 'Unknown' rows of Mason's 'PMCP editor: what every setting does'
+# (2026-10-01): things the PMCP docs already answer (units, cascade vs jump,
+# variable properties, ...) get NO red box, so PathMate doesn't think we
+# skipped the docs (Herald). Rules outside the 4 sections are added in JS.
 UNKNOWN = [
-    ("Mark case as solved", "What does 'mark case as solved' do, and where is a 'case' visible?"),
-    ("Finish coaching", "What happens to the participant when the coaching is finished by a rule?"),
-    ("participantNextMicroDialogIdentifier", "Why is this variable shown even when 'start micro dialog' is unticked?"),
-    ("DOES NOT answer", "When do 'does NOT answer' rules apply? The tab stays disabled in every state we tried."),
-    ("DOES answer", "When do 'does answer' rules apply? The tab stays disabled in every state we tried."),
-    ("handled as not answered", "What happens when this time runs out (default 4 h)? Does it apply to dialog starts?"),
-    ("Update transition point", "What is a transition point, and what does updating it do?"),
-    ("Update participant to newer coaching", "What does moving a participant to a newer coaching involve?"),
-    ("Assigned units to reset", "What are 'units', and what does resetting them do?"),
-    ("Cascade to other dialog", "Difference between CASCADE and JUMP to another dialog?"),
-    ("Jump to other dialog", "Difference between JUMP and CASCADE to another dialog?"),
+    # rule editor
+    ("Message group to send messages from", "What is a message group, and how does it differ from a micro dialog?"),
+    ("Start micro dialog if rule result is TRUE", "What happens to an open question from another dialog when this starts one?"),
+    ("Mark case as solved", "Does it also stop a periodic round, or only an unexpected-message round?"),
+    ("participantNextMicroDialogIdentifier", "What does this default mean: 'not set', or 'start the dialog this variable names'?"),
+    ("handled as not answered", "What happens when this time runs out, and when does it apply?"),
+    ("DOES NOT answer", "When do the 'does NOT answer' rules run, and on which message?"),
+    ("DOES answer", "When do the 'does answer' rules run, and on which message?"),
+    # message editor
+    ("Linked intermediate survey", "What does linking an intermediate survey do?"),
+    ("Message key", "What is the message key used for?"),
     ("answer can be cancelled", "What does 'cancel' mean for the participant (no value is set)?"),
+    ("blocks the micro dialog", "Exact blocking behaviour: until answered, or also until 'unanswered'?"),
     ("sticky in the client", "What does 'sticky in the client' mean?"),
     ("deactivates and remembers", "Exact semantics of deactivating and remembering open questions?"),
     ("recalls former deactivated questions from last", "Which questions are recalled, from which deactivation?"),
     ("most recent still filled", "What is a 'still filled' deactivation?"),
     ("clears the current dialog cascade", "What is a dialog cascade, and what does clearing it do?"),
-    ("clears all dialog cascades", "Difference to clearing the current cascade?"),
+    ("clears all dialog cascades", "Difference to clearing only the current cascade?"),
     ("will not be cleared on clear all", "What is protected from 'clear all', and when does clear-all happen?"),
-    ("blocks the micro dialog", "Exact blocking behaviour: until answered, or also until 'unanswered'?"),
-    ("Event identifier", "What are event identifiers (format, where are they defined)?"),
-    ("Identifier", "What is an identifier used for, and where is it referenced?"),
-    ("PRIVACY SETTING", "What do the privacy settings (private / ...) change?"),
-    ("Switch Privacy", "What do the privacy settings change?"),
-    ("ACCESS SETTING", "Meaning of the access levels: internal / externally readable / manageable by service?"),
-    ("Switch Access", "Meaning of the access levels?"),
-    ("AUTO SYNC", "What is synchronised, and with what?"),
-    ("Switch Auto Sync", "What is synchronised, and with what?"),
-    ("SENSITIVE DATA", "What does marking a variable as sensitive change?"),
-    ("Switch Sensitiv", "What does marking a variable as sensitive change?"),
+    # decision point
+    ("Update transition point", "What is a transition point, and what does updating it do?"),
+    # event
+    ("Event identifier", "Exact format of an event identifier (group.event?), and can several be listed?"),
 ]
 
 ANNOTATE_JS = r"""
@@ -94,7 +92,8 @@ ANNOTATE_JS = r"""
     const dis = el.classList.contains('v-disabled') || !!el.closest('.v-disabled');
     let q = unknown.find(([sub]) => text.toLowerCase().includes(sub.toLowerCase()));
     // a rule at the TOP of the Rules tree that is not one of the 4 sections
-    if (!q && el.classList.contains('v-tree-node-caption') && !/^Execution on /.test(text))
+    if (!q && el.classList.contains('v-tree-node-caption') && !el.closest('.v-window')
+        && !/^Execution on /.test(text))
       q = ['', 'Rule OUTSIDE the 4 execution sections: does PMCP ever run it? Should this be allowed?'];
     items.push({el, r, text, dis, q: q ? q[1] : null,
                 kind: el.classList.contains('v-tree-node-caption') ? 'v-rule' : el.classList.contains('v-table-caption-container') ? 'v-column'
@@ -273,7 +272,10 @@ async def view_message_editor(page):
                 break
             await page.keyboard.press("PageDown")
             await page.wait_for_timeout(700)
-        (OUT / "23-answer-types.md").write_text(
+        if not types:   # the dropdown closed early: keep the last good list
+            print("  ! answer types: 0 read - kept the previous 23-answer-types.md")
+        else:
+          (OUT / "23-answer-types.md").write_text(
             "# 23 Answer types (all pages)\n\n" + "\n".join(
                 f"{i + 1}. {t or '(blank: no answer type)'}" for i, t in enumerate(types)) + "\n",
             encoding="utf-8")

@@ -14,7 +14,7 @@ Blue numbers label each control; **red boxes** mark controls whose meaning is un
 | 4 | caption | Update transition point (if required): |  | What is a transition point, and what does updating it do? |
 | 5 | label | (no value set) |  |  |
 | 6 | button | Edit |  |  |
-| 7 | rule | $debug calculated value equals 0 |  | Rule OUTSIDE the 4 execution sections: does PMCP ever run it? Should this be allowed? |
+| 7 | rule | $debug calculated value equals 0 |  |  |
 | 8 | label | Variable to store calculation result of selected rule: |  |  |
 | 9 | button | New |  |  |
 | 10 | button | Edit | yes |  |

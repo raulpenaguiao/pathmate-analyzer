@@ -11,7 +11,7 @@ Blue numbers label each control; **red boxes** mark controls whose meaning is un
 | 1 | caption | Comment: |  |  |
 | 2 | label | (no value set) |  |  |
 | 3 | button | Edit |  |  |
-| 4 | column | Event Identifiers |  | What are event identifiers (format, where are they defined)? |
+| 4 | column | Event Identifiers |  | Exact format of an event identifier (group.event?), and can several be listed? |
 | 5 | button | New |  |  |
 | 6 | button | Edit | yes |  |
 | 7 | button | Delete | yes |  |

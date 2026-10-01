@@ -25,26 +25,26 @@ Blue numbers label each control; **red boxes** mark controls whose meaning is un
 | 15 | button | Edit |  |  |
 | 16 | label | Media object title: |  |  |
 | 17 | filterselect | (dropdown) |  |  |
-| 18 | label | Linked intermediate survey: |  |  |
+| 18 | label | Linked intermediate survey: |  | What does linking an intermediate survey do? |
 | 19 | label | (no value set) |  |  |
 | 20 | button | Edit |  |  |
-| 21 | label | Message key (must not be unique): |  |  |
+| 21 | label | Message key (must not be unique): |  | What is the message key used for? |
 | 22 | label | (no value set) |  |  |
 | 23 | button | Edit |  |  |
 | 24 | label | Randomisation group: |  |  |
 | 25 | checkbox | This message is a command (invisible for participant) |  |  |
 | 26 | checkbox | This message expects to be answered by the participant |  |  |
-| 27 | filterselect | custom | yes |  |
-| 28 | label | Answer type: | yes |  |
-| 29 | label | en-GB: open-component:questionnaire OnInfoCard_15-19_1:Open Quiz / ro-RO: open-component:questionnaire OnInfoCard_15-19_1:Chestionar deschis | yes |  |
-| 30 | button | Edit | yes |  |
-| 31 | label | Answer options (with placeholders): | yes |  |
-| 32 | label | (no value set) | yes |  |
-| 33 | button | Edit | yes |  |
-| 34 | label | Store message reply to variable (if required): | yes |  |
-| 35 | label | (no value set) | yes |  |
-| 36 | button | Edit | yes |  |
-| 37 | label | Store the following value in case of no reply (if required): | yes |  |
+| 27 | filterselect | custom |  |  |
+| 28 | label | Answer type: |  |  |
+| 29 | label | en-GB: open-component:questionnaire OnInfoCard_15-19_1:Open Quiz / ro-RO: open-component:questionnaire OnInfoCard_15-19_1:Chestionar deschis |  |  |
+| 30 | button | Edit |  |  |
+| 31 | label | Answer options (with placeholders): |  |  |
+| 32 | label | (no value set) |  |  |
+| 33 | button | Edit |  |  |
+| 34 | label | Store message reply to variable (if required): |  |  |
+| 35 | label | (no value set) |  |  |
+| 36 | button | Edit |  |  |
+| 37 | label | Store the following value in case of no reply (if required): |  |  |
 | 38 | checkbox | Show additional settings |  |  |
 | 39 | label | Message will only be send if the following rules are ALL TRUE: |  |  |
 | 40 | column | Rule |  |  |
