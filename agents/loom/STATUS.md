@@ -1,6 +1,20 @@
 # Loom — status
 
-## 2026-09-30 ~16:40 — CURRENT
+## 2026-10-01 ~12:00 — CURRENT: task 2 PAUSED, Raul exporting
+- Task 2 (Raul's CSV rgroups_generated_260930163339.csv -> alex-sandbox) was
+  STOPPED after 2 variants, nothing written (Timeless Greetings rows 0-9 read
+  back unchanged). Bug 1 FIXED (committed): "stray copy" reuse would overwrite
+  real repeated rows (row 9 = row 1). Bug 2 OPEN: at 1400px the message editor's
+  "text (with placeholders)" row wasn't found; dismiss() then opened "Edit
+  comment:", which is still open in the browser (Cancel didn't close it).
+- Proposed to Raul (waiting): close via X -> 1 supervised variant with --debug
+  on Timeless Greetings -> then the full 793. Raul is exporting now: DO NOT
+  touch the browser until he says so.
+- Masculine CSV: Raul chose Sonnet. Plan: prefilter (139 unique candidates of
+  713 unique / 1325 texts, alex-live 143134) -> manager runs the Sonnet batch
+  script -> I merge into one CSV of all rows + flags. The script isn't written yet.
+
+## 2026-09-30 ~16:40
 - **Every r_ step now takes its input file explicitly** (Raul): prepare TABLE,
   expand REQUESTS [--resume GENERATED], apply --csv (required). The pipeline
   passes the printed files along. Commit 2703975.

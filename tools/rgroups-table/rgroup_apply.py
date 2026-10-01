@@ -703,18 +703,15 @@ async def run_apply(plan, args, meta):
                         reposition_only = True
 
                     tr = page.locator(".v-table .v-table-body tr")
-                    # failed-run recovery: an unedited exact copy already sitting
-                    # in the group after the original(s) -> reuse it, don't
-                    # stack another Duplicate.
-                    src_texts = {rows[j][ci] for j in grp if j <= src}
-                    strays = [k for k in grp if k > src and ci < len(rows[k])
-                              and rows[k][ci] in src_texts]
+                    # No "stray copy" reuse (removed 2026-10-01): it treated ANY
+                    # later row repeating an earlier row's text as a failed-run
+                    # leftover and overwrote it - but real content repeats rows
+                    # (alex-sandbox Timeless Greetings row 9 = row 1), and that
+                    # real row was picked as the one to overwrite. Always
+                    # Duplicate a fresh row; leftovers of a failed run are
+                    # cleaned with --dedup instead.
                     if reposition_only:
                         pass                              # new_idx already set; skip add
-                    elif strays:
-                        new_idx = strays[-1]
-                        print(f"  ~ {label}: reusing stray copy at row {new_idx}")
-                        await select_row(page, new_idx)
                     else:
                         await select_row(page, src)
                         await dbg(page, "src selected")
