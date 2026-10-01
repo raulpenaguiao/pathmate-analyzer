@@ -28,7 +28,18 @@ workstreams" section — this file is the checklist, that's the writeup.
         report.
       - Raul's task-2 CSV is checked report-only, unless Raul says to make
         it masculine before the apply.
-- [ ] **Task 2 is GO with Raul's own CSV.** Source:
+- [ ] **Task 2: live apply under way (Raul's pick, ~11:50).** His CSV
+      `rgroups_generated_260930163339.csv` (built from alex-sandbox), 793
+      variants, 101/101 pools present. Browser order:
+      - Mason's sandbox slot
+      - Loom's apply
+      - Warden's AFTER export
+      - Loom's diff against BEFORE `20261001-112433`, plus the comparison
+        artifact
+
+      Then Raul's manual alex-live export. For that run he OK'd
+      `--allow-noop-resaves`, even if an agent runs it.
+- [ ] (history) **Task 2 is GO with Raul's own CSV.** Source:
       `/home/raul/projects/rgroups_generated_260930163339.csv` (804 rows).
       Loom copies it into `data/rgroups/` and pins it with `--csv`.
       - **Target: alex-sandbox only.**
