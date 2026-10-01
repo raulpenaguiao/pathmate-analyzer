@@ -5,8 +5,12 @@ Hold task 2 (no read-only look, no resume) AND the masculine CSV until
 Kart's GO. Warden has the browser. State on alex-sandbox: 57 variants
 written (56 + trial row), stopped at (a) spirometry 'no Duplicate button'
 (toolbar detection) and (b) Daytime Greetings row 6 to verify. The
-skip/stop logic is committed (7359cac); Warden was asked to review it.
-Nothing uncommitted.
+skip/stop logic is committed (7359cac); Warden reviewed it: OK.
+Warden's read-only look (150327): (a) the spirometry toolbar is fine, so the
+likely cause was a deselected row -> select_row now verifies the selection and
+retries once (c945781, offline, untested live); (b) Daytime row 6 is the
+REAL new text, so NO dedup. Rows 1-2 identical = pre-existing content, don't
+touch. On resume: rerun the same apply command (it skips the 57 present).
 
 ## 2026-10-01 ~15:00 — TASK 2 APPLY STOPPED at a run of errors
 56 added, 1 skipped-present, 3 errors: Daytime row 6 'row None' (verify), and
