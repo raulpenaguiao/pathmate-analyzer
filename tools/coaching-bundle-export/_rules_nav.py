@@ -111,8 +111,16 @@ RULE_MODAL_JS = r"""
     row.sort((a, b) => PREF.indexOf(a.kind) - PREF.indexOf(b.kind)
                     || Math.abs(a.top - lab.top) - Math.abs(b.top - lab.top));
     let best = row[0];
+    // a value shown as a plain LABEL on the same row (e.g. 'Store rule result
+    // to variable' shows '(no value set)' as a label)
+    if (!best) best = items.find((it, j) => j !== li && it.kind === 'label'
+      && it.left > lab.left + 40 && Math.abs(it.top - lab.top) <= 20);
+    if (best && best.kind === 'label') best = { ...best, kind: 'label', value: best.text };
+    // last resort: a control JUST below the label - never one rows further
+    // down (that grabbed the message-group select for the store variable,
+    // alex-live r-071, Mirror 2026-10-01)
     if (!best) for (let j = li + 1; j < items.length; j++)
-      if (PREF.includes(items[j].kind)) { best = items[j]; break; }
+      if (PREF.includes(items[j].kind) && items[j].top - lab.top <= 40) { best = items[j]; break; }
     return best ? { via: best.kind, value: best.value, text: best.text,
                     disabled: best.disabled } : null;
   };
@@ -137,7 +145,10 @@ RULE_MODAL_JS = r"""
     tabs: [...w.querySelectorAll('.v-tabsheet-tabitemcell')].map(e => norm(e.textContent)).filter(Boolean),
     tabStates: [...w.querySelectorAll('.v-tabsheet-tabitemcell')]
       .map(e => ({ name: norm(e.textContent),
-                   disabled: e.className.includes('v-disabled') || !!e.querySelector('.v-disabled') }))
+                   // Vaadin greys the whole TAB SHEET (an ancestor), not the tab
+                   // itself: closest(), as the screenshot legend found (Mirror 10-01)
+                   disabled: e.className.includes('v-disabled') || !!e.querySelector('.v-disabled')
+                             || !!e.closest('.v-disabled') }))
       .filter(t => t.name),
     checkboxes: items.filter(it => it.kind === 'checkbox')
       .map(it => ({ label: it.text, checked: it.value, disabled: it.disabled })),
@@ -816,7 +827,7 @@ _ACTIONS = {
 }
 _DISABLED = "  [disabled]"
 # a Vaadin default that means "not set" for the dialog / hour selects
-_UNSET_SELECT = {"$participantNextMicroDialogIdentifier"}
+_UNSET_SELECT = {"$participantNextMicroDialogIdentifier", "(no value set)"}
 
 
 def _clean_select(fv: dict | None) -> str | None:
