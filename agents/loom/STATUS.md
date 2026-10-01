@@ -1,6 +1,11 @@
 # Loom — status
 
-## 2026-10-01 ~13:40 — CURRENT
+## 2026-10-01 ~14:20 — ON HOLD (Raul via Kart 141644)
+ALL Loom work holds until the PMCP documentation / Simone email task is done:
+no apply, no trial, no masculine-CSV build, no code changes. Resume ONLY on
+Kart's GO, then pick up the TODO list below unchanged.
+
+## 2026-10-01 ~13:40
 
 **Rule (Raul 10-01): no browser use or coaching change by Loom unless Warden
 has scheduled it.** A free lock or a short "go" is not a slot.
@@ -23,8 +28,13 @@ has scheduled it.** A free lock or a short "go" is not a slot.
 - Fixed in code, NOT tested live, mailed to Warden for review (261001133227):
   - ef97659: no more "stray copy" reuse (it overwrote real repeated rows, e.g.
     Timeless Greetings row 9 = row 1).
-  - 276a35f: node_btn() skips buttons inside .v-table instead of `x > 1600`
-    (at the fixed 1400px window a row's Edit = comment editor got clicked).
+  - 276a35f was NOT enough (Warden's live review: the field Edits for Comment etc.
+    are outside the table too). Now node_btn only accepts buttons in the
+    toolbar layout that holds 'New Message' (Warden's exact fix, committed).
+    Warden confirmed live (134046): Delete/Duplicate/Move Up are in that same
+    row; 85ee07c OK. 14:05 Warden sent a GO, then cancelled it (premature);
+    Raul declined my run, so the trial NEVER ran. **The apply/trial only
+    resumes on KART's GO** (Raul). Stay off the browser.
 - Plan once Warden gives a slot (or runs it himself): ONE supervised variant:
   `rgroup_apply.py --csv rgroups_generated_260930163339.csv --limit 1
   --pool 'r_TimelessGreetings @ Timeless Greetings' --debug`, read the table
