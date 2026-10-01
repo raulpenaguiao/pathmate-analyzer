@@ -331,9 +331,17 @@ async def run_apply(plan, args, meta):
         toggles selection OFF, so skip if it is already current."""
         if await selected_row(page) == idx:
             return
-        if not await click_row(page, idx):
-            raise RuntimeError(f"row {idx} not found to select")
-        await page.wait_for_timeout(300)
+        # verify, and retry once: a click on an already-selected row toggles it
+        # OFF, and in a tall table selected_row()'s position maths can miss
+        # that the row was selected - leaving NO row selected, so the toolbar
+        # stays greyed ('no Duplicate button' in spirometry, Warden 10-01)
+        for _ in range(2):
+            if not await click_row(page, idx):
+                raise RuntimeError(f"row {idx} not found to select")
+            await page.wait_for_timeout(300)
+            if await selected_row(page) == idx:
+                return
+        raise RuntimeError(f"row {idx} would not stay selected")
 
     async def dbg(page, tag):
         if not args.debug:
@@ -730,6 +738,7 @@ async def run_apply(plan, args, meta):
                         await dbg(page, "src selected")
                         dup = await node_btn(page, "Duplicate")
                         if not dup:
+                            await dbg(page, "no Duplicate - selection state")
                             # nothing clicked yet, nothing written: skip the POOL
                             why = (f"no enabled node-toolbar Duplicate button in "
                                    f"{' / '.join(p['path'])!r}")
