@@ -367,11 +367,16 @@ async def run_apply(plan, args, meta):
             for i in range(await loc.count()):
                 b = loc.nth(i)
                 box = await b.bounding_box()
-                # skip the per-row buttons INSIDE the table (row-action column).
-                # Was `box["x"] > 1600`, which only worked in the old 12000px
-                # window; at the fixed 1400px (Raul 09-30) every button is left
-                # of 1600 and a row's Edit (the comment editor) got clicked.
-                if not box or await b.evaluate("e => !!e.closest('.v-table')"):
+                # only the NODE TOOLBAR's button: the horizontal layout that also
+                # holds 'New Message' (Warden, verified live 2026-10-01). Was
+                # `box["x"] > 1600`, which only worked in the old 12000px window;
+                # the dialog's FIELD Edits (Comment / Identifier / Variable Prefix
+                # / Assigned Units) are also outside the table and come first in
+                # the DOM, so anything looser opens 'Edit comment:'. Never key on x.
+                in_toolbar = await b.evaluate(
+                    "e => { const r = e.closest('.v-horizontallayout');"
+                    " return !!r && /New Message/.test(r.textContent); }")
+                if not box or not in_toolbar:
                     continue
                 cls = await b.get_attribute("class") or ""
                 if "v-disabled" not in cls:
