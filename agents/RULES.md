@@ -93,24 +93,20 @@ nothing about any agent is scattered elsewhere in the repo:
    Mail can matter enough to act on quickly. `inotifywait` is **not
    installed on this machine** — don't reach for it, the background
    process will just fail silently and you'll have no listener at all
-   without realizing it. Use a plain poll loop instead, run **by the
-   `Monitor` tool itself** (it's allow-listed, so it never prompts; a
-   background Bash loop does prompt, so don't use one). Use absolute paths,
-   `timeout_ms: 1800000`, and re-arm it every time it expires. It only
-   fires a notification when the count actually goes up, not every tick.
-   This is part of the wake sequence (`agents/wake_prompt.txt`):
+   without realizing it. Instead, run **`agents/waitmail.sh <slug>` as a
+   background Bash command** (`run_in_background: true`). It's
+   allow-listed, so it never prompts. It has no time limit, and it exits
+   (which notifies you) only when unread mail is waiting, immediately if
+   some already is. Read the mail with `checkmail.sh`, then start
+   `waitmail.sh` again. This is part of the wake sequence
+   (`agents/wake_prompt.txt`).
 
-   ```
-   prev=0
-   while true; do
-     n=$(find agents/<slug>/mailbox/inbox -maxdepth 1 -name '*.md' 2>/dev/null | wc -l)
-     [ "$n" -gt "$prev" ] && echo "new mail: $n unread (was $prev)"
-     prev=$n
-     sleep 60
-   done
-   ```
+   Don't use a `Monitor` poll loop for this. Monitor expires every 30
+   minutes, and re-arming it floods the manager's terminal with "restarted
+   the listener" lines (Raul, 2026-10-01). Don't hand-write a Bash
+   `while`/`until` loop either: it isn't allow-listed, so it prompts.
 
-   The point is you find out within about a minute, not only when you
+   The point is you find out within about 30 seconds, not only when you
    happen to next check.
 6. **Mail briefly, and manage your inbox actively — it pollutes your
    context if you let it pile up.** A few sentences per message; link to a
