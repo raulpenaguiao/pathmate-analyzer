@@ -16,7 +16,8 @@
 		<a href="{{ url_for('main.patient_models_list') }}">Patient models</a>
 	</nav>
 	<div class="topbar-right">
-		<span class="user">{{ session.get('username') }}</span>
+		{% if session.get('is_admin') %}<a href="{{ url_for('auth.users_admin') }}">Users</a>{% endif %}
+		<a class="user" href="{{ url_for('auth.account') }}" title="Account">{{ session.get('username') }}</a>
 		<a href="{{ url_for('auth.logout') }}">Log out</a>
 	</div>
 </header>

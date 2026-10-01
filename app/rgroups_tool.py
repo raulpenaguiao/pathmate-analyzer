@@ -117,6 +117,11 @@ _JOBS_LOCK = threading.Lock()
 
 
 def start_expand_job(coaching_id: str, provider: str, limit: int, api_key: str) -> str:
+    # Raul, 2026-10-01: the API key never lives on the server. It comes from
+    # the form for this one run only. Without it we refuse, rather than let
+    # rgroup_expand.call_llm fall back to an ANTHROPIC/OPENAI_API_KEY env var.
+    if not (api_key or "").strip():
+        raise ValueError("An API key is required.")
     rpath = requests_path(coaching_id)
     if not rpath.is_file():
         raise FileNotFoundError("run step 2 (prepare requests) first")
@@ -157,8 +162,10 @@ def start_expand_job(coaching_id: str, provider: str, limit: int, api_key: str) 
                     finished=True, okCount=ok, totalVariants=len(gen_rows),
                 )
         except Exception as e:  # noqa: BLE001 -- surfaced to the poller, not raised
+            # the error text goes back to the page: never let the key ride along
+            msg = str(e).replace(api_key, "[API key]")
             with _JOBS_LOCK:
-                JOBS[job_id].update(finished=True, error=str(e))
+                JOBS[job_id].update(finished=True, error=msg)
 
     threading.Thread(target=_run, daemon=True).start()
     return job_id

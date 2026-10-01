@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Account - Pathmate Analyzer{% endblock %}
+{% block content %}
+<h1>Account</h1>
+<p>Logged in as <strong>{{ session.get('username') }}</strong>{% if session.get('is_admin') %} <span class="chip">admin</span>{% endif %}.</p>
+
+{% if env_admin %}
+<p class="muted">This is the portal's built-in admin login. Its password is set in the deployment secrets (APP_PASSWORD), not here.</p>
+{% else %}
+<h2>Change password</h2>
+<form method="post" class="stacked-form">
+	<label>Current password
+		<input type="password" name="current_password" required autocomplete="current-password">
+	</label>
+	<label>New password <span class="muted">(at least {{ min_len }} characters)</span>
+		<input type="password" name="new_password" required minlength="{{ min_len }}" autocomplete="new-password">
+	</label>
+	<label>New password again
+		<input type="password" name="new_password_again" required minlength="{{ min_len }}" autocomplete="new-password">
+	</label>
+	<button type="submit">Change password</button>
+</form>
+{% endif %}
+{% endblock %}

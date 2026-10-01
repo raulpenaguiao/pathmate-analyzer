@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Users - Pathmate Analyzer{% endblock %}
+{% block content %}
+<div class="panel-header">
+	<h1>Users</h1>
+</div>
+
+{% if created %}
+<div class="panel one-time-password">
+	<p><strong>{{ 'New password for' if created.get('reset') else 'Account created:' }} {{ created.username }}</strong></p>
+	<p>Password: <code class="secret">{{ created.password }}</code></p>
+	<p class="muted">Shown only this once and not stored in plain text. Give it to them over a private channel and ask them to change it under <em>Account</em> after logging in.</p>
+</div>
+{% endif %}
+
+<table class="data-table">
+	<thead>
+		<tr><th>Username</th><th>Role</th><th>Created</th><th></th></tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>{{ admin_name }}</td>
+			<td><span class="chip">admin</span></td>
+			<td class="muted">.env login (deployment secrets)</td>
+			<td></td>
+		</tr>
+		{% for u in accounts %}
+		<tr>
+			<td>{{ u.username }}</td>
+			<td><span class="chip {{ '' if u.role == 'admin' else 'chip-neutral' }}">{{ u.role }}</span></td>
+			<td>{{ u.created_at[:16].replace('T', ' ') }}{% if u.created_by %} <span class="muted">by {{ u.created_by }}</span>{% endif %}</td>
+			<td class="actions">
+				<form method="post" action="{{ url_for('auth.users_reset', username=u.username) }}" onsubmit="return confirm('Give {{ u.username }} a new random password?');">
+					<button type="submit" class="link-button">Reset password</button>
+				</form>
+				{% if u.username != session.get('username') %}
+				<form method="post" action="{{ url_for('auth.users_delete', username=u.username) }}" onsubmit="return confirm('Delete {{ u.username }}? They are logged out at once.');">
+					<button type="submit" class="link-button">Delete</button>
+				</form>
+				{% endif %}
+			</td>
+		</tr>
+		{% endfor %}
+	</tbody>
+</table>
+
+<h2>Add an account</h2>
+<form method="post" class="stacked-form" autocomplete="off">
+	<label>Username
+		<input type="text" name="username" required pattern="[A-Za-z0-9._\-]{2,40}" autocomplete="off">
+	</label>
+	<label>Password <span class="muted">(leave empty to generate one; at least {{ min_len }} characters)</span>
+		<input type="password" name="password" minlength="{{ min_len }}" autocomplete="new-password">
+	</label>
+	<label>Role
+		<select name="role">
+			<option value="user" selected>user: everything except managing accounts</option>
+			<option value="admin">admin: can also manage accounts</option>
+		</select>
+	</label>
+	<button type="submit">Create account</button>
+</form>
+{% endblock %}

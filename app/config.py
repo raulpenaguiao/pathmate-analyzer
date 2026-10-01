@@ -11,6 +11,13 @@ class Config:
     APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
     SECRET_KEY = os.environ.get("APP_SECRET_KEY", "")
 
+    # More than one account now (app/users.py) and no CSRF tokens: Lax keeps
+    # the session cookie off cross-site POSTs. Secure is opt-in, since local
+    # runs are plain http; set SESSION_COOKIE_SECURE=1 behind HTTPS.
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "") == "1"
+
     BASE_DIR = Path(__file__).resolve().parent.parent
     DATA_DIR = Path(os.environ.get("DATA_DIR", BASE_DIR / "data")).resolve()
     COACHINGS_DIR = DATA_DIR / "coachings"
