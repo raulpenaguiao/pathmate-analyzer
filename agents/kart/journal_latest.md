@@ -1,158 +1,131 @@
-# Agent journal: 2026-09-29 00:20 → 2026-09-30 ~00:55
+# Agent journal: 2026-09-30 00:55 → 2026-10-01 ~08:00
 
-**Last digest: 2026-09-30 00:55.** The next one is due by 2026-10-01
-00:55, or on Kart's first wake after that time.
+**Last digest: 2026-10-01 08:00.** The next one is due by 2026-10-02
+08:00, or on Kart's first wake after that time.
 
 Compiled by Kart from every `agents/*/STATUS.md`, the mail, `TASKS.md` and
-the git log. A busy day: there are about 30 commits.
+the git log.
 
 ## At a glance
 
-- **New coaching names (RULES.md, your rule).** Warden's write guard now
-  refuses alex-live, and the pile-up fix gets built in alex-sandbox,
-  with tests in sandbox. There is no separate workbench any more.
+- **Your API key is now manager-only.** That's a new RULES.md rule. Warden's
+  gate (`ed6ae85`) makes `rgroup_expand.py` refuse to run inside any agent
+  session. It's a speed bump, since the key stays in `.env`. Your
+  Anthropic spend cap is the hard limit.
+- **The alex-live r_ CSVs are finished.** 1312 of 1314 variants passed
+  (`rgroups_generated_260930123725.csv`). The last resumes went through
+  after the cap reset.
+- **The exporter got sturdier.** It no longer resizes the window, and it
+  can't pass silently any more: your test caught a run that read 0 of 6
+  senders and still said ok. Your 14:31 alex-live re-run passed: 98
+  dialogs, 37/37 senders, 0 retries.
+- **New duplicate checker for r_ wordings** (Loom). It's offline, uses no
+  API, and only reports. It found one real bug: Timeless Greetings row 2
+  has **no Romanian in either coaching**. Mason drafted "Salut,
+  $participantName! 🤗", which needs a native speaker's check.
+- **`multiSubmit` = false is now part of the plan** (Mason). It's in the
+  build steps, the rollout and One Question at a Time v11. Catch: the ACQ
+  needs a unique questionnaire id per round.
+- **Task 2 (writing the 802 variants into alex-sandbox) is postponed** on
+  your call: you're making the CSVs yourself first.
+- **The mailbox listener is now `agents/waitmail.sh`** (your call, 10-01).
+  It's a background command with no time limit, so there are no more
+  half-hourly "restarted the listener" lines.
+- **New page: Agent Journal Archive**
+  (https://claude.ai/artifact/7NezBkmyqQHC1uhYjcwQK4). It holds every
+  digest, and Kart republishes it with each new one.
 
-  | Short name | Coaching | Rule |
-  |---|---|---|
-  | alex-live | `ALEX v01 zum Ausprobieren 2` | export only, never changed |
-  | alex-sandbox | `ALEX v01 zum Ausprobieren` | the pile-up target, free to change |
-  | sandbox | `Minimal Coaching for Development 2 for Raul` | free to change |
-
-- **Both clean exports are done:**
-  - **alex-sandbox:** `..._20260929-111706.json`. Coherence OK, 0 warnings,
-    all 14 jump targets resolved.
-  - **alex-live:** your run, `..._ausprobieren-2_20260929-162548.json`.
-    Coherence OK, 98 dialogs, 37 senders; 4 of 26 jump targets are still
-    ambiguous.
-- **The alex-live r_ CSVs are half done.** Report and requests are done:
-  138 groups, 175 pools, 159 thin, 1314 variants. Expand stopped at pool 37
-  because your **Anthropic API spend cap** was hit. It resets
-  2026-10-01 00:00 UTC.
-- **alex-sandbox r_ CSV done:** 802 of 804 variants generated. The apply
-  (task 2) hasn't started.
-- **Advisor pages ready:** Coming Back with Context v4 (pile-up, with the
-  "What the PathMate docs say" section), and the r_ tool explainer v2.
-- **PMCP docs knowledge base:** `docs/pmcp-docs/` holds all 49 v6.0 pages.
-- **Mailbox listener** now runs through the Monitor tool for every agent
-  (RULES 5 and the wake prompt).
-- **Repo:** 11 commits since 16:56 are not pushed yet. Kart pushes them
-  with this digest.
-
-**Waiting on you, most urgent first:**
-1. **The API spend cap:** raise it in the Anthropic console, or let it
-   reset at 00:00 UTC on Oct 1. Then Loom resumes expand (122 pools, 1028
-   variants).
-2. **The PMCP `.env` login** has been rejected since ~13:10. Your
-   hand-login worked for the export, but unattended runs, including Loom's
-   task-2 apply, need working credentials.
-3. **Confirm the 09-25 write freeze is lifted for alex-sandbox.** That
-   unblocks Loom's 802-variant apply and Mason's Phase A. Mason also asks:
-   retrofit the spirometry/medication prototype in alex-sandbox, or
-   rebuild it?
-4. **The chat test with Smith (EngineV1).** It unblocks Mirror's export
-   study, which you called the most important part, and workstream 5.
-5. **Participant data collection:** 4 open questions with Mason.
+**Waiting on you:**
+1. **Your CSVs for task 2.** Then Loom applies them, Warden re-exports,
+   and Loom publishes the comparison page.
+2. **Smith's advisor-account proposal:** the deployed portal's URL, and the
+   advisor's rights. Kart suggests read-only, since step 3 of the r_ tab
+   spends API credit.
+3. **The Simone email:** Herald is waiting for your screenshot, description
+   and goal.
+4. **Mason's questions:**
+   - Retrofit the alex-sandbox spirometry/medication prototype, or rebuild
+     it?
+   - Data-collection Q1/Q2.
+   - Should the advisor email ask PathMate "in parallel", or "only if
+     inconclusive"?
+5. **Phase A (pile-up platform tests) needs a browser slot on sandbox.**
+   Warden held the browser until your exporter sign-off. Your 14:31
+   re-run passed, so Warden can now give Mason a slot.
+6. **Native-speaker check** of the new Romanian greeting.
 
 ---
 
 ## Kart: planning and tracking
 **Done**
-- Wrote the 09-29 digest.
-- Progress Tree v15 → v16: completed steps fold into a "✓ N completed"
-  line, and old banners moved into History.
-- Routed your two tasks (the clean export, and the r_ apply with a
-  before/after diff). Then routed tasks 3–4 once alex-live access came.
-- Pushed `94fb007`, `9d4c79f`, `2e39e58`, `415289c`, `669b02d` and
-  `cba01f2`.
-- Routed the `$particpantName` typo to Mason. Tracked the docs KB and
-  Mirror's export study.
-- Armed the mailbox listener. It's now step 4 of my wake-up sequence.
+- 09-30 digest. Built the Journal Archive page plus its build script.
+- Took your 6 follow-ups and routed each to its owner after talking them
+  through with you: the API gate, the dupcheck, multiSubmit in the plan,
+  the Simone email, the advisor account, and the chat backlog.
+- Tracked everything in TASKS.md and pushed throughout.
+- Today: switched to `waitmail.sh` and committed Mirror's listener files
+  (`d44cd46`).
 
-**Next:** push the pending commits. Chase expand once the cap is lifted.
-Add today's changes to the Progress Tree.
+**Next:** chase the answers above. Bring the Progress Tree up to date with
+this week.
 
 ## Warden: browser access and safeguards
 **Done**
-- **The alex-sandbox BEFORE export.** Jump targets went from 4/14 to 14/14
-  resolved (`b3e0971`). Tooltips are click-through, and there's a headless
-  mode (`b64b345`).
-- **The coaching guard:** exact coaching-row matching, and alex-live
-  refused (`2f89222`).
-- **Per-coaching baselines** (`935d7a8`), with the alex-live baseline in
-  `c73600d`.
-- **`--allow-noop-resaves`** (`461fc75`), so you can run a full alex-live
-  export by hand.
-- **Screen-sleep fixes:** your first 4 alex-live runs died because the
-  screen went to sleep. Warden added a pause-and-resume guard (`2baf7ee`)
-  and a systemd-inhibit wrapper.
+- **Fixed-window export.** Collapsed menus open through the overflow
+  button, on hover (`b431973`, `97893b0`).
+- **Loud failures:** a sender that can't be read now fails the run and
+  takes a snapshot. The baseline only updates from a passing run
+  (`ef8f83a`, `3a88447`).
+- **Jump targets:** command messages are matched, and an empty dropdown
+  counts as "no jump" (`a911cd1`).
+- **API gate** (`ed6ae85`, `tools/_agent_guard.py`).
+- The `.env` login works again. Yesterday's rejection was temporary.
 
-**Open**
-- 4 ambiguous jump targets (3 kinds, fixes queued).
-- A root fix for the black 12000px window: emulate the wide viewport
-  instead.
-- A read-only close for editor modals.
-- `multiSubmit` (unblocked, but needs your OK before any write).
+**Next:** give Mason a sandbox slot for Phase A, and do the AFTER export
+once task 2 runs.
 
 ## Loom: r_ randomisation groups
 **Done**
-- alex-sandbox expand: `rgroups_generated_260929093415.csv`, 802/804 OK.
-- Added an abort guard and `--resume` (`94fb007`). `--csv` pins the file
-  (`2e1ef85`). The "usage limits" error now aborts cleanly (`ff2993a`).
-- alex-live steps 1–2, plus 37 pools of expand
-  (`rgroups_generated_260929170725.csv`).
-  - Compared with alex-sandbox: +53 groups, mostly weekly-incentive weeks
-    and morning greetings.
-  - −4 groups: GoodOverallCompliance_Stage1-3 and
-    NighttimeMonitoring_Stage3_Push.
-  - An "Attic" dialog holds 3 groups.
+- alex-live CSVs: 1312/1314 OK, 0 failed, 2 duplicates in
+  r_EveningGreetings.
+- Fixed thinking-token headroom (`c88d9bf`). Every r_ step now takes its
+  input file explicitly, with no "latest file" guessing (`2703975`).
+- **Dupcheck** (`2703975`, `5ace42a`, `43acb02`):
+  - A pool is a run of consecutive rows.
+  - Pairs whose rows have different send conditions are labelled as such.
+  - It flags Romanian slots that hold English.
+- Made a masculine copy of the alex-sandbox table for you. Only 3 ro-RO
+  cells had gender alternations.
+- Checked Herald's Wording Pools v5.
 
-**Blocked**
-- alex-live expand: the spend cap.
-- Task 2 apply: the login, and the freeze confirmation.
-
-**Note:** the 6 new Stage3 rows would inherit the one-line Yes/No bug.
-Mason says there's no sandbox fix for it.
+**Rule:** no more API runs by Loom.
 
 ## Mason: pile-up redesign
 **Done**
-- Checked Coming Back with Context v1–v4, plus your advisor question on
-  what the docs say about pile-up.
-- The PMCP docs knowledge base (`a2cb347`).
-- Moved `docs/pileup` to the alex-sandbox/sandbox target. The build steps
-  carry the greeting-typo fix (`c50f431`), and the A1/A3 tests end with a
-  sandbox export for Mirror (`a21d6ab`).
-- Took over `docs/participant_data_collection.md` from Mirror.
+- multiSubmit=false is in the plan (`962f429`).
+- Put the dupcheck finds on the build fix list, and corrected row 2 to
+  "needs real Romanian" (`eba8a25`).
 
-**Waiting on you:** the freeze confirmation, retrofit vs rebuild, and the
-4 data-collection questions.
+**Waiting:** the 3 questions above, and the sandbox browser slot for
+Phase A. Phase A doesn't depend on the retrofit-or-rebuild answer.
 
 ## Herald: advisor materials
 **Done**
-- **Coming Back with Context v4:**
-  https://claude.ai/artifact/V27fFmmiLLb1apZs4zAxUh
-- **r_ tool explainer v2:** https://claude.ai/artifact/JmLGKdfsXxkn8zeyBPK3Y5
-- Both are checked (by Mason and Loom) and ready for you.
-- Drafts now live in `agents/herald/context/drafts/`, so a restart can't
-  lose them.
+- **Wording Pools v5:** final alex-live numbers, plus a "See it run"
+  section. Loom checked it. Portal screenshots from Smith are pending.
+- Asked you for the Simone email inputs. No draft until all three arrive.
 
-**Next:** refresh the r_ page after the task 2 apply and diff, and update
-its status row for the new coaching names.
+**In progress:** adding multiSubmit to Coming Back with Context, with
+Mason's wording.
 
 ## Mirror: chat simulation engine
-**Done**
-- Typed-input answers and per-language multilingual variables, from your
-  chat test (`dbfc05d`).
-- Same-pass variable visibility as a switchable assumption, for pile-up
-  test A2 (`cfa2c7e`).
-- Scoped the **export study**:
-  - It extends our `.json`, not PMCP's `.html` Report.
-  - Warden reads all the new fields in one batched live pass.
-  - Fields so far: the cascade-clearing flag, stop-intervention,
-    questionnaire bindings, empty messageGroups, does-not-answer rules.
-- Handed the data-collection doc to Mason.
-
-**Blocked:** the EngineV1 chat test.
+- No new work. Workstream 5 and the export study are still blocked on the
+  chat test, which is now on the backlog and not a priority.
+- Set up the new `waitmail.sh` listener for everyone, which you approved.
 
 ## Smith: portal
-No new entries since 09-25. Smith is waiting for your chat test. The
-demo portal can be relaunched on request.
+- Sent the advisor-account proposal (details in TASKS.md). Smith is
+  waiting for your answers.
+- **Note:** `app/` has uncommitted changes, +142 lines in 6 files.
+  Smith's STATUS hasn't been updated since 09-25, so Kart is asking Smith
+  what they are.
