@@ -70,7 +70,10 @@ work (apply, trial, masculine CSV) until the Simone email task is done**
 (Raul, 10-01). The restart needs Kart's GO. **~14:30: the Simone email is
 ready (Herald v10, 22 questions), and Loom is released.** Task 2: a
 `--limit 1` trial, then the full 793 if clean, then Warden's AFTER export,
-then Loom's diff and artifact.
+then Loom's diff and artifact. **~15:00: the apply stopped after 57
+variants** (a toolbar issue in the spirometry dialog, plus Daytime
+Greetings row 6). **Raul: Loom goes to the back burner**, and Warden tests
+the new exporter on alex-sandbox now.
 
 ## ▶ 2026-10-01: Raul's decisions
 
