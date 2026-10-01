@@ -1,11 +1,23 @@
 # Loom — status
 
+## 2026-10-01 ~15:00 — BACK BURNER (Raul via Kart 145817)
+Hold task 2 (no read-only look, no resume) AND the masculine CSV until
+Kart's GO. Warden has the browser. State on alex-sandbox: 57 variants
+written (56 + trial row), stopped at (a) spirometry 'no Duplicate button'
+(toolbar detection) and (b) Daytime Greetings row 6 to verify. The
+skip/stop logic is committed (7359cac); Warden was asked to review it.
+Nothing uncommitted.
+
 ## 2026-10-01 ~15:00 — TASK 2 APPLY STOPPED at a run of errors
 56 added, 1 skipped-present, 3 errors: Daytime row 6 'row None' (verify), and
 2x 'no Duplicate button' in the spirometry dialog (Stage1_Push), so I stopped.
 Asked Warden to look read-only at the spirometry toolbar layout. Resume only
 on Kart's go; the apply is idempotent, so rerun the same command and it skips
 what's present.
+Kart 145620: committed 'no Duplicate' -> skip the pool; anything that may have
+written -> auto-stop the run. Waiting on Warden: (a) the spirometry toolbar
+layout -> fix the detection; (b) Daytime row 6 -> --dedup only if it's an
+untouched copy. Then mail Kart for the resume go.
 
 ## 2026-10-01 ~14:45 — TASK 2 FULL APPLY RUNNING (Kart's GO 143643)
 Trial clean (Timeless Greetings row 10 added, rows 1-9 unchanged). Full apply
