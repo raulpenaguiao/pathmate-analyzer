@@ -1,18 +1,64 @@
 # Loom — status
 
-## 2026-10-01 ~12:00 — CURRENT: task 2 PAUSED, Raul exporting
-- Task 2 (Raul's CSV rgroups_generated_260930163339.csv -> alex-sandbox) was
-  STOPPED after 2 variants, nothing written (Timeless Greetings rows 0-9 read
-  back unchanged). Bug 1 FIXED (committed): "stray copy" reuse would overwrite
-  real repeated rows (row 9 = row 1). Bug 2 OPEN: at 1400px the message editor's
-  "text (with placeholders)" row wasn't found; dismiss() then opened "Edit
-  comment:", which is still open in the browser (Cancel didn't close it).
-- Proposed to Raul (waiting): close via X -> 1 supervised variant with --debug
-  on Timeless Greetings -> then the full 793. Raul is exporting now: DO NOT
-  touch the browser until he says so.
-- Masculine CSV: Raul chose Sonnet. Plan: prefilter (139 unique candidates of
-  713 unique / 1325 texts, alex-live 143134) -> manager runs the Sonnet batch
-  script -> I merge into one CSV of all rows + flags. The script isn't written yet.
+## 2026-10-01 ~13:40 — CURRENT
+
+**Rule (Raul 10-01): no browser use or coaching change by Loom unless Warden
+has scheduled it.** A free lock or a short "go" is not a slot.
+
+### TODO, in order (detail below)
+1. **Task 2, alex-sandbox apply** — WAITING ON WARDEN (review + slot).
+2. **Masculine CSV for alex-live (Sonnet)** — ready to build, offline. Raul
+   chose Sonnet. Not started.
+3. After task 2: Warden's AFTER export -> my BEFORE/AFTER diff -> comparison
+   artifact for Raul -> link to Kart, numbers to Herald.
+
+### 1. Task 2: apply Raul's CSV to alex-sandbox
+- File: `data/rgroups/rgroups_generated_260930163339.csv` (copy of Raul's
+  `~/projects/rgroups_generated_260930163339.csv`, same md5). 793 ok rows, 101
+  pools, all present in alex-sandbox (precheck vs BEFORE export
+  `coaching_alex-v01-zum-ausprobieren_20261001-112433.json`).
+- 10-01 ~11:50 attempt STOPPED after 2 variants; nothing saved (Timeless
+  Greetings rows 0-9 read back unchanged). The leftover "Edit comment:" dialog
+  has since been closed by someone else.
+- Fixed in code, NOT tested live, mailed to Warden for review (261001133227):
+  - ef97659: no more "stray copy" reuse (it overwrote real repeated rows, e.g.
+    Timeless Greetings row 9 = row 1).
+  - 276a35f: node_btn() skips buttons inside .v-table instead of `x > 1600`
+    (at the fixed 1400px window a row's Edit = comment editor got clicked).
+- Plan once Warden gives a slot (or runs it himself): ONE supervised variant:
+  `rgroup_apply.py --csv rgroups_generated_260930163339.csv --limit 1
+  --pool 'r_TimelessGreetings @ Timeless Greetings' --debug`, read the table
+  back, `--undo` the same if wrong. The full 793 only after it works AND Raul
+  OKs it. Never chain login + navigation + write in one command.
+- Helper: `agents/loom/context/enter_edit.py "<exact coaching name>"` (login
+  must already be done). Its "edit view: False" can be a false negative: check
+  the page header.
+
+### 2. Masculine CSV (alex-live, all messages)
+Raul 10-01: one NEW CSV with every ro-RO text written explicitly in the
+masculine (no "/" or "(ă)" forms), AND flag "neutral-looking but unnatural"
+sentences, with a natural masculine rewrite. Nothing is replaced anywhere.
+- Source: `data/exports/coaching_alex-v01-zum-ausprobieren-2_20260930-143134.json`,
+  message text + answer options (commands skipped): 1325 texts, 713 unique.
+- Step a (script, offline): prefilter to the reader-directed candidates
+  (139 unique, see the regex in the session's 10-01 notes / ro_masculine.py READER).
+  Make it slightly broad.
+- Step b: Sonnet judgment in ~10 batches of ~15. I WRITE the script
+  (dry-run only); the MANAGER/Raul runs it (no API for Loom). Per text:
+  natural masculine / slash form / neutral-unnatural + the masculine version + a note.
+- Step c (offline): merge into ONE CSV of all 1325 rows: dialogPath, row,
+  field, en-GB, ro-RO, ro-RO masculine, status, note. I check only the flagged rows.
+- Existing pieces: `tools/rgroups-table/ro_masculine.py` (deterministic slash
+  rules + review heuristics; results in data/rgroups/masculine_*.csv/.md: 5
+  changes in alex-live, 3 in alex-sandbox, 0 in Raul's CSV).
+
+### Smaller open items
+- Commit history today: 952372f (skip-missing + --export precheck), ef97659,
+  276a35f, 89ebe9c (ro_masculine), 43acb02 (dupcheck ro-holds-English). None
+  pushed (Kart pushes).
+- Content findings handed off (not mine to fix): Timeless Greetings row 2
+  ro-RO is English (Mason, via Kart); "reamnitire" typo in 2 rows; "Ești
+  Sigur/ă?" stray capital S in 3 alex-live intros.
 
 ## 2026-09-30 ~16:40
 - **Every r_ step now takes its input file explicitly** (Raul): prepare TABLE,
