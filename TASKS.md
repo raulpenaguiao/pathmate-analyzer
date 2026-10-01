@@ -54,7 +54,26 @@ workstreams" section — this file is the checklist, that's the writeup.
       - **The API key becomes a per-use input field. It never lives on the
         VPS:** it's not stored or logged, and there's no server fallback.
       - Code goes in `app/` only. Raul deploys with the release tag.
-- [ ] **Mason: a plain-language decision brief** for Raul on the 3 open
+- [ ] **URGENT (Mason): explain the grayed-out PMCP rule-modal options.**
+      Covers the 4 action boxes, DOES / DOES NOT answer, and the "4 hours"
+      slider (is it the time until a message counts as not answered?).
+      Raul thinks the mechanisms we're building may already be built in.
+      Mason delivers today:
+      - (a) what the docs say, quoted, and what's undocumented
+      - (b) a suggested PathMate email with precise questions, for Raul to
+        send
+      - (c) a live look or test on sandbox if faster (Warden has a capped
+        slot ready before Loom's apply)
+- **Raul's answers on Mason's brief (10-01):**
+  - **Fix** the existing dialogs, don't rebuild.
+  - **Ask PathMate now.**
+  - **No more hold:** sandbox tests can resume.
+  - Q-A: nothing is tracked anywhere. The "Export All Data" lead is for
+    debugging only, not for decisions during coaching.
+  - Q-B (study/ethics logging limits): Raul says "Warden should explore".
+    Kart asked Raul to confirm, since it's a protocol question, not a
+    platform one.
+- [x] **Mason: a plain-language decision brief** for Raul on the 3 open
       questions:
       - retrofit vs rebuild
       - data-collection Q1/Q2
