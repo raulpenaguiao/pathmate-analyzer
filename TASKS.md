@@ -37,9 +37,22 @@ The export is thin, and nobody owned making it richer. Inputs:
       - §6: the export spec, 14 items, sent to Warden.
       - §7: 13 unknown meanings, sent to Mason.
 - [ ] Annotated screenshots (Warden)
-- [ ] Rules outside the 4 types, listed (Warden). Do we want them?
-- [ ] The exporter's "leaves" count: make it meaningful or drop it
-      (Warden)
+- [x] Annotated screenshots (Warden): `docs/pmcp-ui/screens/`
+      (`bae34c2`). The README maps each red box to its question.
+- [x] Rules outside the 4 types (Warden). There are **15 top-level rules
+      in alex-sandbox:**
+      - the v02 medication gates 2–5 for doses 1–3
+      - the 3 "Fire medication dose N reminder" senders
+
+      The exporter used to drop them silently. They now export with a
+      warning (`cd25e59`). **Question: do they run at all?** Mason to
+      answer.
+- [x] "Leaves" was always 0, because it counted failed expands. It now
+      means rules without child rules (`cd25e59`).
+- [ ] Richer export (Warden):
+      - [x] the disabled state per sender field (`da60101`)
+      - [ ] next: variable dialog targets
+        (`$participantNextMicroDialogIdentifier`), then Mirror's §6 list
 - [ ] Email to Simone (Herald)
 - [ ] Richer export capturing every "needed" row (Warden; Mirror checks
       it, Mason checks the meanings)
