@@ -484,6 +484,10 @@ async def run_apply(plan, args, meta):
     # Raul 10-01: a CSV made from one coaching may name pools another lacks;
     # report each once and move on, never abort the run.
     missing: dict[str, str] = {}
+    # Kart/Raul 10-01: a failure that may have WRITTEN something (a copy left
+    # unedited, a row in the wrong place, an error mid-edit) stops the whole
+    # run; failures that wrote nothing only skip their pool.
+    stop = ""
     async with async_playwright() as pw:
         b = await pw.chromium.connect_over_cdp(CDP)
         ctx = b.contexts[0]
@@ -726,7 +730,12 @@ async def run_apply(plan, args, meta):
                         await dbg(page, "src selected")
                         dup = await node_btn(page, "Duplicate")
                         if not dup:
-                            print(f"  ! {label}: no Duplicate button"); errors += 1
+                            # nothing clicked yet, nothing written: skip the POOL
+                            why = (f"no enabled node-toolbar Duplicate button in "
+                                   f"{' / '.join(p['path'])!r}")
+                            missing[p["pool"]] = why
+                            skipped_missing += 1
+                            print(f"  SKIP pool {p['pool']!r}: {why} - moving on")
                             continue
                         n_before = len(grp)
                         await dup.click()
@@ -737,7 +746,8 @@ async def run_apply(plan, args, meta):
                         grp = grp_rows(rows, gi, p["group"])
                         if len(grp) <= n_before:
                             print(f"  ! {label}: Duplicate did not add a row"); errors += 1
-                            continue
+                            stop = "Duplicate was clicked but no new row showed up"
+                            break
                         new_idx = grp[-1]           # the copy = last row of the group
                     await dbg(page, "after Duplicate/reuse")
 
@@ -747,7 +757,8 @@ async def run_apply(plan, args, meta):
                         ed = await node_btn(page, "Edit")
                         if not ed:
                             print(f"  ! {label}: no node Edit button"); errors += 1
-                            continue
+                            stop = f"an unedited copy may be left at row {new_idx}"
+                            break
                         await ed.click()
                         try:  # wait for the message modal's text row to render
                             await page.wait_for_function(
@@ -780,7 +791,8 @@ async def run_apply(plan, args, meta):
                         if not spot:
                             print(f"  ! {label}: text-row Edit not found"); errors += 1
                             await dismiss(page)
-                            continue
+                            stop = f"an unedited copy may be left at row {new_idx}"
+                            break
                         await page.mouse.click(spot["x"], spot["y"])
                         try:  # wait for the text sub-editor (has the OK button)
                             await page.wait_for_selector(
@@ -833,14 +845,24 @@ async def run_apply(plan, args, meta):
                           f"{'adjacent to pool' if adj else 'NOT adjacent - check'})")
                     if adj:
                         added += 1
+                    else:
+                        stop = (f"the new row is not where expected (row {cur}) - "
+                                "check it before resuming")
+                        break
                 except Exception as e:  # noqa: BLE001
                     print(f"  !! {label}: {e!r}")
                     errors += 1
                     await dismiss(page)
+                    stop = "unexpected error mid-variant - a row may be half-written"
+                    break
         finally:
             await S.close_menus(page)  # leave no menu popup open for the next tool
     print(f"\nadded={added}  skipped={skipped}  skipped-missing={skipped_missing}  "
           f"errors={errors}")
+    if stop:
+        print(f"\nSTOPPED EARLY: {stop}. Nothing after this variant was attempted. "
+              f"Check the dialog, then rerun the same command (already-added "
+              f"wordings are skipped).")
     if missing:
         print(f"\n{len(missing)} pool(s) skipped as missing from this coaching:")
         for pool, why in missing.items():

@@ -1,6 +1,23 @@
 # Loom — status
 
-## 2026-10-01 ~14:20 — ON HOLD (Raul via Kart 141644)
+## 2026-10-01 ~15:00 — TASK 2 APPLY STOPPED at a run of errors
+56 added, 1 skipped-present, 3 errors: Daytime row 6 'row None' (verify), and
+2x 'no Duplicate button' in the spirometry dialog (Stage1_Push), so I stopped.
+Asked Warden to look read-only at the spirometry toolbar layout. Resume only
+on Kart's go; the apply is idempotent, so rerun the same command and it skips
+what's present.
+
+## 2026-10-01 ~14:45 — TASK 2 FULL APPLY RUNNING (Kart's GO 143643)
+Trial clean (Timeless Greetings row 10 added, rows 1-9 unchanged). Full apply
+running: log data/logs/rgroup_apply_full_20261001.log. CHECK AFTERWARDS:
+Daytime Greetings 'Good afternoon $participantName! 🙂' reported "row None,
+NOT adjacent" (row 6?): either a text-match glitch or an unedited duplicate,
+to verify in the BEFORE/AFTER diff and --dedup if it's a stray copy. Then:
+mail Kart + Warden the counts -> Warden's AFTER export -> diff (message rows /
+r_ pools only; exporter-only changes in a separate section, Kart 143801) ->
+artifact.
+
+## 2026-10-01 ~14:20 — (was) ON HOLD (Raul via Kart 141644)
 ALL Loom work holds until the PMCP documentation / Simone email task is done:
 no apply, no trial, no masculine-CSV build, no code changes. Resume ONLY on
 Kart's GO, then pick up the TODO list below unchanged.
