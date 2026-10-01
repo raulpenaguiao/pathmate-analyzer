@@ -26,8 +26,16 @@ The export is thin, and nobody owned making it richer. Inputs:
   v6 draft). Raul sends it.
 
 **Deliverables:**
-- [ ] Documentation artifact with red boxes (Mason)
-- [ ] Coverage map (Mirror), committed in `docs/pmcp-ui/`
+- [ ] Documentation artifact with red boxes (Mason). **v1 is up:** "PMCP
+      editor: what every setting does",
+      https://claude.ai/code/artifact/27405faa-5de0-4e32-a865-c5de349ef0cb
+      - Every setting is marked Confirmed / Inferred / Unknown, with its
+        source.
+      - 20 red-box questions, 8 of them critical for the pile-up work.
+      - Still to come: Warden's screenshots and Mirror's map.
+- [x] Coverage map (Mirror): `docs/pmcp-ui/coverage-map.md` (`af1a915`).
+      - §6: the export spec, 14 items, sent to Warden.
+      - §7: 13 unknown meanings, sent to Mason.
 - [ ] Annotated screenshots (Warden)
 - [ ] Rules outside the 4 types, listed (Warden). Do we want them?
 - [ ] The exporter's "leaves" count: make it meaningful or drop it
@@ -40,7 +48,17 @@ The export is thin, and nobody owned making it richer. Inputs:
 
 ## ▶ 2026-10-01: Raul's decisions
 
-- [x] **Masculine version of ALL messages.** **Done:**
+- [ ] **Masculine CSV for alex-live, LLM pass (Raul chose Sonnet).**
+      Loom's plan:
+      1. A script prefilters 139 unique reader-directed texts (out of
+         1325).
+      2. Loom writes a Sonnet batch script, dry-run only. Raul or the
+         manager runs it (~10 calls).
+      3. Loom merges everything into one CSV: all rows, the masculine
+         version, and flags for "neutral but unnatural".
+
+      Not started yet.
+- [x] **Masculine version of ALL messages (rule-based pass).** **Done:**
       `tools/rgroups-table/ro_masculine.py`, rule-based with no LLM. Files
       are in `data/rgroups/masculine_*.csv` with an `.md` report each.
       - alex-live: 1325 texts, **5 changed** (Sigur/ă ×3 in the incentive
