@@ -277,6 +277,17 @@ async def _click_open(page, item, label: str) -> None:
     for attempt in range(1, 5):
         await page.mouse.move(3, 3)
         await page.wait_for_timeout(40)
+        # HOVER first: once any bar menu has been open, the menubar stays
+        # 'active' and a hover alone opens the menu - a click on top of that
+        # toggles it shut again (2026-10-01 headless BEFORE export: 'weekly
+        # incentive' failed 12 clicks in a row, 82 of 90 targets). Only click
+        # if the hover didn't open it (menubar not active yet).
+        try:
+            await item.hover(timeout=6000)
+        except Exception:  # noqa: BLE001
+            pass
+        if await wait_popup(page, 1, tries=5):
+            return
         click_err = None
         try:
             await item.click(timeout=6000)
