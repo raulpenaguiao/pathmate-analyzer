@@ -22,10 +22,15 @@ an input to it.
 setting *means* (Confirmed / Inferred / Unknown) is settled in
 [PMCP editor: what every setting does](https://claude.ai/code/artifact/27405faa-5de0-4e32-a865-c5de349ef0cb).
 This map settles whether a setting is *exported* and whether the *engine
-uses it*. Mason copies those two columns into his doc. Where the Meaning
-column here and his doc differ, his doc wins; tell Mirror so this map can
-be fixed. For example, ALEX has **21 custom answer types**, which aren't
-covered in §3 yet.
+uses it*. His doc links here rather than copying those columns. Where the
+Meaning column here and his doc differ, his doc wins; tell Mirror so this
+map can be fixed.
+
+ALEX's **21 "custom" answer types** are all the documented questionnaire
+chat button (`open-component:questionnaire` + `<id>:<label>`), per Mason
+on 1 Oct. The engine already models it as one blocking button (`59e80ec`).
+The questionnaire's values arrive via its variable bindings, which aren't
+exported (§5).
 
 Sources:
 - Raul's notes and screenshots: `docs/pmcp-ui/raul-2026-10-01/`
