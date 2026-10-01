@@ -2,20 +2,16 @@
 
 _Updated 2026-09-30 13:30._
 
-## Now
-- **Export at a fixed window size (Raul, 09-30): done, in testing.** The exporter no
-  longer resizes the window. Menus collapsed into the menubar's `►` are opened
-  through it; it opens on hover, not click (b431973, 97893b0). Raul's alex-sandbox
-  test at 1400x1000: 90/90 dialogs and 14/14 jump targets, much faster.
-- That test exposed a **silent failure in phase 4**: 0/6 sender rules read, yet
-  `ok = True`. There were two causes, both fixed:
-  1. `--update-baseline` compared the run with itself.
-  2. Failed senders were only printed.
-  Now the check runs first, the baseline is only updated from a passing run, a
-  missing sender fails the run, and a failed sender takes a snapshot (ef8f83a, 3a88447).
-  The phase 4 failure itself didn't reproduce in a read-only probe at the same size;
-  the suspect is a dying session. Next: Raul reruns his test.
-- **Loom is on hold** for the browser until Raul signs off on that test.
+## Now (2026-10-01 11:45)
+- **Task 2 BEFORE export of alex-sandbox: done.**
+  `data/exports/coaching_alex-v01-zum-ausprobieren_20261001-112433.json`. ok=True,
+  90/90 targets, 18/18 senders, 13/14 jumps. Loom + Kart have it.
+- **Browser order:** Mason's urgent capped ~30 min read-only slot on sandbox
+  (rule-modal options, Raul) -> Loom's alex-sandbox apply -> my AFTER export.
+- Fixed today: bar menus open by hover first (65697d8; headless lost 2 folders before).
+  The mail listener is now `agents/waitmail.sh` (Raul 10-01).
+- Herald's PathMate-email claims checked: claims 2 and 4 are done; the exact
+  captions come from Mason's live look.
 
 ## Coachings (RULES.md, Raul 09-29)
 alex-live = "ALEX v01 zum Ausprobieren 2" (never changed; a full export needs a

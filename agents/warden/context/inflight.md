@@ -1,3 +1,18 @@
+# 2026-10-01 10:10
+- Mail listener: `agents/waitmail.sh warden` as a BACKGROUND Bash command (Raul
+  10-01). Re-run it after reading mail. No Monitor mail loops any more.
+- The browser is lent to MASON (sandbox, Phase A tests A1-A3) since 10:06. After A1/A3:
+  export sandbox (full program) for Mirror.
+- $weekdays (Smith), paused for Mason: the Variables table truncates
+  multilingual values SERVER-side ("Friday..." is in the cell HTML, no title
+  attribute), so the full value must come from the variable's Edit dialog. A
+  probe on alex-sandbox: a cell click did NOT select the row (Edit stayed
+  disabled). Next: click-until-'v-selected' like _dialogs_nav.select_dialog_row,
+  then Edit, read inputs, close with Cancel (check that no 'updated' notification
+  appears). Script: scratchpad/weekdays_editor_probe.py.
+- The phase 4 failure on 09-30 12:33 didn't reproduce. Suspect: a dying session.
+  Raul's 14:31 alex-live run at 1400px: 37/37 senders.
+
 # In-flight state (kept current per RULES.md rule 11; rewritten 2026-09-29 11:15)
 
 ## 15:40: Raul runs the alex-live export HIMSELF (headed :9222, full program,
@@ -15,23 +30,11 @@
   Browser.setWindowBounds. Test on sandbox/alex-sandbox after Raul's run.
   Also done: _render_guard.py (pause + Enter + re-login + resume), a
   systemd-inhibit wrapper in export_coaching.sh, and a late popup now counts as opened.
-- Phase 3b TODO: a live read of {'value': ''} = the jump dropdown is EMPTY = no jump
-  set (Report '[not set]' was ambiguous with empty anchors). Resolve it to None
-  ("no jump") instead of leaving it ambiguous. Seen on alex-live spirometry row 35.
-- Phase 3b TODO 2: alex-live 'Attic / Andreas Test' row 5: the live read gives index 2
-  = a command message ('increment-achievement main -4'), which is NOT among the Report's
-  candidates. Check what the dropdown lists vs our `msgs` (non-decision nodes):
-  command messages/events may be counted differently.
-  LIKELY CAUSE (2nd case, 'Testing of streak concept' row 9 FALSE -> index 5,
-  'set-achievement main 0'): the targets are COMMAND messages. Enrich builds the
-  candidates from textByLang equality, and command nodes carry commandByLang, so
-  they're never candidates. Fix: accept the live pick when the dropdown text matches
-  that node's command/text, even if it isn't in the candidates.
-- Phase 3b TODO 3: 'Attic / Calculate outcome of lottery...' row 11: the value IS set
-  (a debug message) but the highlight = the blank top entry, so index -1. The target
-  is probably on a later dropdown PAGE (Vaadin filterselect pages ~10 items).
-  Match the item by the displayed value and page through (the status 'x-y/total'
-  is in JUMP_POPUP_JS).
+- Phase 3b unresolved jumps: DONE a911cd1. Command-message targets are now matched
+  on commandByLang in enrich; an empty dropdown = no jump (None). Known limit: two
+  messages identical in comment AND text (alex-live lottery row 11) can only be told
+  apart by the dropdown highlight. Verify on Raul's next alex-live run: expect
+  <= 1 ambiguous.
 - (old) Menu flake: failures cluster on RE-opening the SAME top item right after closing
   it (spirometry -> sub-folder, weekly incentive -> Status...). Hypothesis: after
   Escape the item stays "active", so the click toggles it shut.
