@@ -386,8 +386,10 @@ async def sweep_rules(page, open_modals: bool) -> dict:
         sys.exit("tree did not respond to an expand click — the PMCP session "
                  "has likely expired. Re-login (../start_pmcp.sh) and rerun.")
     exp = await R.expand_all(page)
-    print(f"  {exp['expandedNodes']} expanded, {exp['leafNodes']} leaves, "
-          f"{exp['nodeCount']} nodes; empty sections: {exp['emptyRoots']}")
+    print(f"  {exp['nodeCount']} rule-tree nodes: {exp['nodeCount'] - exp['leafNodes']} with "
+          f"child rules, {exp['leafNodes']} terminal (no children)"
+          + (f", {exp['failedExpands']} failed to expand" if exp['failedExpands'] else "") + "; "
+          f"empty sections: {exp['emptyRoots']}")
     trees = await R.dump_tree(page)
     tree_nodes = trees[0]["nodes"]
     rule_tree = R.build_rule_tree(tree_nodes)
@@ -503,6 +505,17 @@ def coherence_check(bundle: dict, report_html: str | None) -> dict:
     if amb:
         warnings.append(f"{amb} decision-branch jump target(s) still ambiguous "
                         f"(see phase 3b)")
+
+    # rules outside the 4 execution sections (Raul 2026-10-01: 'possible to
+    # add rules outside these four - do we want this?'). Content, not an
+    # export error: a warning that names the top-level ones.
+    outside = [r for r in (bundle.get("rules") or {}).get("ruleTree") or []
+               if r.get("section") == R.OUTSIDE_SECTIONS]
+    if outside:
+        tops = [r for r in outside if not r.get("parentUid")]
+        warnings.append(f"{len(outside)} rule(s) sit OUTSIDE the 4 execution sections "
+                        f"({len(tops)} at top level, {sum(r['kind'] == 'sender' for r in outside)} "
+                        f"senders): " + "; ".join(r["caption"][:60] for r in tops))
 
     # every sender found in the rule tree must have been read. A failed
     # sender modal used to be only a printed 'FAILED' line (2026-09-30: 0 of

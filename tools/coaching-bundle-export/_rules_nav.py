@@ -161,6 +161,7 @@ SECTION_ICON = {
     "bubble-icon-small.png": "UNEXPECTED MESSAGE",
     "signs-icon-small.png": "USER INTENTION",
 }
+OUTSIDE_SECTIONS = "NO EXECUTION SECTION"    # top-level rule outside the 4 sections
 SENDER_ICON = "message-icon-small.png"       # rule sends a message / starts a dialog
 CONDITION_ICON = "rule-icon-small.png"       # condition / calculation rule
 
@@ -194,10 +195,17 @@ def build_rule_tree(tree_nodes: list[dict]) -> list[dict]:
     counter = 0
     for n in tree_nodes:
         d = n["depth"]
-        if d == 0:
-            section = SECTION_ICON.get(n["icon"], n["caption"])
+        if d == 0 and n["icon"] in SECTION_ICON:
+            section = SECTION_ICON[n["icon"]]
             last_at_depth = {0: None}
             continue
+        if d == 0:
+            # a RULE at the top level, outside the 4 execution sections. Used
+            # to be taken for a section heading and dropped with its subtree:
+            # alex-sandbox had 15 such rules on 2026-10-01 (v02 medication
+            # gates), silently missing from every export.
+            section = OUTSIDE_SECTIONS
+            last_at_depth = {}
         uid = f"r-{counter:03d}"
         counter += 1
         kind = ("sender" if SENDER_ICON in n["icon"]
@@ -363,11 +371,16 @@ async def expand_all(page, max_nodes: int = 400) -> dict:
         else:
             leaves += 1
         if (expanded + leaves) % 15 == 0:
-            print(f"  ... {expanded} expanded / {leaves} leaves")
+            print(f"  ... {expanded + leaves} rules opened")
     trees = await page.evaluate(TREE_DUMP_JS)
+    # 'leaves' above counts expand attempts that failed, which is always 0:
+    # Vaadin marks childless rules aria-expanded=true too (Raul 2026-10-01:
+    # 'meaningless'). Report what's useful instead: rules with NO child rules
+    # after full expansion (the terminal rules of each branch).
     return {
         "expandedNodes": sum(1 for n in trees[0]["nodes"] if n["ariaExpanded"] == "true"),
-        "leafNodes": leaves,
+        "leafNodes": sum(1 for n in trees[0]["nodes"] if not n["hasChildEls"]),
+        "failedExpands": leaves,
         "emptyRoots": [n["caption"] for n in trees[0]["nodes"]
                        if n["depth"] == 0 and n["ariaExpanded"] != "true"],
         "nodeCount": trees[0]["nodeCount"],

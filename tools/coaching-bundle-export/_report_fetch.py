@@ -72,6 +72,16 @@ async def enter_edit_view(page, coaching_name: str) -> bool:
     # 'Coachings' there hits the page heading, not the sidebar, and does nothing.
     if "Back To List" in await page.evaluate("() => document.body.innerText"):
         await back_to_list(page)
+    # anywhere else (Home after a fresh login, ...): the SIDEBAR's Coachings
+    # button, a `.button-label` - not the page heading of the same text
+    if "COACHING STATUS" not in await page.evaluate("() => document.body.innerText"):
+        side = page.locator(".v-label.button-label", has_text="Coachings")
+        if await side.count():
+            await side.first.click()
+            for _ in range(20):
+                await page.wait_for_timeout(300)
+                if "COACHING STATUS" in await page.evaluate("() => document.body.innerText"):
+                    break
     # the row-select retries can land as a DOUBLE-click, which opens the
     # coaching by itself: the row vanishes, selection "fails", and we used to
     # report failure while already in the Edit view (2026-09-25). So ask
