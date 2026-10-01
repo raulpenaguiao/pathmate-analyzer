@@ -5,6 +5,36 @@ they grouped it. Status updated as work lands. For the dependency-ordered
 game plan and full detail on each item, see `README.md`'s "Roadmap: five
 workstreams" section — this file is the checklist, that's the writeup.
 
+## ▶ 2026-10-01: Raul's decisions
+
+- [ ] **Task 2 is GO with Raul's own CSV.** Source:
+      `/home/raul/projects/rgroups_generated_260930163339.csv` (804 rows).
+      Loom copies it into `data/rgroups/` and pins it with `--csv`.
+      - **Target: alex-sandbox only.**
+      - **Resilience:** r_ groups that don't exist in alex-sandbox → print
+        an error and move on. Loom adds this, tests it offline, then does
+        a dry-run that lists the missing groups.
+      - **Order:** Warden takes a fresh BEFORE export (the 09-30 12:33 one
+        is suspect), then Loom applies, then Warden takes the AFTER export,
+        then Loom diffs them and publishes a new comparison artifact.
+- [ ] **Advisor account: GO, full rights, not read-only** (Smith).
+      - **The API key becomes a per-use input field. It never lives on the
+        VPS:** it's not stored or logged, and there's no server fallback.
+      - Code goes in `app/` only. Raul deploys with the release tag.
+- [ ] **Mason: a plain-language decision brief** for Raul on the 3 open
+      questions:
+      - retrofit vs rebuild
+      - data-collection Q1/Q2
+      - the advisor email asking PathMate "in parallel" vs "only if
+        inconclusive"
+
+      For each: options, consequences and a recommendation.
+- **Simone email:** Raul talks to Herald directly.
+- **Not now:**
+  - Phase A sandbox slot (not a priority).
+  - Native-speaker check of the RO greeting (handled separately; it's
+    already being sent).
+
 ## ▶ 2026-09-30: Raul's follow-ups
 
 - [x] **API key: manager only** (the rule is in RULES.md). No agent runs
