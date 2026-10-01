@@ -40,7 +40,7 @@ def _write_json(path: Path, data: dict):
 def list_coachings():
     records = []
     for meta_path in Config.COACHINGS_DIR.glob("*.json"):
-        records.append(_read_json(meta_path))
+        records.append(_backfill_pmcp_coaching(meta_path, _read_json(meta_path)))
     records.sort(key=lambda r: r.get("uploaded_at", ""), reverse=True)
     return records
 
@@ -49,7 +49,22 @@ def get_coaching(coaching_id: str):
     meta_path = Config.COACHINGS_DIR / f"{coaching_id}.json"
     if not meta_path.exists():
         return None
-    return _read_json(meta_path)
+    return _backfill_pmcp_coaching(meta_path, _read_json(meta_path))
+
+
+def _backfill_pmcp_coaching(meta_path: Path, meta: dict) -> dict:
+    """Bundles attached before `pmcpCoaching` joined the summary: read the
+    coaching name from the stored coaching.json once and persist it."""
+    summary = (meta.get("bundle") or {}).get("summary")
+    if summary is None or "pmcpCoaching" in summary:
+        return meta
+    p = Config.COACHING_FILES_DIR / meta["bundle"].get("stored_filename", "")
+    try:
+        summary["pmcpCoaching"] = (_read_json(p).get("coaching") or {}).get("name")
+    except (OSError, ValueError):
+        return meta  # unreadable bundle: try again next time, don't break the page
+    _write_json(meta_path, meta)
+    return meta
 
 
 def save_coaching(name: str, tag: str, filename: str, file_bytes: bytes):
@@ -124,6 +139,24 @@ class BundleError(ValueError):
     """Raised when an attached file isn't a usable coaching.json."""
 
 
+# agents/RULES.md "PMCP coachings" (Raul, 2026-09-29): which PMCP coaching an
+# export came from. Exact names only - alex-live and alex-sandbox differ just
+# by the trailing " 2", so never match by prefix.
+PMCP_COACHINGS = {
+    "ALEX v01 zum Ausprobieren 2": {"short": "alex-live", "live": True,
+                                    "role": "treated as LIVE: export only, never changed"},
+    "ALEX v01 zum Ausprobieren": {"short": "alex-sandbox", "live": False,
+                                  "role": "sandbox, target of the pile-up solution"},
+    "Minimal Coaching for Development 2 for Raul": {"short": "sandbox", "live": False,
+                                                    "role": "sandbox"},
+}
+
+
+def pmcp_coaching(name: str | None) -> dict | None:
+    """Short name + role of a known PMCP coaching, None for any other."""
+    return PMCP_COACHINGS.get(name or "")
+
+
 def _bundle_summary(data: dict) -> dict:
     rules = data.get("rules") or {}
     sr = rules.get("sendingRules")
@@ -135,6 +168,7 @@ def _bundle_summary(data: dict) -> dict:
         "sendingRules": len(sr) if sr is not None else None,
         "hasRules": bool(rules.get("ruleTree")),
         "scrapedAt": (data.get("coaching") or {}).get("scrapedAt"),
+        "pmcpCoaching": (data.get("coaching") or {}).get("name"),
         "coherenceOk": val.get("ok"),
         "coherenceWarnings": val.get("warnings") or [],
     }

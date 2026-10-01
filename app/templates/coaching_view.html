@@ -15,6 +15,9 @@
 <div class="coaching-head">
 	<h1>{{ coaching.name }}</h1>
 	{% if coaching.tag %}<span class="tag">{{ coaching.tag }}</span>{% endif %}
+	{% set pc_name = coaching.get('bundle', {}).get('summary', {}).get('pmcpCoaching') %}
+	{% set pc = pmcp_coaching(pc_name) %}
+	{% if pc %}<span class="chip {{ 'chip-warn' if pc.live else 'chip-neutral' }}" title="coaching.json exported from &quot;{{ pc_name }}&quot;: {{ pc.role }}">{{ pc.short }}{% if pc.live %} &middot; LIVE{% endif %}</span>{% endif %}
 </div>
 <p class="coaching-sub">uploaded {{ coaching.uploaded_at[:19] }} &middot; {{ coaching.original_filename }}</p>
 
@@ -107,6 +110,9 @@
 				{% set bs = b.get('summary', {}) %}
 				<table class="data-table">
 					<tr><th>Attached</th><td>{{ b.uploaded_at[:19] }}</td></tr>
+					{% if bs.get('pmcpCoaching') %}{% set pc = pmcp_coaching(bs.get('pmcpCoaching')) %}
+					<tr><th>PMCP coaching</th><td>{{ bs.get('pmcpCoaching') }}{% if pc %} &mdash; <strong>{{ pc.short }}</strong> <span class="muted">({{ pc.role }})</span>{% else %} <span class="muted">(not one of alex-live / alex-sandbox / sandbox)</span>{% endif %}</td></tr>
+					{% endif %}
 					<tr><th>Micro dialogs</th><td>{{ bs.get('microDialogs', 0) }}</td></tr>
 					<tr><th>Nodes</th><td>{{ bs.get('nodes', 0) }}</td></tr>
 					<tr><th>Rule-tree nodes</th><td>{{ bs.get('ruleTreeNodes', 0) }}{% if not bs.get('hasRules') %} <span class="chip chip-warn">no rules — dialogs-only export</span>{% endif %}</td></tr>
@@ -269,6 +275,15 @@
 						<input type="checkbox" id="sim-auto-periodic" checked> auto-run periodic rules
 					</label>
 				</div>
+				{# Engine switches for PMCP behaviour nobody has verified yet (pile-up
+				   docs/pileup/build-steps.md A1-A3). One data-setting checkbox each. #}
+				<details class="sim-assumptions">
+					<summary>Engine assumptions <span class="chip chip-warn">unverified PMCP behaviour</span></summary>
+					<label class="sim-toggle" title="Pile-up A2 (docs/pileup/build-steps.md), not confirmed by the PMCP docs or a live test. On: a variable set by one PERIODIC rule is visible to later rules in the same pass. Off: later rules still see the values from the start of the pass.">
+						<input type="checkbox" data-setting="same_pass_visibility" data-default="true" checked>
+						A2: a PERIODIC rule's variable change is visible to later rules in the same pass
+					</label>
+				</details>
 				<div class="sim-launch">
 					<select id="sim-launch-select"></select>
 					<button type="button" id="sim-launch-btn">Launch</button>

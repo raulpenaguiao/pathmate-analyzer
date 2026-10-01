@@ -54,6 +54,8 @@
 			<tr>
 				<td>
 					<a href="{{ url_for('main.coaching_view', coaching_id=c.id) }}">{{ c.name }}</a>
+					{% set pc = pmcp_coaching(bs.get('pmcpCoaching')) %}
+					{% if pc %}<span class="chip {{ 'chip-warn' if pc.live else 'chip-neutral' }}" title="coaching.json exported from &quot;{{ bs.get('pmcpCoaching') }}&quot;: {{ pc.role }}">{{ pc.short }}{% if pc.live %} &middot; LIVE{% endif %}</span>{% endif %}
 					{% if bs.get('coherenceOk') == false %}
 					<span class="chip chip-danger" title="Attached coaching.json failed its coherence check">&#9888; export/JSON mismatch</span>
 					{% endif %}

@@ -442,8 +442,18 @@ code, .mono { font-family: var(--mono); font-size: 0.86em; }
 .sim-inspector .data-table td { padding: var(--sp-1) var(--sp-2); }
 /* fixed layout so long var names wrap instead of squeezing the value inputs to ~1 char */
 #sim-vars { table-layout: fixed; width: 100%; }
-#sim-vars td:first-child { width: 58%; overflow-wrap: anywhere; }
+#sim-vars td { padding-top: 4px; padding-bottom: 6px; }
+#sim-vars .var {
+	display: inline-block; max-width: 100%; margin-bottom: 3px;
+	white-space: normal; overflow-wrap: anywhere;
+}
+.free-answer { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); max-width: 100%; }
+.free-answer-in {
+	min-width: 12rem; max-width: 100%; font: inherit;
+	border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px;
+}
 .sim-var-in {
+	display: block;
 	width: 100%; font-family: var(--mono); font-size: 0.8rem;
 	border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px;
 }
@@ -477,6 +487,10 @@ code, .mono { font-family: var(--mono); font-size: 0.86em; }
 button.answer { background: var(--accent-soft); color: #274bb0; margin: 2px; }
 .sim-controls { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
 .sim-toggle { display: flex; align-items: center; gap: var(--sp-1); font-size: 0.85rem; color: var(--fg-soft); }
+.sim-assumptions { margin: var(--sp-2) 0; font-size: 0.85rem; }
+.sim-assumptions summary { cursor: pointer; color: var(--fg-soft); }
+.sim-assumptions .sim-toggle { align-items: flex-start; margin-top: var(--sp-1); }
+.sim-assumptions input { margin-top: 3px; flex: none; }
 .sim-legacy { background: var(--sunken); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); font-size: 0.85rem; color: var(--muted); margin: 0 0 var(--sp-2); }
 .sim-timeout { color: var(--warn); font-size: 0.85rem; margin-right: var(--sp-2); }
 /* structured engine events (launch / timeout / suppressed / unresolved_target) */

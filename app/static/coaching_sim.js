@@ -148,6 +148,10 @@
 		el.stale.hidden = meta.fingerprint !== "stale";
 		el.unknown.hidden = meta.fingerprint !== "unknown";
 		el.autoPeriodic.checked = !state.settings || state.settings.auto_periodic !== false;
+		root.querySelectorAll("[data-setting]").forEach(function (box) {
+			var v = (state.settings || {})[box.dataset.setting];
+			box.checked = v == null ? box.dataset.default === "true" : !!v;
+		});
 		var c = state.clock;
 		el.clock.textContent =
 			"day " + c.day + ", " + pad(c.hour) + ":" + pad(c.minute);
@@ -166,7 +170,14 @@
 			.join("");
 		el.transcript.scrollTop = el.transcript.scrollHeight;
 
-		if (state.pending && state.pending.options) {
+		if (state.pending && state.pending.input) {
+			el.pending.hidden = false;
+			el.pending.innerHTML =
+				timeoutLabel(state.pending) +
+				'<span class="muted">answer:</span> ' + freeInputForm(state.pending.input);
+			var fin = el.pending.querySelector(".free-answer-in");
+			if (fin) fin.focus();
+		} else if (state.pending && state.pending.options) {
 			el.pending.hidden = false;
 			el.pending.innerHTML =
 				questionnaireNote(state.pending.options) +
@@ -192,9 +203,11 @@
 			})
 			.map(function (n) {
 				return (
-					"<tr><td><span class='var'>" + escapeHtml(n) + "</span></td>" +
-					'<td><input class="sim-var-in" data-name="' + escapeHtml(n) +
-					'" value="' + escapeHtml(state.vars[n]) + '"></td></tr>'
+					// name stacked above its input: long camelCase names get the
+					// panel's full width instead of a squeezed column
+					"<tr><td><span class='var' title='" + escapeHtml(n) + "'>" + escapeHtml(n) + "</span>" +
+					'<input class="sim-var-in" data-name="' + escapeHtml(n) +
+					'" aria-label="' + escapeHtml(n) + '" value="' + escapeHtml(state.vars[n]) + '"></td></tr>'
 				);
 			})
 			.join("");
@@ -247,10 +260,63 @@
 		}
 	});
 
+	// Free-input answer types (PMCP 6.0 docs, Micro Dialogs: Free Text,
+	// Free Numbers, Date, Time). The engine sends `pending.input`
+	// {kind, multiline, template, min, max}; "_" in the template marks where
+	// the typed value goes. The raw value is posted and stored as-is.
+	function freeInputForm(input) {
+		var kind = input.kind || "text";
+		var tpl = input.template || "";
+		var cut = tpl.indexOf("_");
+		var before = cut === -1 ? tpl : tpl.slice(0, cut);
+		var after = cut === -1 ? "" : tpl.slice(cut + 1);
+		var attrs = ' class="free-answer-in" required';
+		if (input.placeholder) attrs += ' placeholder="' + escapeHtml(input.placeholder) + '"';
+		// only bounds the browser can enforce for this kind (a -99 or unset
+		// var would otherwise block every submit)
+		var ok = { number: /^-?\d+(\.\d+)?$/, time: /^\d\d:\d\d$/ }[kind];
+		["min", "max"].forEach(function (k) {
+			var b = input[k] == null ? "" : String(input[k]);
+			// the engine sends time bounds as decimal hours ("22.5" = 22:30)
+			if (kind === "time" && /^\d+(\.\d+)?$/.test(b) && +b < 24) {
+				var mins = Math.round(+b * 60);
+				b = ("0" + Math.floor(mins / 60)).slice(-2) + ":" + ("0" + (mins % 60)).slice(-2);
+			}
+			if (ok && ok.test(b) && !(kind === "number" && b === "-99")) attrs += " " + k + '="' + escapeHtml(b) + '"';
+		});
+		var field = kind === "text" && input.multiline
+			? "<textarea" + attrs + ' rows="2"></textarea>'
+			: '<input type="' + ({ number: "number", date: "date", time: "time" }[kind] || "text") + '"' +
+				attrs + (kind === "number" ? ' step="any"' : "") + ">";
+		return (
+			'<form class="free-answer" data-kind="' + escapeHtml(kind) + '">' +
+			(before ? '<span class="free-answer-tpl">' + escapeHtml(before) + "</span>" : "") +
+			field +
+			(after ? '<span class="free-answer-tpl">' + escapeHtml(after) + "</span>" : "") +
+			'<button type="submit" class="answer">Send</button></form>'
+		);
+	}
+
+	root.addEventListener("submit", function (e) {
+		var form = e.target.closest(".free-answer");
+		if (!form) return;
+		e.preventDefault();
+		var v = form.querySelector(".free-answer-in").value.trim();
+		if (!v) return;
+		// <input type=date> gives yyyy-mm-dd; the sim's dates are dd.mm.yyyy
+		if (form.dataset.kind === "date") {
+			var d = v.split("-");
+			if (d.length === 3) v = d[2] + "." + d[1] + "." + d[0];
+		}
+		post({ type: "answer", value: v });
+	});
+
 	root.addEventListener("change", function (e) {
 		var input = e.target.closest(".sim-var-in");
 		if (input) post({ type: "set_var", name: input.dataset.name, value: input.value });
-		else if (e.target === el.autoPeriodic) {
+		else if (e.target.dataset && e.target.dataset.setting) {
+			post({ type: "set_setting", name: e.target.dataset.setting, value: e.target.checked });
+		} else if (e.target === el.autoPeriodic) {
 			post({ type: "set_setting", name: "auto_periodic", value: el.autoPeriodic.checked });
 		}
 	});

@@ -23,8 +23,10 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
 
+    from app.storage import pmcp_coaching
+
     @app.context_processor
     def inject_deploy_info():
-        return {"deploy_info": read_deploy_info()}
+        return {"deploy_info": read_deploy_info(), "pmcp_coaching": pmcp_coaching}
 
     return app
