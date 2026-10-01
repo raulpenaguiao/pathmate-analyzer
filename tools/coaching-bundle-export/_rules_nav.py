@@ -89,7 +89,11 @@ RULE_MODAL_JS = r"""
       value = norm(el.value);
     }
     const r = el.getBoundingClientRect();
-    return { kind, text: norm(el.textContent).slice(0, 200), value,
+    // greyed-out state (Raul 2026-10-01: which options are disabled per rule)
+    const inp2 = el.querySelector('input, textarea');
+    const disabled = el.classList.contains('v-disabled') || !!el.closest('.v-disabled')
+      || (inp2 ? inp2.disabled : false) || el.getAttribute('aria-disabled') === 'true';
+    return { kind, text: norm(el.textContent).slice(0, 200), value, disabled,
              top: Math.round(r.top), left: Math.round(r.left) };
   });
 
@@ -109,7 +113,8 @@ RULE_MODAL_JS = r"""
     let best = row[0];
     if (!best) for (let j = li + 1; j < items.length; j++)
       if (PREF.includes(items[j].kind)) { best = items[j]; break; }
-    return best ? { via: best.kind, value: best.value, text: best.text } : null;
+    return best ? { via: best.kind, value: best.value, text: best.text,
+                    disabled: best.disabled } : null;
   };
 
   const L = {
@@ -130,8 +135,12 @@ RULE_MODAL_JS = r"""
     caption: norm((w.querySelector('.v-window-header') || {}).textContent),
     windowClasses: w.className,
     tabs: [...w.querySelectorAll('.v-tabsheet-tabitemcell')].map(e => norm(e.textContent)).filter(Boolean),
+    tabStates: [...w.querySelectorAll('.v-tabsheet-tabitemcell')]
+      .map(e => ({ name: norm(e.textContent),
+                   disabled: e.className.includes('v-disabled') || !!e.querySelector('.v-disabled') }))
+      .filter(t => t.name),
     checkboxes: items.filter(it => it.kind === 'checkbox')
-      .map(it => ({ label: it.text, checked: it.value })),
+      .map(it => ({ label: it.text, checked: it.value, disabled: it.disabled })),
     fields,
     sendHourClock: caps.find(c => /^\d{1,2}:\d{2}$/.test(c)) || null,
     notAnsweredText: caps.find(c => /\d+\s*days?,\s*\d+\s*hours?,\s*\d+\s*minutes?/i.test(c)) || null,
@@ -872,4 +881,10 @@ def parse_rule_fields(dump: dict) -> dict:
         "doesAnswerRules": _flatten_inner(dump.get("innerTrees")),
         "doesNotAnswerRules": _flatten_inner(dump.get("doesNotAnswerInnerTrees")),
         "modalCaption": dump.get("caption"),
+        # what is greyed out in this rule's editor (Raul 2026-10-01)
+        "actionBoxes": [{"label": c["label"], "checked": c["checked"] == "true",
+                         "disabled": bool(c.get("disabled"))}
+                        for c in dump.get("checkboxes", [])],
+        "answerTabs": dump.get("tabStates") or [],
+        "disabledFields": sorted(k for k, v in f.items() if v and v.get("disabled")),
     }
