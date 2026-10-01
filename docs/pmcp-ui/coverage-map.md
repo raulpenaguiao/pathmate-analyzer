@@ -73,14 +73,14 @@ Two results that come from the export itself, not from the editor:
 | Condition (x, operator, y) | yes (`expr`, structured) | now | doc: operators are in `rules.md` §3 | JS-snippet rules can't be evaluated |
 | Pure condition (no action box ticked) | yes (`kind: condition`) | now | live | — |
 | Action: send message (message group) | yes (`primaryAction`, `messageGroup`) | soon | unknown: no doc on message groups | What a message group is. The **engine doesn't model message groups on the bundle path**: it only logs "sends a message". |
-| Action: start micro dialog | yes (`microDialogToStart`, `microDialogPath`) | now | live | What happens to an open question from another dialog (PathMate Q8). The engine suppresses and retries, an assumption. |
+| Action: start micro dialog | yes (`microDialogToStart`, `microDialogPath`) | now | live | What happens to an open question from another dialog (PathMate Q4). The engine suppresses and retries, an assumption. |
 | Action: mark case solved + stop the run | yes (`actionBoxes`, `primaryAction`) | soon | unknown | Does it stop the rest of a periodic pass? The engine doesn't model it. |
 | Action: stop the run + finish the coaching | yes | later | inferred: it ends the coaching | The engine only logs it. ALEX must never use it. |
-| Hour to send message | yes (`sendHourVariable` / `sendHourClock`) | now | doc + live: a decimal hour, 0 = immediately | What happens if the hour has already passed, or two dialogs are due at once (PathMate Q4). The engine fires late the same day. |
-| Not-answered time (minutes) | yes (`notAnsweredTimeoutMinutes`) | now | live: disabled on 28 of 36 "Start micro dialog" rules; the only non-default value is on the one "Send message" rule | It covers which messages? (Q5). **The engine applies it to every sender's questions, including rules where the editor disables it.** |
+| Hour to send message | yes (`sendHourVariable` / `sendHourClock`) | now | doc + live: a decimal hour, 0 = immediately | What happens if the hour has already passed, or two dialogs are due at once (PathMate Q7). The engine fires late the same day. |
+| Not-answered time (minutes) | yes (`notAnsweredTimeoutMinutes`) | now | live: disabled on 28 of 36 "Start micro dialog" rules; the only non-default value is on the one "Send message" rule | It covers which messages? (Q8). **The engine applies it to every sender's questions, including rules where the editor disables it.** |
 | Store result variable | partial: it reads "Test (expects NO answer)", the message-group text | soon | unknown | Is it a scraper bug (it duplicates `messageGroup`)? |
-| Rules if participant DOES answer | partial: captions only (`doesAnswerRules`, 1 rule) | soon | unknown | When do they run (Q7)? A caption is not an evaluable expression. |
-| Rules if participant DOES NOT answer | partial: captions only (1 rule) | soon | unknown | Do they run once, after the not-answered time (Q6)? This is pile-up test A3. |
+| Rules if participant DOES answer | partial: captions only (`doesAnswerRules`, 1 rule) | soon | unknown | When do they run (Q8)? A caption is not an evaluable expression. |
+| Rules if participant DOES NOT answer | partial: captions only (1 rule) | soon | unknown | Do they run once, after the not-answered time (Q8)? This is pile-up test A3. |
 | Field enabled / disabled state | yes (`disabledFields`, `answerTabs[].disabled`) | no | live | `answerTabs.disabled` is False on all 37 rules, yet Mason saw them greyed out. Does the scraper read the wrong attribute? |
 | Comment | no (empty on 37 of 37 sending rules) | no | — | — |
 
@@ -117,11 +117,11 @@ Two results that come from the export itself, not from the editor:
 | **Blocks the micro dialog until answered/unanswered** | **no** | **now** | label only | The engine treats every question as blocking. Non-blocking questions would let the dialog continue. |
 | Sticky in the client | no | no | unknown | — |
 | Only a push notification / always pushed | no | later | doc (push pages) | — |
-| **Deactivates and remembers former open questions** | **no** | **soon** | unknown | Used by v01 to park interrupted questions (PathMate Q10) |
-| **Recalls deactivated questions (last / most recent still filled)** | **no** | **soon** | unknown | Q10 and Q13 |
+| **Deactivates and remembers former open questions** | **no** | **soon** | unknown | Used by v01 to park interrupted questions (PathMate Q15) |
+| **Recalls deactivated questions (last / most recent still filled)** | **no** | **soon** | unknown | Q15 |
 | **Clears the current / all dialog cascades** | **no** | **soon** | unknown | Pile-up test A1, Q14 |
 | Not cleared on "clear all" | no | soon | unknown | Q14 |
-| **Minutes until handled as unanswered (per message)** | **no** | **now** | label only | A per-message timeout, separate from the rule's. Which one wins? "infinite" may be what `$participantInfiniteBlockingMessages*` counts (Q12). |
+| **Minutes until handled as unanswered (per message)** | **no** | **now** | label only | A per-message timeout, separate from the rule's. Which one wins? "infinite" may be what `$participantInfiniteBlockingMessages*` counts (Q17). |
 | Message rules (all must be TRUE) | yes (`triggerExprs`) | now | doc: AND, no nesting | — |
 
 ## 4. Decision points ("Create rule" inside a decision point)
@@ -222,13 +222,13 @@ confirms it.
 | Blocks / sticky / cancellable | **Every question blocks** its dialog until it's answered or times out. Sticky and cancel aren't modelled. | assumption: the setting isn't exported |
 | Per-message "minutes until unanswered" | **Not modelled.** It isn't exported, so it behaves like "infinite". | assumption |
 | Rule-level not-answered time | Applies only to questions in a dialog a sender started. On timeout, the whole dialog and its cascade callers are abandoned, and **nothing is written** (no "value on no reply"). DOES NOT answer rules are logged, not run. | assumption |
-| Dialog starts while a question is open | The sender is **suppressed** and retries on later ticks. | assumption (Phase D); PathMate Q8 |
+| Dialog starts while a question is open | The sender is **suppressed** and retries on later ticks. | assumption (Phase D); PathMate Q4 |
 | Same-pass visibility | Visible at once. It's a switch: `settings.same_pass_visibility`. | assumption (A2) |
 | Memory and cascade message settings | Not modelled | not exported |
 | Randomisation groups | Every group is random; one seeded pick per run | doc for `r_` groups; looped groups aren't modelled |
 | Time / date answers | Time is a decimal hour; dates are dd.mm.yyyy as typed | doc (time); assumption (date) |
 | Multilingual variables | The sim language's part of `en-GB: … / ro-RO: …` | assumption |
-| Send hour already passed | Fires on the next tick the same day, once per day | assumption; PathMate Q4 |
+| Send hour already passed | Fires on the next tick the same day, once per day | assumption; PathMate Q7 |
 
 ## 9. Questions to ask about each dialog
 
