@@ -1,8 +1,29 @@
 # Smith — status
 
+## ▶ Summary (2026-10-01 08:15)
+
+**Committed today (Kart's go):** the 09-29 Chat-tab work from Raul's demo feedback:
+- long variable names stack above their input
+- typed-answer input (free text / numbers / date / time, to Mirror's
+  `pending.input`)
+- the source-coaching label (alex-live / alex-sandbox / sandbox chip + Statistics row)
+- the "Engine assumptions" panel (A2 `same_pass_visibility`)
+
+**Waiting on Raul:**
+- **Advisor account** on the deployed portal: proposal mailed to Kart 09-30
+  (users.json with hashed passwords, the .env user as admin, a Users page, SameSite
+  cookies). Needs (a) the deployed URL and (b) advisor rights: full or
+  read-only. No code until he OKs it.
+- The demo tunnel (trycloudflare) has died; the local :8010 is still up. Relaunch on request.
+
+**In progress:** r_ tool screenshots for Herald (alex-live 0930-143134
+export; step 3 shows Loom's existing generated CSV, no API call).
+
+Mail listener: `agents/waitmail.sh smith` in the background (Raul 10-01).
+
 ## ▶ Summary for Raul (2026-09-25 08:10), last 24h + open problems
 
-**Done (all uncommitted, 7 files in `app/`, +205/−19, tests OK):**
+**Done (committed 604855d, 7 files in `app/`, +205/−19, tests OK):**
 - **Chat tab now runs on the coaching.json engine (Stage 4 Phase E).**
   Engine-aware routes: old HTML-sim chats keep their engine and show a
   notice. Chat routes require an attached bundle. Auto-periodic toggle,
@@ -22,7 +43,7 @@
   wasn't exported. All fixed now.
 
 **Open problems / decisions for you:**
-1. **Commit?** Everything above is uncommitted, waiting on your go-ahead.
+1. ~~Commit?~~ **Done 09-25** per Kart's relay: 604855d (app/) + 58b7bb9 (agents/smith/). Kart pushes.
 2. **Your live portal (:8000):** "ALEXv1_14th" has a stale 09-14
    coaching.json attached (no jump targets or nesting, predates the v02
    dialogs). Best replacement now: today's `..._20260925-093313.json`
@@ -43,6 +64,73 @@
 5. **Not verified:** how `open-component` behaves on a real device. The docs
    say it blocks the chat until the questionnaire is done. The sim relies on
    the user setting `$acq_*` by hand.
+
+**09-25 ~10:30: demo portal for Raul** (Kart's relay): http://localhost:8010,
+login `raul` / `chat-demo`, throwaway DATA_DIR in my scratchpad, running as
+my background task. The 0925-093313 export + Report are attached unpatched.
+Medication Yes/No and ACQ walks re-verified there, 0 errors.
+**09-29 10:40: demo portal relaunched + public** (Mirror's relay of Raul's
+ask): :8010, throwaway scratchpad DATA_DIR, 0925-093313 Report + json attached,
+login raul / chat-demo (Raul confirmed it works; next time use the repo .env
+login instead, his call), no LLM API key in its env. Exposed via Cloudflare quick
+tunnel (user-local `~/.local/bin/cloudflared`):
+https://mailman-visitors-query-lee.trycloudflare.com. Unauthenticated pages
+redirect to /login (checked). Both are my background tasks, so they die with
+this session. **Close the tunnel when Raul is done.**
+
+**09-29 ~10:55, Raul's feedback from the demo (uncommitted, tests OK):**
+- Variables inspector: long names overflowed under the inputs (`.var` has
+  nowrap). Now the name is stacked above a full-width input and wraps anywhere,
+  with a hover title. 368 rows at 1400/390px, 0 overflow. Live on the demo.
+- Free-text answers ("How may I call you?", answerType `free text raw`,
+  template `Please call me _`): the engine ignores `answer_type` and makes
+  buttons. Diagnosis + contract mailed to Mirror (`pending.input {kind,
+  multiline, template, min, max}`). **UI side done**: a typed input with the
+  template around it, date -> dd.mm.yyyy. Verified with an injected
+  `pending.input` (stores `Raul`, coach says "Hello Raul!"). Waiting on
+  Mirror's engine side.
+- Multilingual var values (`$nameOfWeek1Incentive` = "en-GB: … / ro-RO: …")
+  are inserted whole. Engine fix asked of Mirror. `$weekdays` is truncated
+  with "..." in the export -> Warden.
+- **~11:30: Mirror's dbfc05d landed (engine side of both). Demo server
+  restarted** (it doesn't reload code; same data, same login). Verified a new
+  chat through the public URL: Welcome → "Please call me [__] Send" → the bubble
+  reads "Please call me Raul" → "Hello Raul!". `$nameOfWeek1Incentive` renders
+  per language (en/ro checked in the engine). 103 tests OK. My UI changes
+  (`coaching_sim.js`, `style.css`) are still uncommitted.
+- **~11:50, "One Puff → two time prompts":** the coaching logic is correct
+  (node 39 first-dose, then the unconditional node 48 spirometry). Both
+  questions' text is **empty in every export**. Formatted messages only have a
+  `Text (html):` Report row, and the parser/enrich copy only `Text (plain):`.
+  Handed to **Warden** (his area, Raul's call; I reverted my parser patch and
+  mailed it as a suggestion). Next: re-attach a fixed export to the demo and
+  re-walk Welcome.
+- ~11:55: Warden put the HTML-text fallback in `enrich_bundle.py`; it goes into
+  the new export he's finishing. The mailbox listener is armed (Monitor) and part of
+  my wake-up sequence (`context/README.md`, also in `wake_prompt.txt`).
+- **~13:00: Welcome re-walk passes on the newest export** (`20260929-111706`,
+  which Warden re-enriched in place at 12:28, coherence ok, 0 text-less
+  messages). It's added to the demo as a 2nd coaching "ALEX v01 (export
+  0929-111706, newest)"; the old one is kept. Via the public URL: puffs question
+  shown → One Puff → first-dose time question WITH text → spirometry time
+  question WITH text → incentive question. 0 errors.
+- **~13:40: source-coaching label (per Warden's 'PMCP coachings' mail).** An
+  attached coaching.json now shows which PMCP coaching it came from:
+  a chip by the title and in the /coachings list (`alex-live · LIVE` in
+  warn colour; `alex-sandbox`/`sandbox` neutral), plus a "PMCP coaching" row in
+  Statistics. Exact-name lookup (`storage.PMCP_COACHINGS`, never by prefix).
+  Older bundles get the name backfilled from their stored json on first load.
+  4 new tests, 111 OK. Not on the demo yet (it needs a restart, which logs Raul
+  out).
+- **~14:00: Chat tab "Engine assumptions" panel** (Mirror's cfa2c7e): a
+  collapsible block under the controls, labelled "unverified PMCP behaviour",
+  with one generic `data-setting` checkbox per assumption. First entry: A2
+  `same_pass_visibility` (default on). Verified on throwaway :8011 (stopped):
+  default on, unchecking persists `false` and survives reload, 0 errors.
+  A1/A3 are one HTML line each when Mirror adds them.
+- **Uncommitted (app/, mine):** coaching_sim.js, style.css (var names, typed
+  input), storage.py, __init__.py, coaching_view.html, coachings.html,
+  tests/test_pmcp_coaching_label.py.
 
 Details below, newest at the bottom.
 
