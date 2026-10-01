@@ -7,6 +7,16 @@ workstreams" section — this file is the checklist, that's the writeup.
 
 ## ▶ 2026-10-01: Raul's decisions
 
+- [ ] **Masculine version of ALL messages** (Loom, **top priority** while
+      the BEFORE export runs; offline, no API, no PMCP writes).
+      - Scope: every ro-RO message in alex-live `20260930-143134`, then
+        alex-sandbox.
+      - Rules handle marked alternations (`x/ă`, `x(ă)`). Unmarked or
+        ambiguous cases go to a review list.
+      - Output: a CSV (original vs masculine, plus a changed flag) and a
+        report.
+      - Raul's task-2 CSV is checked report-only, unless Raul says to make
+        it masculine before the apply.
 - [ ] **Task 2 is GO with Raul's own CSV.** Source:
       `/home/raul/projects/rgroups_generated_260930163339.csv` (804 rows).
       Loom copies it into `data/rgroups/` and pins it with `--csv`.
