@@ -27,7 +27,19 @@ workstreams" section — this file is the checklist, that's the writeup.
       - **Order:** Warden takes a fresh BEFORE export (the 09-30 12:33 one
         is suspect), then Loom applies, then Warden takes the AFTER export,
         then Loom diffs them and publishes a new comparison artifact.
-- [ ] **Advisor account: GO, full rights, not read-only** (Smith).
+- [x] **Advisor account: GO, full rights, not read-only** (Smith).
+      **Done in `2543058`.** 122 tests pass, and it was browser-checked on a
+      throwaway instance. Nothing is deployed yet.
+      - **Accounts:** a Users page (admin only) and an Account page (change
+        your own password). Users live in `users.json`, stored as hashes
+        with mode 0600.
+      - **API key:** the server refuses step 3 without a typed key and
+        strips the key from error text.
+      - **Cookies:** SameSite/HttpOnly are on. `Secure` is opt-in through
+        `SESSION_COOKIE_SECURE=1`. It's not in the deploy script yet.
+      - **Raul, after the release tag:** log in as the `.env` admin →
+        Users → create "advisor" (role user) → send the shown password
+        privately.
       - **The API key becomes a per-use input field. It never lives on the
         VPS:** it's not stored or logged, and there's no server fallback.
       - Code goes in `app/` only. Raul deploys with the release tag.
