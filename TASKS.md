@@ -57,7 +57,9 @@ The export is thin, and nobody owned making it richer. Inputs:
 - [ ] Richer export capturing every "needed" row (Warden; Mirror checks
       it, Mason checks the meanings)
 
-**Browser:** Warden's documentation pass comes first. Loom's apply waits.
+**Browser:** Warden's documentation pass comes first. **Loom holds ALL
+work (apply, trial, masculine CSV) until the Simone email task is done**
+(Raul, 10-01). The restart needs Kart's GO.
 
 ## ▶ 2026-10-01: Raul's decisions
 
