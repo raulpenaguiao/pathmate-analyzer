@@ -219,15 +219,19 @@ MESSAGE_SETTINGS_JS = r"""
             : e.tagName === 'INPUT' ? e.value : e.textContent;
     return {kind: e.classList.contains('v-filterselect') ? 'select' : 'text', text: norm(v),
             top: Math.round(r.top), left: Math.round(r.left), disabled: dis(e)};
-  }).filter(x => x.text);
+  }).filter(x => x.text || x.kind === 'select');   // an EMPTY select is a value too
   // label text -> the value shown on its row, right of it (or just below it)
   const valueFor = (lab) => {
     const l = ctl.find(x => x.text.startsWith(lab));
     if (!l) return null;
-    const row = ctl.filter(x => x !== l && x.left > l.left + 40 && Math.abs(x.top - l.top) <= 20);
+    // never another field's caption ('...:') as a value (2026-10-02: an empty
+    // 'Linked intermediate survey' read as 'Message key (must not be unique):')
+    const isLabel = x => x.kind === 'text' && /:$/.test(x.text);
+    const row = ctl.filter(x => x !== l && !isLabel(x) && x.left > l.left + 40
+                                && Math.abs(x.top - l.top) <= 20);
     row.sort((a, b) => (a.kind === 'select' ? 0 : 1) - (b.kind === 'select' ? 0 : 1));
-    const best = row[0] || ctl.find(x => x !== l && x.top > l.top && x.top - l.top <= 40
-                                       && Math.abs(x.left - l.left) < 30);
+    const best = row[0] || ctl.find(x => x !== l && !isLabel(x) && x.top > l.top
+                                       && x.top - l.top <= 40 && Math.abs(x.left - l.left) < 30);
     return best ? {value: best.text, disabled: best.disabled} : null;
   };
   return {
