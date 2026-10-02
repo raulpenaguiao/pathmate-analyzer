@@ -63,7 +63,15 @@ The export is thin, and nobody owned making it richer. Inputs:
       - Results: ok=True, 90/90, 14/14 jumps, 190 rule nodes, 21/21
         senders. The new fields are present and plausible.
       - Change list: `tools/coaching-bundle-export/EXPORT_CHANGES_2026-10-01.md`.
-      - **Waiting on:** Mirror's §6 check and Mason's meanings check.
+      - **Mirror's §6 test (`32c3357`):**
+        - **PASS:** the new rule fields on 21/21 senders, the §6.14 fixes,
+          and §6.7. The 15 loose rules arrive. The engine loads everything.
+        - **NOT YET (Warden's next phase):** §6.1–5, the per-message
+          settings (no-reply value, unanswered minutes, blocks, memory,
+          cascade), plus §6.6 and §6.8–13.
+        - The engine doesn't use the new fields yet. `disabledFields`
+          waits on Simone Q8.
+      - **Waiting on:** Mason's meanings check.
 
       Original brief: Warden's AFTER
       export of alex-sandbox, run with the newest exporter, is the test.
