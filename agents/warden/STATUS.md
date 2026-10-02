@@ -2,18 +2,16 @@
 
 _Updated 2026-10-01 14:25._
 
-## Now (2026-10-01 17:55)
-- **Running: the richer-exporter test** = a full alex-sandbox export with all of today's
-  exporter changes (list: tools/coaching-bundle-export/EXPORT_CHANGES_2026-10-01.md).
-  Path + results to Kart, Mirror and Mason when it's done (~25 min). alex-sandbox now also
-  holds 57 r_ variants from Loom's partial apply.
-- Done today: the annotated editor screenshots (docs/pmcp-ui/screens/, red boxes =
-  Mason's Unknown list), the 50 rule operators, the 25 answer types, 15 loose rules
-  found + kept in exports, 2 scraper bugs fixed (store variable, greyed tabs), a review
-  of Loom's apply (toolbar fine; a selection check was added, c945781).
-- Delay 17:13-17:50: the PMCP session expired and the auto-login couldn't type into
-  the form (nothing submitted); a fresh browser fixed it.
-- Loom is on the back burner (Raul). No GO from me; only Kart/Raul give one.
+## Now (2026-10-02 11:40)
+- **Exporter test PASSED:** `data/exports/coaching_alex-v01-zum-ausprobieren_20261002-111732.json`
+  (alex-sandbox). ok=True, 0 dialog errors, 14/14 jumps, 21/21 senders. New per-sender
+  fields (actionBoxes, answerTabs, disabledFields, microDialogToStartRaw), and the 15 loose
+  rules are included. Sent to Kart, Mirror (coverage) and Mason (meanings).
+- Fixed on the way: top-level menu clicks after a dropdown (045481e; it cost Welcome+Hello).
+- Lesson: run login + open + export as ONE command. Separate steps let the session time
+  out (the 10-02 morning failures; NOT Loom, apologised).
+- Next: the per-message settings (coverage-map §6 items 1-5) as an opt-in phase; it
+  needs every message editor opened (Close = a no-op re-save).
 
 ## Coachings (RULES.md, Raul 09-29)
 alex-live = "ALEX v01 zum Ausprobieren 2" (never changed; a full export needs a
