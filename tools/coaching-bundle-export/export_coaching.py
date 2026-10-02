@@ -28,6 +28,8 @@ Prints total run time.
   export_coaching.py [OUT.json] [--report REPORT.html] [--no-report]
                      [--dialogs-only] [--rules-only] [--no-modals]
                      [--no-variables] [--update-baseline] [--resolve-jumps]
+                     [--message-settings]  (opt-in, ~1 h: every message's editor,
+                      incl. its additional settings -> nodes[].settings)
                      [--allow-noop-resaves]  (alex-live only: a human accepts
                       the editors' no-op re-saves for a full export)
 
@@ -72,6 +74,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 import _browser_lock as BL
+import _dialogs_nav as DN
 import _menu_nav as M
 import _pmcp_safety as S
 import _run_diag as D
@@ -212,6 +215,19 @@ async def sweep_micro_dialogs(page, cdp, wid) -> tuple[list[dict], list[dict]]:
                           "containsSurvey": row["Contains Link To Survey"],
                           "containsRules": row["Contains Rules"]},
             })
+        if RUN.get("messageSettings"):
+            # opt-in (--message-settings): every message's editor, incl. its
+            # additional settings (Mirror's coverage map 6.1-5). Close = a
+            # no-op re-save, so it's gated like the other editor modals.
+            for nd in nodes[-total:] if total else []:
+                if nd["type"] != "message":
+                    continue
+                await _guard(page, lambda: _reenter_micro_dialogs(page))
+                try:
+                    nd["settings"] = await DN.read_message_settings(page, nd["order"])
+                except Exception as e:  # noqa: BLE001
+                    nd["settings"] = None
+                    print(f"  [{seq}] {name} row {nd['order']}: settings not read ({str(e)[:80]})")
         micro_dialogs.append({
             "uid": md_uid, "path": name,
             "name": t["labels"][-1], "folderPath": t["labels"][:-1],
@@ -517,6 +533,15 @@ def coherence_check(bundle: dict, report_html: str | None) -> dict:
                         f"({len(tops)} at top level, {sum(r['kind'] == 'sender' for r in outside)} "
                         f"senders): " + "; ".join(r["caption"][:60] for r in tops))
 
+    # --message-settings: every message must have its settings read
+    if any("settings" in n for n in bundle.get("nodes", [])):
+        msgs = [n for n in bundle["nodes"] if n["type"] == "message"]
+        unread = [n for n in msgs if not n.get("settings")]
+        if unread:
+            ok = False
+            warnings.append(f"MESSAGE SETTINGS MISSING on {len(unread)} of {len(msgs)} messages: "
+                            + "; ".join(f"{n['dialogPath'][:40]} row {n['order']}" for n in unread[:8]))
+
     # every sender found in the rule tree must have been read. A failed
     # sender modal used to be only a printed 'FAILED' line (2026-09-30: 0 of
     # 6 captured, ok = True)
@@ -679,6 +704,7 @@ async def main() -> int:
             r"""(()=>{const m=(document.body?document.body.innerText:'')
                  .match(/Coaching\s+"([^"]+)"/); return m?m[1]:null;})()""")
         RUN["name"] = name
+        RUN["messageSettings"] = False   # set below, after the alex-live gate
         if S.is_protected(name):
             # clean reference copy: export only. Phase 3b and phase 4's
             # modals close editors with 'Close' = a no-op re-save (same
@@ -694,6 +720,11 @@ async def main() -> int:
                       f"A human may pass --allow-noop-resaves for a full export.")
                 flags.add("--no-modals")
                 flags.discard("--resolve-jumps")
+                flags.discard("--message-settings")
+        RUN["messageSettings"] = "--message-settings" in flags
+        if RUN["messageSettings"]:
+            print("  --message-settings: reading every message editor (slow, ~1 h; "
+                  "each Close is a no-op re-save)")
         bundle: dict = {"coaching": {
             "name": name, "languages": ["en-GB", "ro-RO"],
             "scrapedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z")}}

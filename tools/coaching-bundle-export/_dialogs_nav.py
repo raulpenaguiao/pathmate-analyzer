@@ -36,6 +36,8 @@ Key platform mechanics confirmed live this session:
 """
 from __future__ import annotations
 
+import re
+
 import _rules_nav as R
 
 
@@ -200,6 +202,134 @@ async def reveal_additional_settings(page, window) -> bool:
     await label.click(force=True)
     await page.wait_for_timeout(500)
     return True
+
+
+MESSAGE_SETTINGS_JS = r"""
+() => {
+  const w = [...document.querySelectorAll('.v-window')].pop();
+  if (!w) return null;
+  const norm = s => (s || '').replace(/\s+/g, ' ').trim();
+  const dis = e => e.classList.contains('v-disabled') || !!e.closest('.v-disabled')
+    || !!(e.querySelector('input') || {}).disabled;
+  const boxes = [...w.querySelectorAll('.v-checkbox')].map(c => ({
+    label: norm(c.textContent), checked: !!(c.querySelector('input') || {}).checked, disabled: dis(c)}));
+  const ctl = [...w.querySelectorAll('.v-filterselect, .v-textfield, .v-label, .v-caption')].map(e => {
+    const r = e.getBoundingClientRect();
+    const v = e.classList.contains('v-filterselect') ? (e.querySelector('input') || {}).value
+            : e.tagName === 'INPUT' ? e.value : e.textContent;
+    return {kind: e.classList.contains('v-filterselect') ? 'select' : 'text', text: norm(v),
+            top: Math.round(r.top), left: Math.round(r.left), disabled: dis(e)};
+  }).filter(x => x.text);
+  // label text -> the value shown on its row, right of it (or just below it)
+  const valueFor = (lab) => {
+    const l = ctl.find(x => x.text.startsWith(lab));
+    if (!l) return null;
+    const row = ctl.filter(x => x !== l && x.left > l.left + 40 && Math.abs(x.top - l.top) <= 20);
+    row.sort((a, b) => (a.kind === 'select' ? 0 : 1) - (b.kind === 'select' ? 0 : 1));
+    const best = row[0] || ctl.find(x => x !== l && x.top > l.top && x.top - l.top <= 40
+                                       && Math.abs(x.left - l.left) < 30);
+    return best ? {value: best.text, disabled: best.disabled} : null;
+  };
+  return {
+    caption: norm((w.querySelector('.v-window-header') || {}).textContent),
+    boxes,
+    fields: {
+      channel: valueFor('Channel to use for message sending'),
+      answerType: valueFor('Answer type'),
+      answerOptions: valueFor('Answer options'),
+      storeReplyVariable: valueFor('Store message reply to variable'),
+      noReplyValue: valueFor('Store the following value in case of no reply'),
+      unanswered: valueFor('Minutes after sending until message is handled as unanswered'),
+      linkedSurvey: valueFor('Linked intermediate survey'),
+      messageKey: valueFor('Message key'),
+      randomisationGroup: valueFor('Randomisation group'),
+    },
+  };
+}
+"""
+
+# checkbox caption (exact PMCP text, 2026-10-01) -> the export's key
+_MSG_BOXES = {
+    "This message is a command": "isCommand",
+    "This message expects to be answered": "expectsAnswer",
+    "answer can be cancelled": "answerCancellable",
+    "blocks the micro dialog": "blocksMicroDialog",
+    "sticky in the client": "sticky",
+    "ONLY a push notification": "pushOnly",
+    "ALWAYS announced by a push notification": "alwaysPush",
+    "deactivates and remembers all former open questions": "_mem_deactivate",
+    "recalls former deactivated questions from last deactivation": "_mem_recall_last",
+    "recalls former deactivated questions from most recent still filled": "_mem_recall_filled",
+    "clears the current dialog cascade": "_casc_clear_current",
+    "clears all dialog cascades": "_casc_clear_all",
+    "will not be cleared on clear all": "cascadeProtected",
+}
+
+
+_PUBLIC = {"_mem_deactivate": "memory:deactivate", "_mem_recall_last": "memory:recall_last",
+           "_mem_recall_filled": "memory:recall_most_recent_filled",
+           "_casc_clear_current": "cascade:clear_current", "_casc_clear_all": "cascade:clear_all"}
+
+
+def _unanswered_minutes(text: str | None) -> int | None:
+    m = re.match(r"(\d+)\s*days?,\s*(\d+)\s*hours?,\s*(\d+)\s*minutes?", text or "")
+    return int(m[1]) * 1440 + int(m[2]) * 60 + int(m[3]) if m else None
+
+
+def parse_message_settings(dump: dict) -> dict:
+    """MESSAGE_SETTINGS_JS dump -> the per-message settings record (Mirror's
+    coverage map 6.1-5, field names agreed 2026-10-02): booleans per setting,
+    `memory` and `cascade` as one enum each, `disabled` = settings greyed."""
+    out: dict = {}
+    disabled = []
+    for b in dump.get("boxes") or []:
+        key = next((k for cap, k in _MSG_BOXES.items() if cap in b["label"]), None)
+        if not key:
+            continue
+        out[key] = b["checked"]
+        if b["disabled"]:
+            disabled.append(_PUBLIC.get(key, key))
+    out["memory"] = ("deactivate" if out.pop("_mem_deactivate", False)
+                     else "recall_last" if out.pop("_mem_recall_last", False)
+                     else "recall_most_recent_filled" if out.pop("_mem_recall_filled", False)
+                     else None)
+    out["cascade"] = ("clear_current" if out.pop("_casc_clear_current", False)
+                      else "clear_all" if out.pop("_casc_clear_all", False) else None)
+    for k in ("_mem_deactivate", "_mem_recall_last", "_mem_recall_filled",
+              "_casc_clear_current", "_casc_clear_all"):
+        out.pop(k, None)
+    f = dump.get("fields") or {}
+    val = lambda k: ((f.get(k) or {}).get("value") or None)   # noqa: E731
+    unset = lambda v: None if v in (None, "(no value set)") else v   # noqa: E731
+    for k in ("channel", "answerType", "storeReplyVariable", "noReplyValue",
+              "linkedSurvey", "messageKey", "randomisationGroup"):
+        out[k] = unset(val(k))
+    ut = val("unanswered")
+    out["unansweredText"] = ut
+    out["unansweredInfinite"] = (ut or "").strip().lower() == "infinite"
+    out["unansweredMinutes"] = _unanswered_minutes(ut)
+    out["disabled"] = sorted(set(disabled))
+    return out
+
+
+async def read_message_settings(page, row_index: int) -> dict | None:
+    """Open the message editor of row `row_index`, reveal its additional
+    settings, read everything (parse_message_settings), and close it with
+    Close - a NO-OP RE-SAVE (the only dismiss). Callers gate this like the
+    other editor modals (never on alex-live without --allow-noop-resaves).
+    Returns None if the editor didn't open."""
+    if not await open_row_editor(page, row_index):
+        return None
+    win = page.locator(".v-window").last
+    try:
+        await reveal_additional_settings(page, win)
+        await page.wait_for_timeout(500)
+        dump = await page.evaluate(MESSAGE_SETTINGS_JS)
+    finally:
+        await R.close_windows(page)
+    if not dump or "message" not in (dump.get("caption") or "").lower():
+        return None
+    return parse_message_settings(dump)
 
 
 async def close_editor(page, window) -> bool:
