@@ -505,9 +505,25 @@ async def navigate_and_select(page, labels: list[str]):
         await close_menus(page)
         top, ov = await _bar_item(page, labels[0])
         if top is not None:
-            await page.mouse.move(3, 3)
-            await top.click(timeout=8000)
-            return
+            # a bar item clicked while the menubar is still 'active' (a
+            # dropdown was just used, e.g. START > PLAYGROUND) only toggles
+            # the bar and selects nothing (2026-10-02: Welcome and Hello
+            # failed right after it). Deactivate first by clicking away, then
+            # verify the breadcrumb and click once more if needed.
+            for attempt in (1, 2, 3):
+                await close_menus(page)
+                spot = await page.evaluate(NEUTRAL_JS)
+                if spot:
+                    await page.mouse.click(*spot)
+                    await page.wait_for_timeout(300 * attempt)
+                await page.mouse.move(3, 3)
+                await top.click(timeout=8000)
+                for _ in range(25):
+                    await page.wait_for_timeout(200)
+                    if await page.evaluate(BREADCRUMB_JS) == labels[0]:
+                        return
+                await close_menus(page)
+            return   # the caller's wait_dialog_ready reports it if still wrong
         if ov is None:
             await _raise_missing_top(page, labels[0], "top item")
         # a top-level dialog collapsed into `►`: click it in the overflow list
