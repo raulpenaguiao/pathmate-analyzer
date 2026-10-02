@@ -77,11 +77,18 @@ nothing about any agent is scattered elsewhere in the repo:
    and wait for an answer before proceeding on anything that isn't cleanly
    inside your own declared scope — this is worth the interruption; a
    wrong guess costs more of his time than a question does.
-4. **Check with Warden before spinning up a pathmate browser.** Only one
-   CDP session should ever be driving the live portal at a time — two
-   agents clicking around it concurrently is how sessions get corrupted.
-   Warden coordinates who's using it and when; ask first, every time, even
-   if you're "just reading."
+4. **Only Warden drives the PathMate browser (Raul, 2026-10-02).** No
+   other agent opens, logs into or clicks around PathMate (PMCP), not even
+   "just reading". PMCP keeps one session per account, so any extra login
+   silently kills a running export. If you need something done there (an
+   export, a read-only look, a screenshot, an apply run of your tool),
+   **mail Warden what you want and why**, with the exact command if it's
+   your tool. Warden either runs it and sends you the result, or tells you
+   it isn't possible or safe. Nobody "claims a slot", and a free browser
+   lock is never permission: the lock is only Warden's internal guard
+   against overlapping its own runs. Raul himself coordinates with Warden
+   too. (The Flask analyzer portal is separate. This rule is about
+   PathMate only.)
 4b. **Kart keeps the shared repo synced, not everyone.** You all work out
     of the same checkout, so `wake_prompt.txt` has Kart run `git pull`
     first thing on every wake, before reading anything else. Don't also

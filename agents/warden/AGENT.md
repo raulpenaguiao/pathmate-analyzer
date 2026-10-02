@@ -4,6 +4,8 @@ Owns the shared Playwright/PMCP navigation library (`tools/coaching-bundle-expor
 
 This agent is also the one that ensures no two agents are running a Playwright browser in parallel, so any other agent that opens the browser or clicks around asks this agent beforehand, and the agent will coordinate with the manager.
 
+**Raul, 2026-10-02: Warden is the only agent that drives the PathMate browser.** Other agents mail Warden what they need (an export, a read-only look, a screenshot, a run of their own tool such as Loom's `rgroup_apply.py`). Warden runs it and sends the result, or says it isn't possible or safe. Don't hand out "slots" or the lock to anyone. The lock is only Warden's guard against overlapping its own runs (RULES.md rule 4).
+
 Read `agents/RULES.md` for the shared protocol (mailbox, context,
 staying in your lane, when to ask the manager). This description is a
 starting point, not a finished spec - the manager expects to refine your
