@@ -2,9 +2,10 @@
 
 **Owner:** Mirror. This is a living document: update it whenever an export,
 a screenshot, a live look or a PathMate answer changes a row.
-**Last checked:** 2026-10-01, against
-`data/exports/coaching_alex-v01-zum-ausprobieren-2_20261001-134557.json`
-(alex-live).
+**Last checked:** 2026-10-02, against
+`data/exports/coaching_alex-v01-zum-ausprobieren_20261002-111732.json`
+(alex-sandbox, the richer exporter). §1–§5 were first built on the 1 Oct
+alex-live export.
 
 The map has one row per option in the PMCP editor, grouped by object.
 
@@ -73,7 +74,8 @@ Two results that come from the export itself, not from the editor:
 | Execution type: DAILY BASIS | yes (`section`) | now | doc: runs at 00:00, and later sends wait for their hour | — |
 | Execution type: PERIODIC BASIS | yes | now | doc: runs "approximately every few seconds" | the order of rules within one pass (same-pass visibility is pile-up test A2, now an engine switch) |
 | Execution type: USER INTENTION | yes (2 rules) | later | doc: in-app actions set `$participantIntention` | the engine never runs this tree; it needs a "user action" input |
-| Execution type: UNEXPECTED MESSAGE | **no** (not among the export's sections) | later | doc: free text arriving with no open question | Does ALEX have none, or does the exporter miss the section? |
+| Execution type: UNEXPECTED MESSAGE | yes, if present: the exporter recognises it; alex-sandbox simply has none (checked 2 Oct) | later | doc: free text arriving with no open question | — |
+| Rules outside the 4 sections ("NO EXECUTION SECTION") | yes (since cd25e59; 15 rules, 5 of them senders) | now | inferred from the name: never run | The engine doesn't run them. Do they really never run? |
 | Rule tree: nesting, order and depth | yes (`ruleTree`, `depth`, `parentUid`) | now | doc: a child rule ANDs with its parent, and siblings are separate (OR) | — |
 | Condition (x, operator, y) | yes (`expr`, structured) | now | doc: operators are in `rules.md` §3 | JS-snippet rules can't be evaluated |
 | Pure condition (no action box ticked) | yes (`kind: condition`) | now | live | — |
@@ -83,10 +85,10 @@ Two results that come from the export itself, not from the editor:
 | Action: stop the run + finish the coaching | yes | later | inferred: it ends the coaching | The engine only logs it. ALEX must never use it. |
 | Hour to send message | yes (`sendHourVariable` / `sendHourClock`) | now | doc + live: a decimal hour, 0 = immediately | What happens if the hour has already passed, or two dialogs are due at once (PathMate Q7). The engine fires late the same day. |
 | Not-answered time (minutes) | yes (`notAnsweredTimeoutMinutes`) | now | live: disabled on 28 of 36 "Start micro dialog" rules; the only non-default value is on the one "Send message" rule | It covers which messages? (Q8). **The engine applies it to every sender's questions, including rules where the editor disables it.** |
-| Store result variable | partial: it reads "Test (expects NO answer)", the message-group text | soon | unknown | Is it a scraper bug (it duplicates `messageGroup`)? |
+| Store result variable | yes (`storeResultVariable`); the message-group bug was fixed in 2fbd15b | soon | unknown | — |
 | Rules if participant DOES answer | partial: captions only (`doesAnswerRules`, 1 rule) | soon | unknown | When do they run (Q8)? A caption is not an evaluable expression. |
 | Rules if participant DOES NOT answer | partial: captions only (1 rule) | soon | unknown | Do they run once, after the not-answered time (Q8)? This is pile-up test A3. |
-| Field enabled / disabled state | yes (`disabledFields`, `answerTabs[].disabled`) | no | live | `answerTabs.disabled` is False on all 37 rules, yet Mason saw them greyed out. Does the scraper read the wrong attribute? |
+| Field enabled / disabled state | yes (`actionBoxes`, `disabledFields`, `answerTabs[].disabled`, fixed in 2fbd15b) | soon | live: answer tabs are disabled on all 19 dialog-start senders and enabled on both send-message ones | Does a disabled field still have an effect? If not, the engine should skip the rule timeout where `notAnsweredTimeout` is disabled. |
 | Comment | no (empty on 37 of 37 sending rules) | no | — | — |
 
 ## 2. Micro dialogs (properties)
@@ -175,8 +177,8 @@ Report, so they need a read of each message's editor.
    covers pile-up test A1.
 6. **Rules: DOES / DOES NOT answer as evaluable expressions**, not just
    captions. Export them with the same structured `expr` the rule tree uses.
-7. **Rules: the UNEXPECTED MESSAGE section**, if it exists (check whether
-   it's missing or empty).
+7. ~~Rules: the UNEXPECTED MESSAGE section~~: done; the exporter handles
+   it, and alex-sandbox has none.
 8. **Micro dialogs: Identifier, variable prefix, assigned units.** The
    identifier also gives stable ids across exports.
 9. **Messages: Message key**, the looped-message identifier.
@@ -188,10 +190,9 @@ Report, so they need a read of each message's editor.
 12. **Decision points: "Update transition point".**
 13. **Events: comment, identifiers, rules.** Make sure the exporter emits
     event nodes at all.
-14. **Fixes to check:**
-    - `storeResultVariable` shows the message-group text;
-    - `answerTabs[].disabled` is False on all 37 rules, but Mason saw the
-      tabs greyed out.
+14. ~~Fixes to check~~: both fixed in 2fbd15b and verified on the 2 Oct
+    export (`storeResultVariable` is null on 21 of 21 rules; answer tabs
+    are disabled on 19 of 19 dialog-start senders).
 
 ## 7. Open meanings (for Mason and PathMate)
 
