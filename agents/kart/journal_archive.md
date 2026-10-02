@@ -24,15 +24,17 @@ processes and exports.
   It has 20 red-box questions and all 50 rule comparison operators.
 - **The Simone email is ready** (Herald v10, 22 questions, with screenshot
   attachments). **You send it.**
-- **Big finding:** the 15 v02 medication rules in alex-sandbox sit outside
-  the 4 execution sections. They were misplaced during the September
-  build. **They probably never fired.** Moving them is on Mason's fix-up
-  list, and it's also question 1 to Simone.
+- **Finding, CORRECTED 10-02 (Mason):** the 15 top-level rules in alex-sandbox
+  are **stray copies**. The real medication chains sit correctly under
+  PERIODIC BASIS, so the reminders can fire. The strays should be
+  **deleted**, and 2 of them have "Send message" ticked. Whether PMCP runs
+  top-level rules at all is still question 1 to Simone.
 - **Task 2 (your CSV → alex-sandbox) is partly applied: 57 of 793
   variants.** It stopped cleanly on a toolbar issue in the spirometry
   dialog. Warden reviewed the cause and the fix. Loom is fully idle until
   your go.
-- **The richer exporter has NOT been tested yet:**
+- **The richer exporter: test PASSED 10-02 11:37** (`20261002-111732`: 90/90,
+  14/14 jumps, 21/21 senders, new fields plausible). Before that:
   - The overnight run ended PARTIAL, because the machine slept and the
     session expired.
   - The 11:05 run failed at login.

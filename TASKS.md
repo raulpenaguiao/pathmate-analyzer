@@ -45,15 +45,27 @@ The export is thin, and nobody owned making it richer. Inputs:
       - the 3 "Fire medication dose N reminder" senders
 
       The exporter used to drop them silently. They now export with a
-      warning (`cd25e59`). **Question: do they run at all?** Mason to
-      answer.
+      warning (`cd25e59`).
+      **CORRECTED 10-02 (Mason):** these are **stray copies**. The real
+      medication chains (gates 1–5 plus sender, ×3 doses) are correctly
+      under PERIODIC BASIS, so the reminders can fire.
+      - The strays get **deleted, not moved** (in `build-steps`).
+      - 2 strays have "Send message" ticked.
+      - Whether PMCP runs top-level rules at all stays as Simone Q1.
 - [x] "Leaves" was always 0, because it counted failed expands. It now
       means rules without child rules (`cd25e59`).
 - [ ] Richer export (Warden):
       - [x] the disabled state per sender field (`da60101`)
       - [ ] next: variable dialog targets
         (`$participantNextMicroDialogIdentifier`), then Mirror's §6 list
-- [ ] **Test the richer export** (Raul, after task 2). Warden's AFTER
+- [ ] **Test the richer export** (Raul, after task 2). **Warden's run
+      PASSED (10-02 11:37):** `coaching_alex-v01-zum-ausprobieren_20261002-111732.json`.
+      - Results: ok=True, 90/90, 14/14 jumps, 190 rule nodes, 21/21
+        senders. The new fields are present and plausible.
+      - Change list: `tools/coaching-bundle-export/EXPORT_CHANGES_2026-10-01.md`.
+      - **Waiting on:** Mirror's §6 check and Mason's meanings check.
+
+      Original brief: Warden's AFTER
       export of alex-sandbox, run with the newest exporter, is the test.
       - Mirror checks it against coverage map §6: arrives / plausible /
         the engine loads it.
