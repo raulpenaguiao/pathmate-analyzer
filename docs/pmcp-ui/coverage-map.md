@@ -75,7 +75,7 @@ Two results that come from the export itself, not from the editor:
 | Execution type: PERIODIC BASIS | yes | now | doc: runs "approximately every few seconds" | the order of rules within one pass (same-pass visibility is pile-up test A2, now an engine switch) |
 | Execution type: USER INTENTION | yes (2 rules) | later | doc: in-app actions set `$participantIntention` | the engine never runs this tree; it needs a "user action" input |
 | Execution type: UNEXPECTED MESSAGE | yes, if present: the exporter recognises it; alex-sandbox simply has none (checked 2 Oct) | later | doc: free text arriving with no open question | — |
-| Rules outside the 4 sections ("NO EXECUTION SECTION") | yes (since cd25e59; 15 rules, 5 of them senders) | now | inferred from the name: never run | The engine doesn't run them. Do they really never run? |
+| Rules outside the 4 sections ("NO EXECUTION SECTION") | yes (since cd25e59; on alex-sandbox: 15 stray copies, due to be deleted per Mason) | now | unknown | Does PMCP run top-level rules? (PathMate Q1). The engine doesn't run them; that's an assumption. |
 | Rule tree: nesting, order and depth | yes (`ruleTree`, `depth`, `parentUid`) | now | doc: a child rule ANDs with its parent, and siblings are separate (OR) | — |
 | Condition (x, operator, y) | yes (`expr`, structured) | now | doc: operators are in `rules.md` §3 | JS-snippet rules can't be evaluated |
 | Pure condition (no action box ticked) | yes (`kind: condition`) | now | live | — |
@@ -234,6 +234,7 @@ confirms it.
 | Randomisation groups | Every group is random; one seeded pick per run | doc for `r_` groups; looped groups aren't modelled |
 | Time / date answers | Time is a decimal hour; dates are dd.mm.yyyy as typed | doc (time); assumption (date) |
 | Multilingual variables | The sim language's part of `en-GB: … / ro-RO: …` | assumption |
+| Rules outside the 4 sections | Never run | assumption; PathMate Q1 |
 | Send hour already passed | Fires on the next tick the same day, once per day | assumption; PathMate Q7 |
 
 ## 9. Questions to ask about each dialog
