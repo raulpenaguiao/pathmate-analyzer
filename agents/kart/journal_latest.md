@@ -32,10 +32,9 @@ processes and exports.
   - The overnight run ended PARTIAL, because the machine slept and the
     session expired.
   - The 11:05 run failed at login.
-  - A second PMCP login silently ended Warden's session, because PMCP
-    allows one session per account. Warden attributed it to Loom. Loom
-    says its last PMCP activity was 10-01 16:55, and that the Chromium on
-    :9222 (started 18:55) isn't its own. **Not yet settled.**
+  - Warden's own login and export ran as separate commands about 1 h
+    apart, so the session timed out. **Loom was not the cause**
+    (Warden's correction). Login, open and export now run as one command.
 
   Warden is retrying.
 - **The advisor account is built** (Smith `2543058`): Users page,
@@ -68,7 +67,7 @@ processes and exports.
 
 **Went wrong:** I reported Loom as "on hold" from its own mail. My hold
 mail had allowed "small fixes", so Loom kept committing, and later logged
-into PMCP, per Warden (Loom disputes it; not settled). **Now:** I verify with processes, the lock and git before
+into PMCP, per Warden; Warden has since withdrawn that. **Now:** I verify with processes, the lock and git before
 reporting, and "hold" means no work at all, including no PMCP login.
 
 ## Warden: browser access and safeguards
